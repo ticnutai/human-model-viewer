@@ -82,38 +82,65 @@ const THEMES: Theme[] = [
   },
 ];
 
-// Y-range mapping for GLB layer simulation (approximate body regions)
-const LAYER_Y_RANGES: Record<string, [number, number]> = {
-  skeleton: [-2, 3],    // full body (bones everywhere)
-  muscles: [-0.5, 1.5], // torso + arms
-  organs: [-0.5, 1.2],  // abdomen + thorax
-  vessels: [-0.8, 1.5], // full torso
+// Keyword-based mapping of mesh names to layer types
+const LAYER_KEYWORDS: Record<LayerType, string[]> = {
+  skeleton: ["bone", "skeleton", "skull", "rib", "spine", "vertebr", "pelvis", "femur", "tibia", "fibula", "humerus", "radius", "ulna", "clavicle", "scapula", "sternum", "patella", "mandible", "maxilla", "cranium", "sacrum", "coccyx", "carpals", "metacarpal", "phalanx", "tarsals", "metatarsal", "skeletal", "osseous"],
+  muscles: ["muscle", "muscl", "bicep", "tricep", "deltoid", "pectoral", "abdominal", "gluteus", "quadricep", "hamstring", "calf", "gastrocnemius", "soleus", "trapezius", "latissimus", "rectus", "oblique", "diaphragm", "tendon", "ligament", "fascia", "muscular"],
+  organs: ["heart", "lung", "liver", "kidney", "stomach", "intestin", "pancreas", "spleen", "bladder", "brain", "colon", "esophag", "trachea", "thyroid", "adrenal", "gallbladder", "appendix", "uterus", "ovary", "prostate", "organ", "viscera"],
+  vessels: ["artery", "vein", "vessel", "aorta", "vascular", "capillar", "blood", "venous", "arterial", "carotid", "jugular", "pulmonary_artery", "pulmonary_vein", "vena_cava", "portal", "hepatic_vein", "renal_artery", "coronary", "lymph"],
 };
+
+function classifyMeshToLayer(meshName: string): LayerType | null {
+  const lower = meshName.toLowerCase();
+  for (const [layer, keywords] of Object.entries(LAYER_KEYWORDS) as [LayerType, string[]][]) {
+    if (keywords.some(kw => lower.includes(kw))) return layer;
+  }
+  return null;
+}
 
 function Model({ url, onSelect, selectedMesh, accent, visibleLayers }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string; visibleLayers?: Set<LayerType> }) {
   const gltf = useLoader(GLTFLoader, url);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const originalMaterials = useRef<Map<string, THREE.Material | THREE.Material[]>>(new Map());
+  const meshLayerMap = useRef<Map<string, LayerType | null>>(new Map());
   const layers = visibleLayers ?? new Set<LayerType>(["skeleton", "muscles", "organs", "vessels"]);
   const allVisible = layers.size === 4;
+  // Track if model has separate meshes that map to layers
+  const hasLayeredMeshes = useRef(false);
 
   useEffect(() => {
+    let foundLayered = false;
     sceneClone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         originalMaterials.current.set(mesh.uuid, Array.isArray(mesh.material) ? mesh.material.map(m => m.clone()) : mesh.material.clone());
+        const layer = classifyMeshToLayer(mesh.name);
+        meshLayerMap.current.set(mesh.uuid, layer);
+        if (layer) foundLayered = true;
       }
     });
+    hasLayeredMeshes.current = foundLayered;
   }, [sceneClone]);
 
-  // Apply clipping planes based on visible layers
+  // Apply visibility and materials based on layers
   useEffect(() => {
     sceneClone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         const orig = originalMaterials.current.get(mesh.uuid);
         if (!orig) return;
+        const meshLayer = meshLayerMap.current.get(mesh.uuid);
 
+        // If model has layered meshes → true visibility toggle
+        if (hasLayeredMeshes.current && meshLayer) {
+          mesh.visible = layers.has(meshLayer);
+          if (!mesh.visible) return;
+        } else if (hasLayeredMeshes.current && !meshLayer) {
+          // Unclassified mesh in a layered model → always visible
+          mesh.visible = true;
+        }
+
+        // Apply selection highlight
         if (selectedMesh && mesh.name === selectedMesh) {
           mesh.material = new THREE.MeshStandardMaterial({
             color: new THREE.Color(accent),
@@ -125,18 +152,10 @@ function Model({ url, onSelect, selectedMesh, accent, visibleLayers }: { url: st
           mesh.material = Array.isArray(orig) ? orig.map(m => (m as THREE.Material).clone()) : (orig as THREE.Material).clone();
         }
 
-        // Apply clipping planes when not all layers visible
-        if (!allVisible) {
-          const clippingPlanes: THREE.Plane[] = [];
-          // If organs hidden → clip abdomen/thorax region
-          if (!layers.has("organs")) {
-            clippingPlanes.push(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.5));  // clip from below
-            clippingPlanes.push(new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.2)); // clip from above
-          }
-
+        // Fallback: single-mesh model → tinting simulation
+        if (!hasLayeredMeshes.current && !allVisible) {
           const mat = mesh.material as THREE.MeshStandardMaterial;
           if (mat && mat.isMeshStandardMaterial) {
-            // Apply visual tinting based on active layers
             if (layers.size === 1) {
               const activeLayer = [...layers][0];
               const tints: Record<string, string> = {
