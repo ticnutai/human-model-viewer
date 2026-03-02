@@ -14,6 +14,10 @@ type OrganDetail = {
   kidsFacts: string[];
   kidsFunFact?: string;
   kidsEmoji?: string;
+  // Camera position: where the camera moves to view this organ
+  cameraPos?: [number, number, number];
+  // Look-at point: the anatomical position of the organ in the model
+  lookAt?: [number, number, number];
 };
 
 const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
@@ -38,6 +42,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הלב שלכם חזק כל כך שהוא יכול להתיז מים עד הקומה השלישית!",
     kidsEmoji: "💖",
+    cameraPos: [0.8, 0.4, 2.2], lookAt: [0.15, 0.3, 0],
   },
   lung: {
     name: "הריאות", icon: "🫁",
@@ -60,6 +65,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "אם נפרוש את כל הבועות הקטנטנות שבתוך הריאות, הן יכסו מגרש טניס שלם!",
     kidsEmoji: "🎈",
+    cameraPos: [0, 0.6, 2.5], lookAt: [0, 0.5, 0],
   },
   liver: {
     name: "הכבד", icon: "🫀",
@@ -82,6 +88,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "אפילו אם חותכים ממנו חתיכה גדולה, הוא גדל מחדש כמו זנב של לטאה!",
     kidsEmoji: "🦸",
+    cameraPos: [-0.8, 0.2, 2.2], lookAt: [-0.2, 0.1, 0],
   },
   kidney: {
     name: "הכליות", icon: "🫘",
@@ -104,6 +111,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הכליות שלכם מנקות כמעט 200 ליטר דם כל יום — זה כמו אמבטיה שלמה!",
     kidsEmoji: "🧽",
+    cameraPos: [0, -0.2, 2.0], lookAt: [0, -0.2, 0],
   },
   stomach: {
     name: "הקיבה", icon: "🟤",
@@ -126,6 +134,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הקיבה שלכם מייצרת ריר חדש כל כמה ימים כדי להגן על עצמה — כמו שריון קסום!",
     kidsEmoji: "🌀",
+    cameraPos: [0.3, -0.1, 2.2], lookAt: [0.1, -0.1, 0],
   },
   brain: {
     name: "המוח", icon: "🧠",
@@ -148,6 +157,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "המוח שלכם משתמש באותה כמות חשמל כמו נורה קטנה — אבל הוא חכם פי מיליון!",
     kidsEmoji: "🌟",
+    cameraPos: [0, 1.8, 2.0], lookAt: [0, 1.5, 0],
   },
   intestine: {
     name: "המעי הדק", icon: "🔄",
@@ -170,6 +180,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "המעי הדק ארוך כל כך שהוא מתכופף בתוך הבטן כמו סליל ענק!",
     kidsEmoji: "🎢",
+    cameraPos: [0, -0.5, 2.5], lookAt: [0, -0.5, 0],
   },
   colon: {
     name: "המעי הגס", icon: "🔄",
@@ -192,6 +203,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "בתוך המעי הגס שלכם יש יותר חיידקים ממה שיש כוכבים בשביל החלב!",
     kidsEmoji: "🧺",
+    cameraPos: [0, -0.7, 2.5], lookAt: [0, -0.7, 0],
   },
   spleen: {
     name: "הטחול", icon: "🟣",
@@ -214,6 +226,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "אפשר לחיות בלי טחול — אבל הגוף יצטרך לעבוד קצת יותר קשה כדי להגן עליכם!",
     kidsEmoji: "🔍",
+    cameraPos: [-0.6, 0, 2.0], lookAt: [-0.3, 0, 0],
   },
   pancreas: {
     name: "הלבלב", icon: "🟡",
@@ -236,6 +249,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הלבלב הוא המנהל של הסוכר בגוף — הוא מחליט כמה סוכר ישאר בדם!",
     kidsEmoji: "👨‍🍳",
+    cameraPos: [-0.4, -0.1, 2.0], lookAt: [-0.15, -0.1, 0],
   },
   bladder: {
     name: "שלפוחית השתן", icon: "💧",
@@ -258,6 +272,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "כשאתם ישנים, השלפוחית מתרחבת יותר כדי שלא תצטרכו לקום בלילה!",
     kidsEmoji: "🎈",
+    cameraPos: [0, -1.0, 2.0], lookAt: [0, -1.0, 0],
   },
   bone: {
     name: "העצמות", icon: "🦴",
@@ -280,6 +295,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "תינוקות נולדים עם יותר עצמות ממבוגרים! חלק מהעצמות מתחברות ביחד כשגדלים.",
     kidsEmoji: "🏗️",
+    cameraPos: [0, 0, 4.0], lookAt: [0, 0, 0],
   },
   skull: {
     name: "הגולגולת", icon: "💀",
@@ -302,6 +318,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הגולגולת שלכם עשויה מ-22 חלקים שמחוברים כמו פאזל — אי אפשר לפרק אותה!",
     kidsEmoji: "⛑️",
+    cameraPos: [0, 2.0, 1.8], lookAt: [0, 1.7, 0],
   },
   muscle: {
     name: "השרירים", icon: "💪",
@@ -324,6 +341,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "צריך 43 שרירים כדי להזעיף פנים, אבל רק 17 כדי לחייך — אז עדיף לחייך!",
     kidsEmoji: "🏋️",
+    cameraPos: [1.5, 0, 3.0], lookAt: [0, 0, 0],
   },
   aorta: {
     name: "אבי העורקים", icon: "🔴",
@@ -346,6 +364,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הדם שזורם באבי העורקים עושה סיבוב שלם בגוף תוך דקה בלבד!",
     kidsEmoji: "🛣️",
+    cameraPos: [0, 0.2, 2.5], lookAt: [0, 0.1, 0],
   },
   diaphragm: {
     name: "הסרעפת", icon: "🌬️",
@@ -368,6 +387,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "כשמשהו מצחיק אתכם, הסרעפת זזה מהר מאוד — ולכן צחוק גורם לכם לנשום מהר!",
     kidsEmoji: "🤸",
+    cameraPos: [0, -0.3, 2.5], lookAt: [0, -0.3, 0],
   },
 };
 

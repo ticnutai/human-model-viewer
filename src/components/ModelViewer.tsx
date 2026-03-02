@@ -144,19 +144,20 @@ const VIEWS: { position: [number, number, number]; label: string; icon: string }
   { position: [0, 5, 0.1], label: "מלמעלה", icon: "⬆️" },
 ];
 
-function CameraController({ targetPosition }: { targetPosition: [number, number, number] | null }) {
+function CameraController({ targetPosition, targetLookAt }: { targetPosition: [number, number, number] | null; targetLookAt?: [number, number, number] | null }) {
   const { camera } = useThree();
   const animRef = useRef<number | null>(null);
   if (targetPosition) {
     if (animRef.current) cancelAnimationFrame(animRef.current);
     const start = new THREE.Vector3().copy(camera.position);
     const end = new THREE.Vector3(...targetPosition);
+    const lookTarget = targetLookAt ? new THREE.Vector3(...targetLookAt) : new THREE.Vector3(0, 0, 0);
     let t = 0;
     const animate = () => {
       t += 0.04;
-      if (t >= 1) { camera.position.copy(end); camera.lookAt(0, 0, 0); return; }
+      if (t >= 1) { camera.position.copy(end); camera.lookAt(lookTarget); return; }
       camera.position.lerpVectors(start, end, t);
-      camera.lookAt(0, 0, 0);
+      camera.lookAt(lookTarget);
       animRef.current = requestAnimationFrame(animate);
     };
     animate();
@@ -166,6 +167,7 @@ function CameraController({ targetPosition }: { targetPosition: [number, number,
 
 const ModelViewer = () => {
   const cameraTargetRef = useRef<[number, number, number] | null>(null);
+  const cameraLookAtRef = useRef<[number, number, number] | null>(null);
   const [renderKey, setRenderKey] = useState(0);
   const [modelUrl, setModelUrl] = useState(DEFAULT_MODEL);
   const [modelKey, setModelKey] = useState(0);
@@ -179,8 +181,9 @@ const ModelViewer = () => {
 
   const t = THEMES[themeIdx];
 
-  const handleViewChange = useCallback((pos: [number, number, number]) => {
+  const handleViewChange = useCallback((pos: [number, number, number], lookAt?: [number, number, number]) => {
     cameraTargetRef.current = pos;
+    cameraLookAtRef.current = lookAt || null;
     setRenderKey(k => k + 1);
   }, []);
 
@@ -289,6 +292,10 @@ const ModelViewer = () => {
                 onClick={() => {
                   setSelectedOrgan({ ...organ, meshName: key });
                   setShowAtlas(false);
+                  // Zoom camera to organ's anatomical position
+                  if (organ.cameraPos) {
+                    handleViewChange(organ.cameraPos, organ.lookAt);
+                  }
                 }}
                 style={{
                   background: "transparent", border: `1px solid ${t.panelBorder}`,
@@ -453,7 +460,7 @@ const ModelViewer = () => {
         <Suspense fallback={null}>
           <Model url={modelUrl} onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} />
         </Suspense>
-        <CameraController key={renderKey} targetPosition={cameraTargetRef.current} />
+        <CameraController key={renderKey} targetPosition={cameraTargetRef.current} targetLookAt={cameraLookAtRef.current} />
         <OrbitControls
           enableDamping dampingFactor={0.05}
           minDistance={1.5} maxDistance={10}
