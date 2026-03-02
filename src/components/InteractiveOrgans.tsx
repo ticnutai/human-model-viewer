@@ -5,6 +5,8 @@ import { Html, Float } from "@react-three/drei";
 import { ORGAN_DETAILS } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
 
+export type LayerType = "skeleton" | "muscles" | "organs" | "vessels";
+
 type OrganShape = {
   key: string;
   position: [number, number, number];
@@ -13,119 +15,101 @@ type OrganShape = {
   hoverColor: string;
   geometry: "sphere" | "ellipsoid" | "cylinder" | "capsule" | "box" | "torus";
   rotation?: [number, number, number];
-  layer?: number; // depth layer for z-ordering
+  layer?: number;
+  category: LayerType;
 };
 
 // ── Anatomically improved organ definitions ──
 const ORGAN_SHAPES: OrganShape[] = [
   // ── HEAD ──
-  { key: "brain", position: [0, 2.08, 0.02], scale: [0.28, 0.22, 0.26], color: "#e8a0bf", hoverColor: "#f0b8d0", geometry: "ellipsoid", layer: 1 },
-  { key: "skull", position: [0, 2.02, 0], scale: [0.34, 0.32, 0.32], color: "#f5f0e8", hoverColor: "#fff8ee", geometry: "ellipsoid", layer: 0 },
+  { key: "brain", position: [0, 2.08, 0.02], scale: [0.28, 0.22, 0.26], color: "#e8a0bf", hoverColor: "#f0b8d0", geometry: "ellipsoid", layer: 1, category: "organs" },
+  { key: "skull", position: [0, 2.02, 0], scale: [0.34, 0.32, 0.32], color: "#f5f0e8", hoverColor: "#fff8ee", geometry: "ellipsoid", layer: 0, category: "skeleton" },
 
-  // ── NECK (trachea + esophagus visual) ──
-  // Trachea tube
-  { key: "bone", position: [0, 1.55, 0.02], scale: [0.035, 0.2, 0.035], color: "#d0c8b8", hoverColor: "#e0d8c8", geometry: "cylinder" },
+  // ── NECK ──
+  { key: "bone", position: [0, 1.55, 0.02], scale: [0.035, 0.2, 0.035], color: "#d0c8b8", hoverColor: "#e0d8c8", geometry: "cylinder", category: "skeleton" },
 
-  // ── THORAX ──
-  // Rib cage outline (multiple ribs as thin curved shapes)
-  { key: "bone", position: [0.22, 1.1, 0.08], scale: [0.02, 0.015, 0.12], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.3] },
-  { key: "bone", position: [-0.22, 1.1, 0.08], scale: [0.02, 0.015, 0.12], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.3] },
-  { key: "bone", position: [0.25, 0.95, 0.08], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.25] },
-  { key: "bone", position: [-0.25, 0.95, 0.08], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.25] },
-  { key: "bone", position: [0.27, 0.8, 0.07], scale: [0.02, 0.015, 0.14], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.2] },
-  { key: "bone", position: [-0.27, 0.8, 0.07], scale: [0.02, 0.015, 0.14], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.2] },
-  { key: "bone", position: [0.26, 0.65, 0.06], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.15] },
-  { key: "bone", position: [-0.26, 0.65, 0.06], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.15] },
+  // ── RIBS ──
+  { key: "bone", position: [0.22, 1.1, 0.08], scale: [0.02, 0.015, 0.12], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.3], category: "skeleton" },
+  { key: "bone", position: [-0.22, 1.1, 0.08], scale: [0.02, 0.015, 0.12], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.3], category: "skeleton" },
+  { key: "bone", position: [0.25, 0.95, 0.08], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.25], category: "skeleton" },
+  { key: "bone", position: [-0.25, 0.95, 0.08], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.25], category: "skeleton" },
+  { key: "bone", position: [0.27, 0.8, 0.07], scale: [0.02, 0.015, 0.14], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.2], category: "skeleton" },
+  { key: "bone", position: [-0.27, 0.8, 0.07], scale: [0.02, 0.015, 0.14], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.2], category: "skeleton" },
+  { key: "bone", position: [0.26, 0.65, 0.06], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.15], category: "skeleton" },
+  { key: "bone", position: [-0.26, 0.65, 0.06], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.15], category: "skeleton" },
 
-  // Lungs — asymmetric, right slightly larger
-  { key: "lung", position: [0.22, 0.88, 0.01], scale: [0.18, 0.32, 0.16], color: "#f5a0a0", hoverColor: "#ffb8b8", geometry: "ellipsoid" },
-  { key: "lung", position: [-0.22, 0.88, 0.01], scale: [0.2, 0.35, 0.17], color: "#f0989e", hoverColor: "#ffb0b8", geometry: "ellipsoid" },
+  // ── LUNGS ──
+  { key: "lung", position: [0.22, 0.88, 0.01], scale: [0.18, 0.32, 0.16], color: "#f5a0a0", hoverColor: "#ffb8b8", geometry: "ellipsoid", category: "organs" },
+  { key: "lung", position: [-0.22, 0.88, 0.01], scale: [0.2, 0.35, 0.17], color: "#f0989e", hoverColor: "#ffb0b8", geometry: "ellipsoid", category: "organs" },
 
-  // Heart — offset left, tilted
-  { key: "heart", position: [0.06, 0.78, 0.06], scale: [0.1, 0.11, 0.09], color: "#cc3355", hoverColor: "#ee4466", geometry: "sphere", rotation: [0, 0, 0.2] },
+  // ── HEART ──
+  { key: "heart", position: [0.06, 0.78, 0.06], scale: [0.1, 0.11, 0.09], color: "#cc3355", hoverColor: "#ee4466", geometry: "sphere", rotation: [0, 0, 0.2], category: "organs" },
 
-  // Aorta — main artery descending from heart
-  { key: "aorta", position: [0.03, 0.55, -0.02], scale: [0.025, 0.55, 0.025], color: "#dd2244", hoverColor: "#ee3355", geometry: "cylinder" },
-
-  // Aortic arch (horizontal piece at top)
-  { key: "aorta", position: [0.03, 0.85, -0.02], scale: [0.06, 0.02, 0.025], color: "#cc1133", hoverColor: "#dd2244", geometry: "ellipsoid" },
-
-  // Vena cava (blue vein parallel to aorta)
-  { key: "aorta", position: [-0.04, 0.5, -0.03], scale: [0.02, 0.5, 0.02], color: "#4466aa", hoverColor: "#5577cc", geometry: "cylinder" },
+  // ── VESSELS ──
+  { key: "aorta", position: [0.03, 0.55, -0.02], scale: [0.025, 0.55, 0.025], color: "#dd2244", hoverColor: "#ee3355", geometry: "cylinder", category: "vessels" },
+  { key: "aorta", position: [0.03, 0.85, -0.02], scale: [0.06, 0.02, 0.025], color: "#cc1133", hoverColor: "#dd2244", geometry: "ellipsoid", category: "vessels" },
+  { key: "aorta", position: [-0.04, 0.5, -0.03], scale: [0.02, 0.5, 0.02], color: "#4466aa", hoverColor: "#5577cc", geometry: "cylinder", category: "vessels" },
 
   // ── DIAPHRAGM ──
-  { key: "diaphragm", position: [0, 0.5, 0], scale: [0.42, 0.025, 0.24], color: "#d4886b", hoverColor: "#e09a7d", geometry: "ellipsoid" },
+  { key: "diaphragm", position: [0, 0.5, 0], scale: [0.42, 0.025, 0.24], color: "#d4886b", hoverColor: "#e09a7d", geometry: "ellipsoid", category: "muscles" },
 
-  // ── ABDOMEN ──
-  // Liver — large, right side, wedge-shaped
-  { key: "liver", position: [-0.16, 0.36, 0.04], scale: [0.26, 0.1, 0.16], color: "#8b3a3a", hoverColor: "#a04848", geometry: "ellipsoid", rotation: [0, 0.2, -0.15] },
+  // ── LIVER ──
+  { key: "liver", position: [-0.16, 0.36, 0.04], scale: [0.26, 0.1, 0.16], color: "#8b3a3a", hoverColor: "#a04848", geometry: "ellipsoid", rotation: [0, 0.2, -0.15], category: "organs" },
+  { key: "liver", position: [-0.06, 0.28, 0.08], scale: [0.035, 0.05, 0.025], color: "#5a8a3a", hoverColor: "#6a9a4a", geometry: "ellipsoid", category: "organs" },
 
-  // Gallbladder — small, under liver
-  { key: "liver", position: [-0.06, 0.28, 0.08], scale: [0.035, 0.05, 0.025], color: "#5a8a3a", hoverColor: "#6a9a4a", geometry: "ellipsoid" },
+  // ── STOMACH ──
+  { key: "stomach", position: [0.12, 0.3, 0.06], scale: [0.13, 0.1, 0.09], color: "#d4a07a", hoverColor: "#e0b090", geometry: "ellipsoid", rotation: [0, 0, 0.35], category: "organs" },
+  { key: "stomach", position: [0.1, 0.22, 0.06], scale: [0.06, 0.08, 0.06], color: "#c89068", hoverColor: "#d8a078", geometry: "ellipsoid", rotation: [0, 0, 0.5], category: "organs" },
 
-  // Stomach — J-shaped (two overlapping ellipsoids)
-  { key: "stomach", position: [0.12, 0.3, 0.06], scale: [0.13, 0.1, 0.09], color: "#d4a07a", hoverColor: "#e0b090", geometry: "ellipsoid", rotation: [0, 0, 0.35] },
-  { key: "stomach", position: [0.1, 0.22, 0.06], scale: [0.06, 0.08, 0.06], color: "#c89068", hoverColor: "#d8a078", geometry: "ellipsoid", rotation: [0, 0, 0.5] },
+  // ── SPLEEN ──
+  { key: "spleen", position: [0.32, 0.32, -0.04], scale: [0.07, 0.055, 0.04], color: "#7b2d5f", hoverColor: "#9a3d75", geometry: "ellipsoid", rotation: [0, 0, 0.3], category: "organs" },
 
-  // Spleen — left side
-  { key: "spleen", position: [0.32, 0.32, -0.04], scale: [0.07, 0.055, 0.04], color: "#7b2d5f", hoverColor: "#9a3d75", geometry: "ellipsoid", rotation: [0, 0, 0.3] },
+  // ── PANCREAS ──
+  { key: "pancreas", position: [0, 0.2, -0.01], scale: [0.2, 0.035, 0.04], color: "#e8c878", hoverColor: "#f0d888", geometry: "ellipsoid", category: "organs" },
 
-  // Pancreas — elongated horizontal, behind stomach
-  { key: "pancreas", position: [0, 0.2, -0.01], scale: [0.2, 0.035, 0.04], color: "#e8c878", hoverColor: "#f0d888", geometry: "ellipsoid" },
+  // ── KIDNEYS ──
+  { key: "kidney", position: [0.16, 0.1, -0.08], scale: [0.06, 0.09, 0.045], color: "#a04040", hoverColor: "#c05555", geometry: "ellipsoid", rotation: [0, 0, 0.1], category: "organs" },
+  { key: "kidney", position: [-0.16, 0.1, -0.08], scale: [0.06, 0.09, 0.045], color: "#a04040", hoverColor: "#c05555", geometry: "ellipsoid", rotation: [0, 0, -0.1], category: "organs" },
+  { key: "kidney", position: [0.16, 0.17, -0.07], scale: [0.035, 0.02, 0.025], color: "#c89040", hoverColor: "#d8a050", geometry: "ellipsoid", category: "organs" },
+  { key: "kidney", position: [-0.16, 0.17, -0.07], scale: [0.035, 0.02, 0.025], color: "#c89040", hoverColor: "#d8a050", geometry: "ellipsoid", category: "organs" },
+  { key: "kidney", position: [0.12, -0.18, -0.04], scale: [0.012, 0.32, 0.012], color: "#c88080", hoverColor: "#d89898", geometry: "cylinder", rotation: [0, 0, 0.08], category: "organs" },
+  { key: "kidney", position: [-0.12, -0.18, -0.04], scale: [0.012, 0.32, 0.012], color: "#c88080", hoverColor: "#d89898", geometry: "cylinder", rotation: [0, 0, -0.08], category: "organs" },
 
-  // Kidneys — bean-shaped, posterior
-  { key: "kidney", position: [0.16, 0.1, -0.08], scale: [0.06, 0.09, 0.045], color: "#a04040", hoverColor: "#c05555", geometry: "ellipsoid", rotation: [0, 0, 0.1] },
-  { key: "kidney", position: [-0.16, 0.1, -0.08], scale: [0.06, 0.09, 0.045], color: "#a04040", hoverColor: "#c05555", geometry: "ellipsoid", rotation: [0, 0, -0.1] },
+  // ── COLON ──
+  { key: "colon", position: [-0.22, -0.08, 0.02], scale: [0.04, 0.25, 0.04], color: "#c88888", hoverColor: "#d8a0a0", geometry: "cylinder", category: "organs" },
+  { key: "colon", position: [0, 0.05, 0.02], scale: [0.22, 0.04, 0.04], color: "#c88888", hoverColor: "#d8a0a0", geometry: "cylinder", rotation: [0, 0, Math.PI / 2], category: "organs" },
+  { key: "colon", position: [0.22, -0.08, 0.02], scale: [0.04, 0.25, 0.04], color: "#c88888", hoverColor: "#d8a0a0", geometry: "cylinder", category: "organs" },
+  { key: "colon", position: [0.12, -0.28, 0.03], scale: [0.04, 0.1, 0.04], color: "#c08080", hoverColor: "#d09898", geometry: "ellipsoid", rotation: [0, 0, 0.5], category: "organs" },
 
-  // Adrenal glands (small caps on kidneys)
-  { key: "kidney", position: [0.16, 0.17, -0.07], scale: [0.035, 0.02, 0.025], color: "#c89040", hoverColor: "#d8a050", geometry: "ellipsoid" },
-  { key: "kidney", position: [-0.16, 0.17, -0.07], scale: [0.035, 0.02, 0.025], color: "#c89040", hoverColor: "#d8a050", geometry: "ellipsoid" },
+  // ── SMALL INTESTINE ──
+  { key: "intestine", position: [0, -0.12, 0.04], scale: [0.17, 0.16, 0.1], color: "#e8a8a8", hoverColor: "#f0baba", geometry: "ellipsoid", category: "organs" },
+  { key: "intestine", position: [0.06, -0.18, 0.05], scale: [0.1, 0.08, 0.06], color: "#e0a0a0", hoverColor: "#f0b0b0", geometry: "ellipsoid", category: "organs" },
+  { key: "intestine", position: [-0.06, -0.1, 0.05], scale: [0.08, 0.1, 0.06], color: "#e4a4a4", hoverColor: "#f4b4b4", geometry: "ellipsoid", category: "organs" },
 
-  // Ureters (tubes from kidneys to bladder)
-  { key: "kidney", position: [0.12, -0.18, -0.04], scale: [0.012, 0.32, 0.012], color: "#c88080", hoverColor: "#d89898", geometry: "cylinder", rotation: [0, 0, 0.08] },
-  { key: "kidney", position: [-0.12, -0.18, -0.04], scale: [0.012, 0.32, 0.012], color: "#c88080", hoverColor: "#d89898", geometry: "cylinder", rotation: [0, 0, -0.08] },
-
-  // ── INTESTINES ──
-  // Colon — U-shaped frame (ascending, transverse, descending, sigmoid)
-  { key: "colon", position: [-0.22, -0.08, 0.02], scale: [0.04, 0.25, 0.04], color: "#c88888", hoverColor: "#d8a0a0", geometry: "cylinder" }, // ascending
-  { key: "colon", position: [0, 0.05, 0.02], scale: [0.22, 0.04, 0.04], color: "#c88888", hoverColor: "#d8a0a0", geometry: "cylinder", rotation: [0, 0, Math.PI / 2] }, // transverse
-  { key: "colon", position: [0.22, -0.08, 0.02], scale: [0.04, 0.25, 0.04], color: "#c88888", hoverColor: "#d8a0a0", geometry: "cylinder" }, // descending
-  { key: "colon", position: [0.12, -0.28, 0.03], scale: [0.04, 0.1, 0.04], color: "#c08080", hoverColor: "#d09898", geometry: "ellipsoid", rotation: [0, 0, 0.5] }, // sigmoid
-
-  // Small intestine — coiled mass in center
-  { key: "intestine", position: [0, -0.12, 0.04], scale: [0.17, 0.16, 0.1], color: "#e8a8a8", hoverColor: "#f0baba", geometry: "ellipsoid" },
-  // Additional coil detail
-  { key: "intestine", position: [0.06, -0.18, 0.05], scale: [0.1, 0.08, 0.06], color: "#e0a0a0", hoverColor: "#f0b0b0", geometry: "ellipsoid" },
-  { key: "intestine", position: [-0.06, -0.1, 0.05], scale: [0.08, 0.1, 0.06], color: "#e4a4a4", hoverColor: "#f4b4b4", geometry: "ellipsoid" },
+  // ── BLADDER ──
+  { key: "bladder", position: [0, -0.42, 0.06], scale: [0.08, 0.07, 0.065], color: "#a0c8e0", hoverColor: "#b0d8f0", geometry: "sphere", category: "organs" },
 
   // ── PELVIS ──
-  // Bladder
-  { key: "bladder", position: [0, -0.42, 0.06], scale: [0.08, 0.07, 0.065], color: "#a0c8e0", hoverColor: "#b0d8f0", geometry: "sphere" },
-
-  // Pelvis bone outline
-  { key: "bone", position: [0.15, -0.38, 0], scale: [0.12, 0.1, 0.04], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.4] },
-  { key: "bone", position: [-0.15, -0.38, 0], scale: [0.12, 0.1, 0.04], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.4] },
+  { key: "bone", position: [0.15, -0.38, 0], scale: [0.12, 0.1, 0.04], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.4], category: "skeleton" },
+  { key: "bone", position: [-0.15, -0.38, 0], scale: [0.12, 0.1, 0.04], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.4], category: "skeleton" },
 
   // ── SPINE ──
-  { key: "bone", position: [0, 0.5, -0.14], scale: [0.045, 1.3, 0.045], color: "#e8e0d0", hoverColor: "#f0ece0", geometry: "cylinder" },
-  // Vertebral discs
-  { key: "bone", position: [0, 1.0, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder" },
-  { key: "bone", position: [0, 0.7, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder" },
-  { key: "bone", position: [0, 0.4, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder" },
-  { key: "bone", position: [0, 0.1, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder" },
-  { key: "bone", position: [0, -0.2, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder" },
+  { key: "bone", position: [0, 0.5, -0.14], scale: [0.045, 1.3, 0.045], color: "#e8e0d0", hoverColor: "#f0ece0", geometry: "cylinder", category: "skeleton" },
+  { key: "bone", position: [0, 1.0, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder", category: "skeleton" },
+  { key: "bone", position: [0, 0.7, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder", category: "skeleton" },
+  { key: "bone", position: [0, 0.4, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder", category: "skeleton" },
+  { key: "bone", position: [0, 0.1, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder", category: "skeleton" },
+  { key: "bone", position: [0, -0.2, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder", category: "skeleton" },
 
-  // ── MUSCLES (arms) ──
-  // Biceps
-  { key: "muscle", position: [0.52, 0.75, 0.02], scale: [0.07, 0.2, 0.07], color: "#c05050", hoverColor: "#d06060", geometry: "ellipsoid" },
-  { key: "muscle", position: [-0.52, 0.75, 0.02], scale: [0.07, 0.2, 0.07], color: "#c05050", hoverColor: "#d06060", geometry: "ellipsoid" },
-  // Forearms
-  { key: "muscle", position: [0.56, 0.45, 0.01], scale: [0.05, 0.18, 0.05], color: "#b04545", hoverColor: "#c05555", geometry: "ellipsoid" },
-  { key: "muscle", position: [-0.56, 0.45, 0.01], scale: [0.05, 0.18, 0.05], color: "#b04545", hoverColor: "#c05555", geometry: "ellipsoid" },
+  // ── MUSCLES ──
+  { key: "muscle", position: [0.52, 0.75, 0.02], scale: [0.07, 0.2, 0.07], color: "#c05050", hoverColor: "#d06060", geometry: "ellipsoid", category: "muscles" },
+  { key: "muscle", position: [-0.52, 0.75, 0.02], scale: [0.07, 0.2, 0.07], color: "#c05050", hoverColor: "#d06060", geometry: "ellipsoid", category: "muscles" },
+  { key: "muscle", position: [0.56, 0.45, 0.01], scale: [0.05, 0.18, 0.05], color: "#b04545", hoverColor: "#c05555", geometry: "ellipsoid", category: "muscles" },
+  { key: "muscle", position: [-0.56, 0.45, 0.01], scale: [0.05, 0.18, 0.05], color: "#b04545", hoverColor: "#c05555", geometry: "ellipsoid", category: "muscles" },
 
-  // Shoulder joints
-  { key: "bone", position: [0.4, 1.15, 0], scale: [0.05, 0.05, 0.05], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "sphere" },
-  { key: "bone", position: [-0.4, 1.15, 0], scale: [0.05, 0.05, 0.05], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "sphere" },
+  // ── SHOULDERS ──
+  { key: "bone", position: [0.4, 1.15, 0], scale: [0.05, 0.05, 0.05], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "sphere", category: "skeleton" },
+  { key: "bone", position: [-0.4, 1.15, 0], scale: [0.05, 0.05, 0.05], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "sphere", category: "skeleton" },
 ];
 
 // ── Blood vessel network (non-interactive decoration) ──
@@ -513,16 +497,20 @@ export default function InteractiveOrgans({
   onSelect,
   selectedMesh,
   accent,
+  visibleLayers,
 }: {
   onSelect: (detail: OrganDetail) => void;
   selectedMesh: string | null;
   accent: string;
+  visibleLayers?: Set<LayerType>;
 }) {
+  const layers = visibleLayers ?? new Set<LayerType>(["skeleton", "muscles", "organs", "vessels"]);
+
   return (
     <group position={[0, -0.5, 0]}>
       <BodySilhouette />
-      <BloodVessels />
-      {ORGAN_SHAPES.map((shape, i) => (
+      {layers.has("vessels") && <BloodVessels />}
+      {ORGAN_SHAPES.filter(s => layers.has(s.category)).map((shape, i) => (
         <Float
           key={`${shape.key}-${i}`}
           speed={1.5}
