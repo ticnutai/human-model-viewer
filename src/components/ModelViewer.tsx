@@ -82,10 +82,20 @@ const THEMES: Theme[] = [
   },
 ];
 
-function Model({ url, onSelect, selectedMesh, accent }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string }) {
+// Y-range mapping for GLB layer simulation (approximate body regions)
+const LAYER_Y_RANGES: Record<string, [number, number]> = {
+  skeleton: [-2, 3],    // full body (bones everywhere)
+  muscles: [-0.5, 1.5], // torso + arms
+  organs: [-0.5, 1.2],  // abdomen + thorax
+  vessels: [-0.8, 1.5], // full torso
+};
+
+function Model({ url, onSelect, selectedMesh, accent, visibleLayers }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string; visibleLayers?: Set<LayerType> }) {
   const gltf = useLoader(GLTFLoader, url);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const originalMaterials = useRef<Map<string, THREE.Material | THREE.Material[]>>(new Map());
+  const layers = visibleLayers ?? new Set<LayerType>(["skeleton", "muscles", "organs", "vessels"]);
+  const allVisible = layers.size === 4;
 
   useEffect(() => {
     sceneClone.traverse((child) => {
@@ -96,12 +106,14 @@ function Model({ url, onSelect, selectedMesh, accent }: { url: string; onSelect:
     });
   }, [sceneClone]);
 
+  // Apply clipping planes based on visible layers
   useEffect(() => {
     sceneClone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         const orig = originalMaterials.current.get(mesh.uuid);
         if (!orig) return;
+
         if (selectedMesh && mesh.name === selectedMesh) {
           mesh.material = new THREE.MeshStandardMaterial({
             color: new THREE.Color(accent),
@@ -112,9 +124,41 @@ function Model({ url, onSelect, selectedMesh, accent }: { url: string; onSelect:
         } else {
           mesh.material = Array.isArray(orig) ? orig.map(m => (m as THREE.Material).clone()) : (orig as THREE.Material).clone();
         }
+
+        // Apply clipping planes when not all layers visible
+        if (!allVisible) {
+          const clippingPlanes: THREE.Plane[] = [];
+          // If organs hidden → clip abdomen/thorax region
+          if (!layers.has("organs")) {
+            clippingPlanes.push(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.5));  // clip from below
+            clippingPlanes.push(new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.2)); // clip from above
+          }
+
+          const mat = mesh.material as THREE.MeshStandardMaterial;
+          if (mat && mat.isMeshStandardMaterial) {
+            // Apply visual tinting based on active layers
+            if (layers.size === 1) {
+              const activeLayer = [...layers][0];
+              const tints: Record<string, string> = {
+                skeleton: "#f5f0e8",
+                muscles: "#c05050",
+                organs: "#cc3355",
+                vessels: "#dd2244",
+              };
+              mat.color = new THREE.Color(tints[activeLayer]);
+              mat.transparent = true;
+              mat.opacity = 0.7;
+              mat.emissive = new THREE.Color(tints[activeLayer]);
+              mat.emissiveIntensity = 0.15;
+            } else {
+              mat.transparent = true;
+              mat.opacity = 0.85;
+            }
+          }
+        }
       }
     });
-  }, [selectedMesh, sceneClone, accent]);
+  }, [selectedMesh, sceneClone, accent, allVisible, layers]);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -123,7 +167,6 @@ function Model({ url, onSelect, selectedMesh, accent }: { url: string; onSelect:
     if (detail) {
       onSelect(detail);
     } else {
-      // Single-mesh model — show general body info
       onSelect(getFallbackDetail(
         mesh.name,
         "מערכת האיברים הפנימיים",
@@ -567,7 +610,7 @@ const ModelViewer = () => {
           {useInteractive ? (
             <InteractiveOrgans onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} />
           ) : (
-            <Model url={modelUrl} onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} />
+            <Model url={modelUrl} onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} />
           )}
         </Suspense>
         <CameraController key={renderKey} targetPosition={cameraTargetRef.current} targetLookAt={cameraLookAtRef.current} />
