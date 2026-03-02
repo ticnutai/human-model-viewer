@@ -14,7 +14,98 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      dev_migrations: {
+        Row: {
+          applied_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sql_content: string | null
+          status: string
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sql_content?: string | null
+          status?: string
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sql_content?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      model_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
+      models: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          display_name: string
+          file_name: string
+          file_size: number | null
+          id: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          display_name: string
+          file_name: string
+          file_size?: number | null
+          id?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          display_name?: string
+          file_name?: string
+          file_size?: number | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "models_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "model_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

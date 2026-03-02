@@ -3,10 +3,11 @@ import { OrbitControls } from "@react-three/drei";
 import { Suspense, useRef, useCallback, useState, useEffect, useMemo } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
-import { supabase } from "@/integrations/supabase/client";
 import { getOrganDetail, getFallbackDetail } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
 import OrganDialog from "./OrganDialog";
+import ModelManager from "./ModelManager";
+import DevPanel from "./DevPanel";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const DEFAULT_MODEL = `${SUPABASE_URL}/storage/v1/object/public/models/human_organs_1.glb`;
@@ -162,13 +163,11 @@ const ModelViewer = () => {
   const [renderKey, setRenderKey] = useState(0);
   const [modelUrl, setModelUrl] = useState(DEFAULT_MODEL);
   const [modelKey, setModelKey] = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const [modelList, setModelList] = useState<string[]>([]);
   const [showPanel, setShowPanel] = useState(false);
   const [selectedOrgan, setSelectedOrgan] = useState<OrganDetail | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDevPanel, setShowDevPanel] = useState(false);
   const [themeIdx, setThemeIdx] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const t = THEMES[themeIdx];
 
@@ -177,35 +176,10 @@ const ModelViewer = () => {
     setRenderKey(k => k + 1);
   }, []);
 
-  const loadModelList = useCallback(async () => {
-    const { data } = await supabase.storage.from("models").list();
-    if (data) setModelList(data.filter(f => f.name.endsWith(".glb")).map(f => f.name));
-  }, []);
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.name.endsWith(".glb")) return;
-    setUploading(true);
-    const fileName = `${Date.now()}_${file.name}`;
-    const { error } = await supabase.storage.from("models").upload(fileName, file);
-    if (!error) {
-      setModelUrl(`${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`);
-      setModelKey(k => k + 1);
-      await loadModelList();
-    }
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const selectModel = (name: string) => {
-    setModelUrl(`${SUPABASE_URL}/storage/v1/object/public/models/${name}`);
+  const handleSelectModel = useCallback((url: string) => {
+    setModelUrl(url);
     setModelKey(k => k + 1);
-  };
-
-  const togglePanel = () => {
-    if (!showPanel) loadModelList();
-    setShowPanel(p => !p);
-  };
+  }, []);
 
   const btnStyle: React.CSSProperties = {
     background: t.panelBg, backdropFilter: "blur(8px)",
@@ -243,9 +217,7 @@ const ModelViewer = () => {
           <button
             key={view.label}
             onClick={() => handleViewChange(view.position)}
-            style={{
-              ...btnStyle, width: "auto", justifyContent: "flex-start",
-            }}
+            style={{ ...btnStyle, width: "auto", justifyContent: "flex-start" }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.background = t.accentBgHover; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.panelBorder; e.currentTarget.style.background = t.panelBg; }}
           >
@@ -255,12 +227,12 @@ const ModelViewer = () => {
         ))}
       </div>
 
-      {/* Upload panel - top left */}
+      {/* Model Manager panel - top left */}
       <div style={{
         position: "absolute", top: "16px", left: "16px", zIndex: 10,
-        display: "flex", flexDirection: "column", gap: "8px", maxWidth: "220px"
+        display: "flex", flexDirection: "column", gap: "8px", maxWidth: "300px",
       }}>
-        <button onClick={togglePanel} style={{
+        <button onClick={() => setShowPanel(p => !p)} style={{
           ...btnStyle, justifyContent: "center",
           background: showPanel ? t.accentBgHover : t.panelBg,
           borderColor: showPanel ? t.accent : t.panelBorder,
@@ -271,39 +243,13 @@ const ModelViewer = () => {
           <div style={{
             background: t.panelBg, backdropFilter: "blur(12px)",
             border: `1px solid ${t.panelBorder}`, borderRadius: "12px",
-            padding: "12px", display: "flex", flexDirection: "column", gap: "8px"
+            padding: "12px",
           }}>
-            <input ref={fileInputRef} type="file" accept=".glb" onChange={handleUpload} style={{ display: "none" }} />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              style={{
-                ...btnStyle, justifyContent: "center",
-                opacity: uploading ? 0.5 : 1,
-                background: `linear-gradient(135deg, ${t.accentBgHover}, ${t.accentBgHover})`,
-                borderColor: t.accent,
-              }}
-            >
-              {uploading ? "⏳ מעלה..." : "⬆️ העלאת קובץ GLB"}
-            </button>
-            {modelList.length > 0 && (
-              <>
-                <div style={{ color: t.textSecondary, fontSize: "11px", padding: "4px 0 0", textAlign: "right" }}>
-                  מודלים זמינים:
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "200px", overflowY: "auto" }}>
-                  {modelList.map(name => (
-                    <button key={name} onClick={() => selectModel(name)} style={{
-                      ...btnStyle, fontSize: "12px", padding: "8px 10px",
-                      borderColor: modelUrl.includes(name) ? t.accent : t.panelBorder,
-                      background: modelUrl.includes(name) ? t.accentBgHover : t.panelBg,
-                    }}>
-                      🧬 {name.replace(/^\d+_/, "")}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+            <ModelManager
+              theme={t}
+              onSelectModel={handleSelectModel}
+              currentModelUrl={modelUrl}
+            />
           </div>
         )}
       </div>
@@ -353,17 +299,18 @@ const ModelViewer = () => {
             position: "absolute", bottom: "56px", right: 0,
             background: t.panelBg, backdropFilter: "blur(12px)",
             border: `1px solid ${t.panelBorder}`, borderRadius: "14px",
-            padding: "14px", width: "200px", direction: "rtl",
+            padding: "14px", width: "220px", direction: "rtl",
           }}>
+            {/* Theme section */}
             <div style={{
               fontSize: "13px", fontWeight: 700, color: t.textPrimary,
               marginBottom: "10px", textAlign: "right",
             }}>🎨 ערכת נושא</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "14px" }}>
               {THEMES.map((theme, idx) => (
                 <button
                   key={theme.name}
-                  onClick={() => { setThemeIdx(idx); }}
+                  onClick={() => setThemeIdx(idx)}
                   style={{
                     background: idx === themeIdx ? t.accentBgHover : "transparent",
                     border: `1px solid ${idx === themeIdx ? t.accent : t.panelBorder}`,
@@ -384,9 +331,32 @@ const ModelViewer = () => {
                 </button>
               ))}
             </div>
+
+            {/* Divider */}
+            <div style={{ height: "1px", background: t.panelBorder, margin: "4px 0 12px" }} />
+
+            {/* Developer panel button */}
+            <button
+              onClick={() => { setShowDevPanel(true); setShowSettings(false); }}
+              style={{
+                width: "100%", background: t.gradient,
+                border: "none", borderRadius: "8px",
+                padding: "10px 12px", color: "#fff",
+                cursor: "pointer", fontSize: "13px", fontWeight: 600,
+                display: "flex", alignItems: "center", gap: "8px",
+                justifyContent: "center", transition: "opacity 0.2s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+            >
+              🛠️ פאנל מפתחים
+            </button>
           </div>
         )}
       </div>
+
+      {/* Dev Panel */}
+      {showDevPanel && <DevPanel theme={t} onClose={() => setShowDevPanel(false)} />}
 
       {/* 3D Canvas */}
       <Canvas
