@@ -8,6 +8,7 @@ import type { OrganDetail } from "./OrganData";
 import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager";
 import DevPanel from "./DevPanel";
+import InteractiveOrgans from "./InteractiveOrgans";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const DEFAULT_MODEL = `${SUPABASE_URL}/storage/v1/object/public/models/human_organs_1.glb`;
@@ -178,7 +179,7 @@ const ModelViewer = () => {
   const [themeIdx, setThemeIdx] = useState(0);
   const [autoRotate, setAutoRotate] = useState(true);
   const [showAtlas, setShowAtlas] = useState(false);
-
+  const [useInteractive, setUseInteractive] = useState(true);
   const t = THEMES[themeIdx];
 
   const handleViewChange = useCallback((pos: [number, number, number], lookAt?: [number, number, number]) => {
@@ -352,6 +353,21 @@ const ModelViewer = () => {
           {autoRotate ? "⏸️ עצור סיבוב" : "▶️ סיבוב אוטומטי"}
         </button>
 
+        {/* Interactive/GLB model toggle */}
+        <button
+          onClick={() => setUseInteractive(v => !v)}
+          style={{
+            background: t.panelBg, backdropFilter: "blur(8px)",
+            border: `1px solid ${useInteractive ? t.accent : t.panelBorder}`,
+            borderRadius: "999px", padding: "10px 16px",
+            color: useInteractive ? t.accent : t.textSecondary,
+            cursor: "pointer", fontSize: "12px", fontWeight: 600,
+            display: "flex", alignItems: "center", gap: "6px",
+            transition: "all 0.2s",
+          }}
+        >
+          {useInteractive ? "🫀 מודל אינטראקטיבי" : "📦 מודל GLB"}
+        </button>
         <div style={{
           display: "flex", gap: "16px", fontSize: "12px", color: t.textSecondary,
           background: t.hintBg, backdropFilter: "blur(8px)",
@@ -458,7 +474,11 @@ const ModelViewer = () => {
         <directionalLight position={[-5, 3, -5]} intensity={0.4} color={t.accentAlt} />
         <pointLight position={[0, 3, 0]} intensity={0.5} color={t.accent} />
         <Suspense fallback={null}>
-          <Model url={modelUrl} onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} />
+          {useInteractive ? (
+            <InteractiveOrgans onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} />
+          ) : (
+            <Model url={modelUrl} onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} />
+          )}
         </Suspense>
         <CameraController key={renderKey} targetPosition={cameraTargetRef.current} targetLookAt={cameraLookAtRef.current} />
         <OrbitControls
