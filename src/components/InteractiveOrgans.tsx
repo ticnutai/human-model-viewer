@@ -11,31 +11,163 @@ type OrganShape = {
   scale: [number, number, number];
   color: string;
   hoverColor: string;
-  geometry: "sphere" | "ellipsoid" | "cylinder" | "capsule" | "box";
+  geometry: "sphere" | "ellipsoid" | "cylinder" | "capsule" | "box" | "torus";
   rotation?: [number, number, number];
+  layer?: number; // depth layer for z-ordering
 };
 
+// ── Anatomically improved organ definitions ──
 const ORGAN_SHAPES: OrganShape[] = [
-  { key: "brain", position: [0, 2.05, 0], scale: [0.32, 0.25, 0.3], color: "#e8a0bf", hoverColor: "#f0b8d0", geometry: "ellipsoid" },
-  { key: "skull", position: [0, 2.0, 0], scale: [0.38, 0.35, 0.35], color: "#f5f0e8", hoverColor: "#fff8ee", geometry: "ellipsoid" },
-  { key: "lung", position: [0.28, 0.85, 0], scale: [0.22, 0.35, 0.18], color: "#f5a0a0", hoverColor: "#ffb8b8", geometry: "ellipsoid" },
-  { key: "lung", position: [-0.28, 0.85, 0], scale: [0.24, 0.38, 0.19], color: "#f5a0a0", hoverColor: "#ffb8b8", geometry: "ellipsoid" },
-  { key: "heart", position: [0.08, 0.75, 0.05], scale: [0.12, 0.13, 0.1], color: "#cc3355", hoverColor: "#ee4466", geometry: "sphere" },
-  { key: "diaphragm", position: [0, 0.48, 0], scale: [0.45, 0.03, 0.25], color: "#d4886b", hoverColor: "#e09a7d", geometry: "ellipsoid" },
-  { key: "liver", position: [-0.22, 0.32, 0.02], scale: [0.28, 0.12, 0.16], color: "#8b3a3a", hoverColor: "#a04848", geometry: "ellipsoid" },
-  { key: "stomach", position: [0.15, 0.25, 0.05], scale: [0.15, 0.12, 0.1], color: "#d4a07a", hoverColor: "#e0b090", geometry: "ellipsoid", rotation: [0, 0, 0.3] },
-  { key: "spleen", position: [0.35, 0.28, -0.05], scale: [0.08, 0.06, 0.05], color: "#7b2d5f", hoverColor: "#9a3d75", geometry: "ellipsoid" },
-  { key: "pancreas", position: [0, 0.18, -0.02], scale: [0.22, 0.04, 0.05], color: "#e8c878", hoverColor: "#f0d888", geometry: "ellipsoid" },
-  { key: "kidney", position: [0.18, 0.08, -0.08], scale: [0.07, 0.1, 0.05], color: "#a04040", hoverColor: "#c05555", geometry: "ellipsoid" },
-  { key: "kidney", position: [-0.18, 0.08, -0.08], scale: [0.07, 0.1, 0.05], color: "#a04040", hoverColor: "#c05555", geometry: "ellipsoid" },
-  { key: "intestine", position: [0, -0.15, 0.03], scale: [0.22, 0.2, 0.12], color: "#e8a8a8", hoverColor: "#f0baba", geometry: "ellipsoid" },
-  { key: "colon", position: [0, -0.15, 0], scale: [0.3, 0.25, 0.14], color: "#c88888", hoverColor: "#d8a0a0", geometry: "ellipsoid" },
-  { key: "bladder", position: [0, -0.48, 0.06], scale: [0.09, 0.08, 0.07], color: "#a0c8e0", hoverColor: "#b0d8f0", geometry: "sphere" },
-  { key: "aorta", position: [0.02, 0.3, -0.03], scale: [0.03, 0.5, 0.03], color: "#dd2244", hoverColor: "#ee3355", geometry: "cylinder" },
-  { key: "bone", position: [0, 0.5, -0.15], scale: [0.06, 1.2, 0.06], color: "#e8e0d0", hoverColor: "#f0ece0", geometry: "cylinder" },
-  { key: "muscle", position: [0.55, 0.7, 0], scale: [0.08, 0.25, 0.08], color: "#c05050", hoverColor: "#d06060", geometry: "ellipsoid" },
-  { key: "muscle", position: [-0.55, 0.7, 0], scale: [0.08, 0.25, 0.08], color: "#c05050", hoverColor: "#d06060", geometry: "ellipsoid" },
+  // ── HEAD ──
+  { key: "brain", position: [0, 2.08, 0.02], scale: [0.28, 0.22, 0.26], color: "#e8a0bf", hoverColor: "#f0b8d0", geometry: "ellipsoid", layer: 1 },
+  { key: "skull", position: [0, 2.02, 0], scale: [0.34, 0.32, 0.32], color: "#f5f0e8", hoverColor: "#fff8ee", geometry: "ellipsoid", layer: 0 },
+
+  // ── NECK (trachea + esophagus visual) ──
+  // Trachea tube
+  { key: "bone", position: [0, 1.55, 0.02], scale: [0.035, 0.2, 0.035], color: "#d0c8b8", hoverColor: "#e0d8c8", geometry: "cylinder" },
+
+  // ── THORAX ──
+  // Rib cage outline (multiple ribs as thin curved shapes)
+  { key: "bone", position: [0.22, 1.1, 0.08], scale: [0.02, 0.015, 0.12], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.3] },
+  { key: "bone", position: [-0.22, 1.1, 0.08], scale: [0.02, 0.015, 0.12], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.3] },
+  { key: "bone", position: [0.25, 0.95, 0.08], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.25] },
+  { key: "bone", position: [-0.25, 0.95, 0.08], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.25] },
+  { key: "bone", position: [0.27, 0.8, 0.07], scale: [0.02, 0.015, 0.14], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.2] },
+  { key: "bone", position: [-0.27, 0.8, 0.07], scale: [0.02, 0.015, 0.14], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.2] },
+  { key: "bone", position: [0.26, 0.65, 0.06], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.15] },
+  { key: "bone", position: [-0.26, 0.65, 0.06], scale: [0.02, 0.015, 0.13], color: "#e8dcc8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.15] },
+
+  // Lungs — asymmetric, right slightly larger
+  { key: "lung", position: [0.22, 0.88, 0.01], scale: [0.18, 0.32, 0.16], color: "#f5a0a0", hoverColor: "#ffb8b8", geometry: "ellipsoid" },
+  { key: "lung", position: [-0.22, 0.88, 0.01], scale: [0.2, 0.35, 0.17], color: "#f0989e", hoverColor: "#ffb0b8", geometry: "ellipsoid" },
+
+  // Heart — offset left, tilted
+  { key: "heart", position: [0.06, 0.78, 0.06], scale: [0.1, 0.11, 0.09], color: "#cc3355", hoverColor: "#ee4466", geometry: "sphere", rotation: [0, 0, 0.2] },
+
+  // Aorta — main artery descending from heart
+  { key: "aorta", position: [0.03, 0.55, -0.02], scale: [0.025, 0.55, 0.025], color: "#dd2244", hoverColor: "#ee3355", geometry: "cylinder" },
+
+  // Aortic arch (horizontal piece at top)
+  { key: "aorta", position: [0.03, 0.85, -0.02], scale: [0.06, 0.02, 0.025], color: "#cc1133", hoverColor: "#dd2244", geometry: "ellipsoid" },
+
+  // Vena cava (blue vein parallel to aorta)
+  { key: "aorta", position: [-0.04, 0.5, -0.03], scale: [0.02, 0.5, 0.02], color: "#4466aa", hoverColor: "#5577cc", geometry: "cylinder" },
+
+  // ── DIAPHRAGM ──
+  { key: "diaphragm", position: [0, 0.5, 0], scale: [0.42, 0.025, 0.24], color: "#d4886b", hoverColor: "#e09a7d", geometry: "ellipsoid" },
+
+  // ── ABDOMEN ──
+  // Liver — large, right side, wedge-shaped
+  { key: "liver", position: [-0.16, 0.36, 0.04], scale: [0.26, 0.1, 0.16], color: "#8b3a3a", hoverColor: "#a04848", geometry: "ellipsoid", rotation: [0, 0.2, -0.15] },
+
+  // Gallbladder — small, under liver
+  { key: "liver", position: [-0.06, 0.28, 0.08], scale: [0.035, 0.05, 0.025], color: "#5a8a3a", hoverColor: "#6a9a4a", geometry: "ellipsoid" },
+
+  // Stomach — J-shaped (two overlapping ellipsoids)
+  { key: "stomach", position: [0.12, 0.3, 0.06], scale: [0.13, 0.1, 0.09], color: "#d4a07a", hoverColor: "#e0b090", geometry: "ellipsoid", rotation: [0, 0, 0.35] },
+  { key: "stomach", position: [0.1, 0.22, 0.06], scale: [0.06, 0.08, 0.06], color: "#c89068", hoverColor: "#d8a078", geometry: "ellipsoid", rotation: [0, 0, 0.5] },
+
+  // Spleen — left side
+  { key: "spleen", position: [0.32, 0.32, -0.04], scale: [0.07, 0.055, 0.04], color: "#7b2d5f", hoverColor: "#9a3d75", geometry: "ellipsoid", rotation: [0, 0, 0.3] },
+
+  // Pancreas — elongated horizontal, behind stomach
+  { key: "pancreas", position: [0, 0.2, -0.01], scale: [0.2, 0.035, 0.04], color: "#e8c878", hoverColor: "#f0d888", geometry: "ellipsoid" },
+
+  // Kidneys — bean-shaped, posterior
+  { key: "kidney", position: [0.16, 0.1, -0.08], scale: [0.06, 0.09, 0.045], color: "#a04040", hoverColor: "#c05555", geometry: "ellipsoid", rotation: [0, 0, 0.1] },
+  { key: "kidney", position: [-0.16, 0.1, -0.08], scale: [0.06, 0.09, 0.045], color: "#a04040", hoverColor: "#c05555", geometry: "ellipsoid", rotation: [0, 0, -0.1] },
+
+  // Adrenal glands (small caps on kidneys)
+  { key: "kidney", position: [0.16, 0.17, -0.07], scale: [0.035, 0.02, 0.025], color: "#c89040", hoverColor: "#d8a050", geometry: "ellipsoid" },
+  { key: "kidney", position: [-0.16, 0.17, -0.07], scale: [0.035, 0.02, 0.025], color: "#c89040", hoverColor: "#d8a050", geometry: "ellipsoid" },
+
+  // Ureters (tubes from kidneys to bladder)
+  { key: "kidney", position: [0.12, -0.18, -0.04], scale: [0.012, 0.32, 0.012], color: "#c88080", hoverColor: "#d89898", geometry: "cylinder", rotation: [0, 0, 0.08] },
+  { key: "kidney", position: [-0.12, -0.18, -0.04], scale: [0.012, 0.32, 0.012], color: "#c88080", hoverColor: "#d89898", geometry: "cylinder", rotation: [0, 0, -0.08] },
+
+  // ── INTESTINES ──
+  // Colon — U-shaped frame (ascending, transverse, descending, sigmoid)
+  { key: "colon", position: [-0.22, -0.08, 0.02], scale: [0.04, 0.25, 0.04], color: "#c88888", hoverColor: "#d8a0a0", geometry: "cylinder" }, // ascending
+  { key: "colon", position: [0, 0.05, 0.02], scale: [0.22, 0.04, 0.04], color: "#c88888", hoverColor: "#d8a0a0", geometry: "cylinder", rotation: [0, 0, Math.PI / 2] }, // transverse
+  { key: "colon", position: [0.22, -0.08, 0.02], scale: [0.04, 0.25, 0.04], color: "#c88888", hoverColor: "#d8a0a0", geometry: "cylinder" }, // descending
+  { key: "colon", position: [0.12, -0.28, 0.03], scale: [0.04, 0.1, 0.04], color: "#c08080", hoverColor: "#d09898", geometry: "ellipsoid", rotation: [0, 0, 0.5] }, // sigmoid
+
+  // Small intestine — coiled mass in center
+  { key: "intestine", position: [0, -0.12, 0.04], scale: [0.17, 0.16, 0.1], color: "#e8a8a8", hoverColor: "#f0baba", geometry: "ellipsoid" },
+  // Additional coil detail
+  { key: "intestine", position: [0.06, -0.18, 0.05], scale: [0.1, 0.08, 0.06], color: "#e0a0a0", hoverColor: "#f0b0b0", geometry: "ellipsoid" },
+  { key: "intestine", position: [-0.06, -0.1, 0.05], scale: [0.08, 0.1, 0.06], color: "#e4a4a4", hoverColor: "#f4b4b4", geometry: "ellipsoid" },
+
+  // ── PELVIS ──
+  // Bladder
+  { key: "bladder", position: [0, -0.42, 0.06], scale: [0.08, 0.07, 0.065], color: "#a0c8e0", hoverColor: "#b0d8f0", geometry: "sphere" },
+
+  // Pelvis bone outline
+  { key: "bone", position: [0.15, -0.38, 0], scale: [0.12, 0.1, 0.04], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, -0.4] },
+  { key: "bone", position: [-0.15, -0.38, 0], scale: [0.12, 0.1, 0.04], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "ellipsoid", rotation: [0, 0, 0.4] },
+
+  // ── SPINE ──
+  { key: "bone", position: [0, 0.5, -0.14], scale: [0.045, 1.3, 0.045], color: "#e8e0d0", hoverColor: "#f0ece0", geometry: "cylinder" },
+  // Vertebral discs
+  { key: "bone", position: [0, 1.0, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder" },
+  { key: "bone", position: [0, 0.7, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder" },
+  { key: "bone", position: [0, 0.4, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder" },
+  { key: "bone", position: [0, 0.1, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder" },
+  { key: "bone", position: [0, -0.2, -0.14], scale: [0.06, 0.015, 0.06], color: "#d8d0c0", hoverColor: "#e8e0d0", geometry: "cylinder" },
+
+  // ── MUSCLES (arms) ──
+  // Biceps
+  { key: "muscle", position: [0.52, 0.75, 0.02], scale: [0.07, 0.2, 0.07], color: "#c05050", hoverColor: "#d06060", geometry: "ellipsoid" },
+  { key: "muscle", position: [-0.52, 0.75, 0.02], scale: [0.07, 0.2, 0.07], color: "#c05050", hoverColor: "#d06060", geometry: "ellipsoid" },
+  // Forearms
+  { key: "muscle", position: [0.56, 0.45, 0.01], scale: [0.05, 0.18, 0.05], color: "#b04545", hoverColor: "#c05555", geometry: "ellipsoid" },
+  { key: "muscle", position: [-0.56, 0.45, 0.01], scale: [0.05, 0.18, 0.05], color: "#b04545", hoverColor: "#c05555", geometry: "ellipsoid" },
+
+  // Shoulder joints
+  { key: "bone", position: [0.4, 1.15, 0], scale: [0.05, 0.05, 0.05], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "sphere" },
+  { key: "bone", position: [-0.4, 1.15, 0], scale: [0.05, 0.05, 0.05], color: "#e0d8c8", hoverColor: "#f0e8d8", geometry: "sphere" },
 ];
+
+// ── Blood vessel network (non-interactive decoration) ──
+function BloodVessels() {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const t = clock.getElapsedTime();
+    ref.current.children.forEach((child, i) => {
+      const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+      if (mat) {
+        mat.opacity = 0.12 + Math.sin(t * 3 + i * 0.5) * 0.04;
+      }
+    });
+  });
+
+  const vessels = [
+    // Carotid arteries (neck to head)
+    { pos: [0.06, 1.7, 0.03] as [number, number, number], scale: [0.012, 0.25, 0.012] as [number, number, number], color: "#cc2244" },
+    { pos: [-0.06, 1.7, 0.03] as [number, number, number], scale: [0.012, 0.25, 0.012] as [number, number, number], color: "#cc2244" },
+    // Pulmonary arteries
+    { pos: [0.14, 0.82, 0.04] as [number, number, number], scale: [0.015, 0.08, 0.01] as [number, number, number], color: "#4466aa", rot: [0, 0, 0.6] as [number, number, number] },
+    { pos: [-0.14, 0.82, 0.04] as [number, number, number], scale: [0.015, 0.08, 0.01] as [number, number, number], color: "#4466aa", rot: [0, 0, -0.6] as [number, number, number] },
+    // Renal arteries (to kidneys)
+    { pos: [0.08, 0.1, -0.05] as [number, number, number], scale: [0.08, 0.01, 0.01] as [number, number, number], color: "#cc2244", rot: [0, 0, Math.PI / 2] as [number, number, number] },
+    { pos: [-0.08, 0.1, -0.05] as [number, number, number], scale: [0.08, 0.01, 0.01] as [number, number, number], color: "#cc2244", rot: [0, 0, Math.PI / 2] as [number, number, number] },
+    // Iliac arteries (lower)
+    { pos: [0.08, -0.35, -0.02] as [number, number, number], scale: [0.015, 0.15, 0.015] as [number, number, number], color: "#cc2244", rot: [0, 0, 0.15] as [number, number, number] },
+    { pos: [-0.08, -0.35, -0.02] as [number, number, number], scale: [0.015, 0.15, 0.015] as [number, number, number], color: "#cc2244", rot: [0, 0, -0.15] as [number, number, number] },
+  ];
+
+  return (
+    <group ref={ref}>
+      {vessels.map((v, i) => (
+        <mesh key={i} position={v.pos} scale={v.scale} rotation={(v as any).rot || [0, 0, 0]}>
+          <cylinderGeometry args={[1, 1, 1, 8]} />
+          <meshBasicMaterial color={v.color} transparent opacity={0.15} depthWrite={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
 
 // Animated glow ring around selected organ
 function GlowRing({ position, color, size }: { position: [number, number, number]; color: string; size: number }) {
@@ -101,44 +233,72 @@ function BodySilhouette() {
   const ref = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
     if (!ref.current) return;
-    // Subtle breathing animation
     const breathe = 1 + Math.sin(clock.getElapsedTime() * 1.2) * 0.005;
     ref.current.scale.set(1, breathe, 1);
   });
 
   return (
     <group ref={ref}>
-      <mesh position={[0, 2.0, 0]}>
-        <sphereGeometry args={[0.3, 32, 32]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.12} depthWrite={false} />
-      </mesh>
-      <mesh position={[0, 1.6, 0]}>
-        <cylinderGeometry args={[0.08, 0.1, 0.2, 16]} />
+      {/* Head */}
+      <mesh position={[0, 2.02, 0]}>
+        <sphereGeometry args={[0.28, 32, 32]} />
         <meshStandardMaterial color="#2a2a3a" transparent opacity={0.1} depthWrite={false} />
       </mesh>
-      <mesh position={[0, 0.5, 0]}>
-        <cylinderGeometry args={[0.35, 0.28, 1.8, 16]} />
+      {/* Neck */}
+      <mesh position={[0, 1.62, 0]}>
+        <cylinderGeometry args={[0.07, 0.09, 0.18, 16]} />
         <meshStandardMaterial color="#2a2a3a" transparent opacity={0.08} depthWrite={false} />
       </mesh>
-      <mesh position={[0, -0.45, 0]}>
-        <sphereGeometry args={[0.3, 16, 16]} />
+      {/* Torso — tapered */}
+      <mesh position={[0, 0.85, 0]}>
+        <cylinderGeometry args={[0.32, 0.28, 0.7, 16]} />
+        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.07} depthWrite={false} />
+      </mesh>
+      {/* Abdomen */}
+      <mesh position={[0, 0.25, 0]}>
+        <cylinderGeometry args={[0.28, 0.26, 0.8, 16]} />
         <meshStandardMaterial color="#2a2a3a" transparent opacity={0.06} depthWrite={false} />
       </mesh>
-      <mesh position={[0.15, -1.2, 0]}>
-        <cylinderGeometry args={[0.08, 0.06, 1.2, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.06} depthWrite={false} />
+      {/* Pelvis */}
+      <mesh position={[0, -0.35, 0]}>
+        <sphereGeometry args={[0.26, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6]} />
+        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
       </mesh>
-      <mesh position={[-0.15, -1.2, 0]}>
-        <cylinderGeometry args={[0.08, 0.06, 1.2, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.06} depthWrite={false} />
+      {/* Legs */}
+      <mesh position={[0.13, -1.0, 0]}>
+        <cylinderGeometry args={[0.07, 0.055, 1.0, 12]} />
+        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
       </mesh>
-      <mesh position={[0.52, 0.6, 0]} rotation={[0, 0, 0.15]}>
-        <cylinderGeometry args={[0.05, 0.04, 0.8, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.06} depthWrite={false} />
+      <mesh position={[-0.13, -1.0, 0]}>
+        <cylinderGeometry args={[0.07, 0.055, 1.0, 12]} />
+        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
       </mesh>
-      <mesh position={[-0.52, 0.6, 0]} rotation={[0, 0, -0.15]}>
-        <cylinderGeometry args={[0.05, 0.04, 0.8, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.06} depthWrite={false} />
+      {/* Upper arms */}
+      <mesh position={[0.46, 0.9, 0]} rotation={[0, 0, 0.12]}>
+        <cylinderGeometry args={[0.045, 0.035, 0.55, 12]} />
+        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
+      </mesh>
+      <mesh position={[-0.46, 0.9, 0]} rotation={[0, 0, -0.12]}>
+        <cylinderGeometry args={[0.045, 0.035, 0.55, 12]} />
+        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
+      </mesh>
+      {/* Forearms */}
+      <mesh position={[0.52, 0.5, 0]} rotation={[0, 0, 0.05]}>
+        <cylinderGeometry args={[0.035, 0.025, 0.5, 12]} />
+        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.04} depthWrite={false} />
+      </mesh>
+      <mesh position={[-0.52, 0.5, 0]} rotation={[0, 0, -0.05]}>
+        <cylinderGeometry args={[0.035, 0.025, 0.5, 12]} />
+        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.04} depthWrite={false} />
+      </mesh>
+      {/* Clavicles (collarbones) */}
+      <mesh position={[0.2, 1.18, 0.04]} rotation={[0, 0, Math.PI / 2 - 0.15]}>
+        <cylinderGeometry args={[0.015, 0.015, 0.2, 8]} />
+        <meshStandardMaterial color="#3a3a4a" transparent opacity={0.06} depthWrite={false} />
+      </mesh>
+      <mesh position={[-0.2, 1.18, 0.04]} rotation={[0, 0, Math.PI / 2 + 0.15]}>
+        <cylinderGeometry args={[0.015, 0.015, 0.2, 8]} />
+        <meshStandardMaterial color="#3a3a4a" transparent opacity={0.06} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -174,7 +334,6 @@ function OrganMesh({
     const t = clock.getElapsedTime();
     const key = shape.key;
 
-    // Target scale based on state
     const factor = isSelected ? 1.15 : hovered ? 1.08 : 1.0;
     targetScale.current = [
       shape.scale[0] * factor,
@@ -182,21 +341,17 @@ function OrganMesh({
       shape.scale[2] * factor,
     ];
 
-    // Smooth lerp
     for (let i = 0; i < 3; i++) {
       currentScale.current[i] += (targetScale.current[i] - currentScale.current[i]) * 0.12;
     }
 
-    // Base pulse for selected
     const pulse = isSelected ? Math.sin(t * 3) * 0.01 : 0;
     let sx = currentScale.current[0] + pulse;
     let sy = currentScale.current[1] + pulse;
     let sz = currentScale.current[2] + pulse;
 
     // ── Organ-specific animations ──
-
     if (key === "heart") {
-      // Realistic double-beat heartbeat
       const phase = (t * 4.5) % (Math.PI * 2);
       const beat1 = Math.max(0, Math.sin(phase * 2)) * 0.06;
       const beat2 = Math.max(0, Math.sin(phase * 2 + 1.2)) * 0.03;
@@ -205,76 +360,62 @@ function OrganMesh({
       sy *= 1 + heartbeat * 0.8;
       sz *= 1 + heartbeat;
     } else if (key === "lung") {
-      // Breathing: expand/contract cycle
       const breathe = Math.sin(t * 1.2) * 0.04;
       sx *= 1 + breathe;
       sz *= 1 + breathe * 0.7;
       sy *= 1 + breathe * 0.3;
     } else if (key === "brain") {
-      // Neural wave ripple
       const wave = Math.sin(t * 2.5) * 0.015 + Math.sin(t * 4.1) * 0.008;
       sx *= 1 + wave;
       sy *= 1 - wave * 0.5;
       sz *= 1 + Math.sin(t * 3.3) * 0.01;
     } else if (key === "stomach") {
-      // Digestive churning / peristalsis
       const churn = Math.sin(t * 1.8) * 0.03;
       sx *= 1 + churn;
       sy *= 1 - churn * 0.5;
       meshRef.current.rotation.z = (shape.rotation?.[2] || 0) + Math.sin(t * 1.5) * 0.04;
     } else if (key === "intestine") {
-      // Peristaltic wave moving through
       const wave = Math.sin(t * 2.0) * 0.02;
       sx *= 1 + wave;
       sy *= 1 - wave * 0.4;
       sz *= 1 + Math.sin(t * 2.5 + 0.5) * 0.015;
     } else if (key === "kidney") {
-      // Filtering pulse — gentle rhythmic squeeze
       const filter = Math.sin(t * 3.0) * 0.025;
       sx *= 1 + filter;
       sz *= 1 - filter * 0.5;
     } else if (key === "liver") {
-      // Slow metabolic throb
       const throb = Math.sin(t * 0.8) * 0.02;
       sx *= 1 + throb;
       sy *= 1 + throb * 0.5;
     } else if (key === "bladder") {
-      // Filling/emptying cycle
       const fill = (Math.sin(t * 0.6) + 1) * 0.5 * 0.04;
       sx *= 1 + fill;
       sy *= 1 + fill;
       sz *= 1 + fill;
     } else if (key === "diaphragm") {
-      // Up-down breathing motion
       meshRef.current.position.y = shape.position[1] + Math.sin(t * 1.2) * 0.03;
       sy *= 1 + Math.sin(t * 1.2 + Math.PI) * 0.15;
     } else if (key === "aorta") {
-      // Blood flow pulse wave traveling down
       const pulseWave = Math.sin(t * 5) * 0.04;
       sx *= 1 + pulseWave;
       sz *= 1 + pulseWave;
     } else if (key === "spleen") {
-      // Gentle contraction during activity
       const contract = Math.sin(t * 2.2) * 0.03;
       sx *= 1 - contract;
       sy *= 1 - contract * 0.5;
     } else if (key === "pancreas") {
-      // Secretion pulse
       const secrete = Math.sin(t * 1.5) * 0.02;
       sx *= 1 + secrete;
       sz *= 1 + Math.sin(t * 2.0 + 1) * 0.015;
     } else if (key === "muscle") {
-      // Flexing contraction
       const flex = Math.sin(t * 2.0) * 0.04;
       sx *= 1 + flex;
       sy *= 1 - flex * 0.3;
     } else if (key === "colon") {
-      // Slow wave
       const wave = Math.sin(t * 0.9) * 0.02;
       sx *= 1 + wave;
       sz *= 1 - wave * 0.3;
     } else if (key === "skull" || key === "bone") {
-      // Subtle rigidity shimmer
       const shimmer = Math.sin(t * 6) * 0.003;
       sx *= 1 + shimmer;
       sy *= 1 + shimmer;
@@ -282,16 +423,13 @@ function OrganMesh({
 
     meshRef.current.scale.set(sx, sy, sz);
 
-    // Update material
     const mat = meshRef.current.material as THREE.MeshStandardMaterial;
     const targetEmissive = isSelected ? 0.6 : hovered ? 0.3 : 0.08;
     mat.emissiveIntensity += (targetEmissive - mat.emissiveIntensity) * 0.1;
 
-    // Heart glow pulsing
     if (key === "heart") {
       mat.emissiveIntensity += Math.sin(t * 4.5) * 0.05;
     }
-    // Brain neural glow
     if (key === "brain" && (isSelected || hovered)) {
       mat.emissiveIntensity += Math.sin(t * 5) * 0.08;
     }
@@ -318,6 +456,7 @@ function OrganMesh({
         {shape.geometry === "cylinder" && <cylinderGeometry args={[1, 1, 1, 16]} />}
         {shape.geometry === "capsule" && <capsuleGeometry args={[0.5, 1, 8, 16]} />}
         {shape.geometry === "box" && <boxGeometry args={[1, 1, 1]} />}
+        {shape.geometry === "torus" && <torusGeometry args={[1, 0.3, 16, 32]} />}
         <meshStandardMaterial
           color={color}
           emissive={color}
@@ -382,6 +521,7 @@ export default function InteractiveOrgans({
   return (
     <group position={[0, -0.5, 0]}>
       <BodySilhouette />
+      <BloodVessels />
       {ORGAN_SHAPES.map((shape, i) => (
         <Float
           key={`${shape.key}-${i}`}
@@ -417,7 +557,7 @@ export default function InteractiveOrgans({
 
 // Ambient floating particles in the scene
 function AmbientParticles() {
-  const count = 50;
+  const count = 60;
   const ref = useRef<THREE.Points>(null);
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3);
