@@ -168,10 +168,11 @@ function OrganMesh({
     onSelect({ ...organData, meshName: shape.key });
   };
 
-  // Animate scale and pulsing
+  // Animate scale, pulsing, and organ-specific effects
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     const t = clock.getElapsedTime();
+    const key = shape.key;
 
     // Target scale based on state
     const factor = isSelected ? 1.15 : hovered ? 1.08 : 1.0;
@@ -186,24 +187,115 @@ function OrganMesh({
       currentScale.current[i] += (targetScale.current[i] - currentScale.current[i]) * 0.12;
     }
 
-    // Pulse effect for selected
+    // Base pulse for selected
     const pulse = isSelected ? Math.sin(t * 3) * 0.01 : 0;
-    meshRef.current.scale.set(
-      currentScale.current[0] + pulse,
-      currentScale.current[1] + pulse,
-      currentScale.current[2] + pulse,
-    );
+    let sx = currentScale.current[0] + pulse;
+    let sy = currentScale.current[1] + pulse;
+    let sz = currentScale.current[2] + pulse;
 
-    // Heart-specific: constant heartbeat
-    if (shape.key === "heart") {
-      const heartbeat = Math.sin(t * 6) > 0.7 ? 0.03 : 0;
-      meshRef.current.scale.multiplyScalar(1 + heartbeat);
+    // ── Organ-specific animations ──
+
+    if (key === "heart") {
+      // Realistic double-beat heartbeat
+      const phase = (t * 4.5) % (Math.PI * 2);
+      const beat1 = Math.max(0, Math.sin(phase * 2)) * 0.06;
+      const beat2 = Math.max(0, Math.sin(phase * 2 + 1.2)) * 0.03;
+      const heartbeat = beat1 + beat2;
+      sx *= 1 + heartbeat;
+      sy *= 1 + heartbeat * 0.8;
+      sz *= 1 + heartbeat;
+    } else if (key === "lung") {
+      // Breathing: expand/contract cycle
+      const breathe = Math.sin(t * 1.2) * 0.04;
+      sx *= 1 + breathe;
+      sz *= 1 + breathe * 0.7;
+      sy *= 1 + breathe * 0.3;
+    } else if (key === "brain") {
+      // Neural wave ripple
+      const wave = Math.sin(t * 2.5) * 0.015 + Math.sin(t * 4.1) * 0.008;
+      sx *= 1 + wave;
+      sy *= 1 - wave * 0.5;
+      sz *= 1 + Math.sin(t * 3.3) * 0.01;
+    } else if (key === "stomach") {
+      // Digestive churning / peristalsis
+      const churn = Math.sin(t * 1.8) * 0.03;
+      sx *= 1 + churn;
+      sy *= 1 - churn * 0.5;
+      meshRef.current.rotation.z = (shape.rotation?.[2] || 0) + Math.sin(t * 1.5) * 0.04;
+    } else if (key === "intestine") {
+      // Peristaltic wave moving through
+      const wave = Math.sin(t * 2.0) * 0.02;
+      sx *= 1 + wave;
+      sy *= 1 - wave * 0.4;
+      sz *= 1 + Math.sin(t * 2.5 + 0.5) * 0.015;
+    } else if (key === "kidney") {
+      // Filtering pulse — gentle rhythmic squeeze
+      const filter = Math.sin(t * 3.0) * 0.025;
+      sx *= 1 + filter;
+      sz *= 1 - filter * 0.5;
+    } else if (key === "liver") {
+      // Slow metabolic throb
+      const throb = Math.sin(t * 0.8) * 0.02;
+      sx *= 1 + throb;
+      sy *= 1 + throb * 0.5;
+    } else if (key === "bladder") {
+      // Filling/emptying cycle
+      const fill = (Math.sin(t * 0.6) + 1) * 0.5 * 0.04;
+      sx *= 1 + fill;
+      sy *= 1 + fill;
+      sz *= 1 + fill;
+    } else if (key === "diaphragm") {
+      // Up-down breathing motion
+      meshRef.current.position.y = shape.position[1] + Math.sin(t * 1.2) * 0.03;
+      sy *= 1 + Math.sin(t * 1.2 + Math.PI) * 0.15;
+    } else if (key === "aorta") {
+      // Blood flow pulse wave traveling down
+      const pulseWave = Math.sin(t * 5) * 0.04;
+      sx *= 1 + pulseWave;
+      sz *= 1 + pulseWave;
+    } else if (key === "spleen") {
+      // Gentle contraction during activity
+      const contract = Math.sin(t * 2.2) * 0.03;
+      sx *= 1 - contract;
+      sy *= 1 - contract * 0.5;
+    } else if (key === "pancreas") {
+      // Secretion pulse
+      const secrete = Math.sin(t * 1.5) * 0.02;
+      sx *= 1 + secrete;
+      sz *= 1 + Math.sin(t * 2.0 + 1) * 0.015;
+    } else if (key === "muscle") {
+      // Flexing contraction
+      const flex = Math.sin(t * 2.0) * 0.04;
+      sx *= 1 + flex;
+      sy *= 1 - flex * 0.3;
+    } else if (key === "colon") {
+      // Slow wave
+      const wave = Math.sin(t * 0.9) * 0.02;
+      sx *= 1 + wave;
+      sz *= 1 - wave * 0.3;
+    } else if (key === "skull" || key === "bone") {
+      // Subtle rigidity shimmer
+      const shimmer = Math.sin(t * 6) * 0.003;
+      sx *= 1 + shimmer;
+      sy *= 1 + shimmer;
     }
+
+    meshRef.current.scale.set(sx, sy, sz);
 
     // Update material
     const mat = meshRef.current.material as THREE.MeshStandardMaterial;
     const targetEmissive = isSelected ? 0.6 : hovered ? 0.3 : 0.08;
     mat.emissiveIntensity += (targetEmissive - mat.emissiveIntensity) * 0.1;
+
+    // Heart glow pulsing
+    if (key === "heart") {
+      mat.emissiveIntensity += Math.sin(t * 4.5) * 0.05;
+    }
+    // Brain neural glow
+    if (key === "brain" && (isSelected || hovered)) {
+      mat.emissiveIntensity += Math.sin(t * 5) * 0.08;
+    }
+
     const targetOpacity = isSelected ? 0.95 : hovered ? 0.88 : 0.75;
     mat.opacity += (targetOpacity - mat.opacity) * 0.1;
   });
