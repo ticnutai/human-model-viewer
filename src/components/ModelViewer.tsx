@@ -3,8 +3,10 @@ import { OrbitControls } from "@react-three/drei";
 import { Suspense } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+const MODEL_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/models/human_organs_1.glb`;
+
 function Model() {
-  const gltf = useLoader(GLTFLoader, "/models/human_organs_1.glb");
+  const gltf = useLoader(GLTFLoader, MODEL_URL);
   return <primitive object={gltf.scene} scale={1} position={[0, -1, 0]} />;
 }
 
