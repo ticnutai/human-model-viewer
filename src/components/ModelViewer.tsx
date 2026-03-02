@@ -180,6 +180,7 @@ const ModelViewer = () => {
   const [autoRotate, setAutoRotate] = useState(true);
   const [showAtlas, setShowAtlas] = useState(false);
   const [useInteractive, setUseInteractive] = useState(true);
+  const [moveMode, setMoveMode] = useState(false);
   const t = THEMES[themeIdx];
 
   const handleViewChange = useCallback((pos: [number, number, number], lookAt?: [number, number, number]) => {
@@ -337,6 +338,31 @@ const ModelViewer = () => {
         position: "absolute", bottom: "24px", left: "50%", transform: "translateX(-50%)",
         zIndex: 10, display: "flex", gap: "8px", alignItems: "center",
       }}>
+        {/* Move mode toggle */}
+        <button
+          onClick={() => { setMoveMode(m => !m); if (!moveMode) setAutoRotate(false); }}
+          style={{
+            background: moveMode ? t.accent : t.panelBg,
+            backdropFilter: "blur(8px)",
+            border: `1px solid ${moveMode ? t.accent : t.panelBorder}`,
+            borderRadius: "999px", padding: "10px 16px",
+            color: moveMode ? "#fff" : t.textSecondary,
+            cursor: "pointer", fontSize: "12px", fontWeight: 600,
+            display: "flex", alignItems: "center", gap: "6px",
+            transition: "all 0.2s",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="5 9 2 12 5 15" />
+            <polyline points="9 5 12 2 15 5" />
+            <polyline points="15 19 12 22 9 19" />
+            <polyline points="19 9 22 12 19 15" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <line x1="12" y1="2" x2="12" y2="22" />
+          </svg>
+          {moveMode ? "מצב הזזה" : "הזזה"}
+        </button>
+
         {/* Auto-rotate toggle */}
         <button
           onClick={() => setAutoRotate(r => !r)}
@@ -374,9 +400,8 @@ const ModelViewer = () => {
           borderRadius: "999px", padding: "10px 20px", border: `1px solid ${t.panelBorder}`,
           direction: "rtl", pointerEvents: "none",
         }}>
-          <span>🖱️ סיבוב</span>
+          <span>{moveMode ? "🖱️ גרירה = הזזה" : "🖱️ סיבוב"}</span>
           <span>⚙️ גלגלת = זום</span>
-          <span>⇧ + גרירה = הזזה</span>
           <span>🖱️ לחיצה = מידע על איבר</span>
         </div>
       </div>
@@ -485,6 +510,13 @@ const ModelViewer = () => {
           enableDamping dampingFactor={0.05}
           minDistance={1.5} maxDistance={10}
           autoRotate={autoRotate} autoRotateSpeed={0.5}
+          enableRotate={!moveMode}
+          enablePan={true}
+          mouseButtons={{
+            LEFT: moveMode ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN,
+          }}
         />
       </Canvas>
     </div>
