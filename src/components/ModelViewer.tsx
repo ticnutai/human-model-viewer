@@ -8,7 +8,7 @@ import type { OrganDetail } from "./OrganData";
 import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager";
 import DevPanel from "./DevPanel";
-import InteractiveOrgans from "./InteractiveOrgans";
+import InteractiveOrgans, { type LayerType } from "./InteractiveOrgans";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const DEFAULT_MODEL = `${SUPABASE_URL}/storage/v1/object/public/models/human_organs_1.glb`;
@@ -181,7 +181,24 @@ const ModelViewer = () => {
   const [showAtlas, setShowAtlas] = useState(false);
   const [useInteractive, setUseInteractive] = useState(true);
   const [moveMode, setMoveMode] = useState(false);
+  const [visibleLayers, setVisibleLayers] = useState<Set<LayerType>>(new Set(["skeleton", "muscles", "organs", "vessels"]));
+  const [showLayers, setShowLayers] = useState(false);
   const t = THEMES[themeIdx];
+
+  const LAYER_INFO: { key: LayerType; label: string; icon: string; color: string }[] = [
+    { key: "skeleton", label: "שלד", icon: "🦴", color: "#e8dcc8" },
+    { key: "muscles", label: "שרירים", icon: "💪", color: "#c05050" },
+    { key: "organs", label: "איברים פנימיים", icon: "🫀", color: "#cc3355" },
+    { key: "vessels", label: "כלי דם", icon: "🩸", color: "#dd2244" },
+  ];
+
+  const toggleLayer = (layer: LayerType) => {
+    setVisibleLayers(prev => {
+      const next = new Set(prev);
+      if (next.has(layer)) next.delete(layer); else next.add(layer);
+      return next;
+    });
+  };
 
   const handleViewChange = useCallback((pos: [number, number, number], lookAt?: [number, number, number]) => {
     cameraTargetRef.current = pos;
@@ -267,12 +284,61 @@ const ModelViewer = () => {
         )}
       </div>
 
-      {/* Organ Atlas - bottom left */}
+      {/* Organ Atlas & Layers - bottom left */}
       <div style={{
         position: "absolute", bottom: "80px", left: "16px", zIndex: 10,
         display: "flex", flexDirection: "column", gap: "8px",
-        maxWidth: "260px", maxHeight: showAtlas ? "400px" : "auto",
+        maxWidth: "260px",
       }}>
+        {/* Layers toggle */}
+        <button onClick={() => setShowLayers(a => !a)} style={{
+          ...btnStyle, justifyContent: "center",
+          background: showLayers ? t.accentBgHover : t.panelBg,
+          borderColor: showLayers ? t.accent : t.panelBorder,
+          width: "auto",
+        }}>
+          🗂️ שכבות
+        </button>
+        {showLayers && (
+          <div style={{
+            background: t.panelBg, backdropFilter: "blur(12px)",
+            border: `1px solid ${t.panelBorder}`, borderRadius: "14px",
+            padding: "10px", display: "flex", flexDirection: "column", gap: "4px",
+          }}>
+            {LAYER_INFO.map((layer) => {
+              const active = visibleLayers.has(layer.key);
+              return (
+                <button
+                  key={layer.key}
+                  onClick={() => toggleLayer(layer.key)}
+                  style={{
+                    background: active ? `${layer.color}18` : "transparent",
+                    border: `1px solid ${active ? layer.color : t.panelBorder}`,
+                    borderRadius: "10px", padding: "10px 12px",
+                    color: active ? t.textPrimary : t.textSecondary,
+                    cursor: "pointer", fontSize: "13px", textAlign: "right",
+                    display: "flex", alignItems: "center", gap: "10px",
+                    transition: "all 0.15s", direction: "rtl",
+                    opacity: active ? 1 : 0.5,
+                  }}
+                >
+                  <span style={{
+                    width: "20px", height: "20px", borderRadius: "6px",
+                    background: active ? layer.color : "transparent",
+                    border: `2px solid ${layer.color}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "11px", color: "#fff", flexShrink: 0,
+                  }}>
+                    {active && "✓"}
+                  </span>
+                  <span style={{ fontSize: "16px" }}>{layer.icon}</span>
+                  <span style={{ fontWeight: 600 }}>{layer.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <button onClick={() => setShowAtlas(a => !a)} style={{
           ...btnStyle, justifyContent: "center",
           background: showAtlas ? t.accentBgHover : t.panelBg,
@@ -294,7 +360,6 @@ const ModelViewer = () => {
                 onClick={() => {
                   setSelectedOrgan({ ...organ, meshName: key });
                   setShowAtlas(false);
-                  // Zoom camera to organ's anatomical position
                   if (organ.cameraPos) {
                     handleViewChange(organ.cameraPos, organ.lookAt);
                   }
@@ -500,7 +565,7 @@ const ModelViewer = () => {
         <pointLight position={[0, 3, 0]} intensity={0.5} color={t.accent} />
         <Suspense fallback={null}>
           {useInteractive ? (
-            <InteractiveOrgans onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} />
+            <InteractiveOrgans onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} />
           ) : (
             <Model url={modelUrl} onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} />
           )}
