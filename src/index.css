@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-
 @layer base {
   :root {
     --background: 220 20% 7%;
@@ -53,20 +51,9 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
-    font-family: 'Space Grotesk', sans-serif;
-  }
-}
-
-@layer utilities {
-  .glow-primary {
-    box-shadow: 0 0 20px hsl(190 80% 50% / 0.3), 0 0 60px hsl(190 80% 50% / 0.1);
-  }
-  .glow-accent {
-    box-shadow: 0 0 20px hsl(340 75% 55% / 0.3), 0 0 60px hsl(340 75% 55% / 0.1);
-  }
-  .text-gradient {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(190 80% 50%), hsl(340 75% 55%));
+    @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
   }
 }
