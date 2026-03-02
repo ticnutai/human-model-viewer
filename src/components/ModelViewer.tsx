@@ -1,7 +1,8 @@
-import { Canvas, useLoader } from "@react-three/fiber";
+import { Canvas, useLoader, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { Suspense } from "react";
+import { Suspense, useRef, useCallback, useState } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import * as THREE from "three";
 
 const MODEL_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/models/human_organs_1.glb`;
 
@@ -10,7 +11,55 @@ function Model() {
   return <primitive object={gltf.scene} scale={1} position={[0, -1, 0]} />;
 }
 
+type CameraView = { position: [number, number, number]; label: string; icon: string };
+
+const VIEWS: CameraView[] = [
+  { position: [0, 1, 4], label: "מלפנים", icon: "👤" },
+  { position: [0, 1, -4], label: "מאחור", icon: "🔙" },
+  { position: [4, 1, 0], label: "מימין", icon: "➡️" },
+  { position: [-4, 1, 0], label: "משמאל", icon: "⬅️" },
+  { position: [0, 5, 0.1], label: "מלמעלה", icon: "⬆️" },
+];
+
+function CameraController({ targetPosition }: { targetPosition: [number, number, number] | null }) {
+  const { camera } = useThree();
+  const animRef = useRef<number | null>(null);
+
+  if (targetPosition) {
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    const start = new THREE.Vector3().copy(camera.position);
+    const end = new THREE.Vector3(...targetPosition);
+    let t = 0;
+    const animate = () => {
+      t += 0.04;
+      if (t >= 1) {
+        camera.position.copy(end);
+        camera.lookAt(0, 0, 0);
+        return;
+      }
+      camera.position.lerpVectors(start, end, t);
+      camera.lookAt(0, 0, 0);
+      animRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+  }
+
+  return null;
+}
+
 const ModelViewer = () => {
+  const cameraTargetRef = useRef<[number, number, number] | null>(null);
+  const keyRef = useRef(0);
+
+  const handleViewChange = useCallback((pos: [number, number, number]) => {
+    cameraTargetRef.current = pos;
+    keyRef.current += 1;
+    // Force re-render
+    setRenderKey(k => k + 1);
+  }, []);
+
+  const [renderKey, setRenderKey] = useState(0);
+
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#0d1117", position: "relative" }}>
       {/* Header */}
@@ -28,6 +77,31 @@ const ModelViewer = () => {
         <p style={{ color: "#8b949e", marginTop: "8px", fontSize: "0.875rem" }}>
           סובב, הגדל והקטן את המודל באמצעות העכבר
         </p>
+      </div>
+
+      {/* Camera view buttons */}
+      <div style={{
+        position: "absolute", top: "50%", right: "16px", transform: "translateY(-50%)",
+        zIndex: 10, display: "flex", flexDirection: "column", gap: "8px"
+      }}>
+        {VIEWS.map((view) => (
+          <button
+            key={view.label}
+            onClick={() => handleViewChange(view.position)}
+            style={{
+              background: "rgba(13,17,23,0.85)", backdropFilter: "blur(8px)",
+              border: "1px solid #21262d", borderRadius: "10px",
+              padding: "10px 14px", color: "#c9d1d9", cursor: "pointer",
+              fontSize: "13px", display: "flex", alignItems: "center", gap: "6px",
+              transition: "border-color 0.2s, background 0.2s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#00bcd4"; e.currentTarget.style.background = "rgba(0,188,212,0.1)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#21262d"; e.currentTarget.style.background = "rgba(13,17,23,0.85)"; }}
+          >
+            <span>{view.icon}</span>
+            <span>{view.label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Controls hint */}
@@ -59,6 +133,7 @@ const ModelViewer = () => {
         <Suspense fallback={null}>
           <Model />
         </Suspense>
+        <CameraController key={renderKey} targetPosition={cameraTargetRef.current} />
         <OrbitControls
           enableDamping
           dampingFactor={0.05}
