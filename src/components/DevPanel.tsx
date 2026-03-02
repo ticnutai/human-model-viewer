@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { SqlHighlighted, SqlEditor } from "./SqlHighlighter";
 
 type Migration = {
   id: string;
@@ -496,18 +497,18 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
                     placeholder="שם המיגרציה..." style={inputStyle} />
                   <input value={newDesc} onChange={e => setNewDesc(e.target.value)}
                     placeholder="תיאור (אופציונלי)..." style={inputStyle} />
-                  <div style={{ position: "relative" }}>
-                    <textarea value={newSql} onChange={e => setNewSql(e.target.value)}
+                  <div>
+                    <SqlEditor
+                      value={newSql}
+                      onChange={setNewSql}
                       placeholder="-- כתוב SQL כאן...&#10;CREATE TABLE ...&#10;ALTER TABLE ...&#10;INSERT INTO ..."
                       rows={8}
-                      style={{
-                        ...inputStyle, fontFamily: "'Fira Code', 'Cascadia Code', monospace",
-                        fontSize: "12px", resize: "vertical", direction: "ltr", textAlign: "left",
-                        lineHeight: "1.6", tabSize: 2,
-                      }} />
+                      panelBg={t.panelBg}
+                      panelBorder={t.panelBorder}
+                    />
                     <div style={{
-                      position: "absolute", bottom: "8px", right: "8px",
                       fontSize: "10px", color: t.textSecondary, opacity: 0.5,
+                      textAlign: "left", marginTop: "4px", paddingRight: "8px",
                     }}>
                       {newSql.length} תווים • {newSql.split("\n").length} שורות
                     </div>
@@ -586,13 +587,14 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
                           animation: "contentFade 0.2s ease-out",
                         }}>
                           {m.sql_content ? (
-                            <pre style={{
-                              background: t.bg, border: `1px solid ${t.panelBorder}`,
-                              borderRadius: "8px", padding: "12px", fontSize: "11px",
-                              color: t.textSecondary, overflow: "auto", maxHeight: "200px",
-                              fontFamily: "'Fira Code', monospace", direction: "ltr", textAlign: "left",
-                              margin: "12px 0 8px", lineHeight: "1.5",
-                            }}>{m.sql_content}</pre>
+                            <div style={{
+                              background: "#1e293b", border: `1px solid ${t.panelBorder}`,
+                              borderRadius: "10px", padding: "12px",
+                              overflow: "auto", maxHeight: "200px",
+                              margin: "12px 0 8px",
+                            }}>
+                              <SqlHighlighted sql={m.sql_content} style={{ fontSize: "11px", lineHeight: "1.5" }} />
+                            </div>
                           ) : (
                             <div style={{
                               padding: "12px", margin: "12px 0 8px",
