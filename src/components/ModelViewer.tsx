@@ -36,7 +36,7 @@ const THEMES: Theme[] = [
     panelBg: "rgba(13,17,23,0.85)", panelBorder: "#21262d",
     accent: "#00bcd4", accentAlt: "#e91e63",
     accentBgHover: "rgba(0,188,212,0.1)",
-    gradient: "linear-gradient(135deg, #00bcd4, #e91e63)",
+    gradient: "#00bcd4",
     hintBg: "rgba(13,17,23,0.8)",
   },
   {
@@ -46,7 +46,7 @@ const THEMES: Theme[] = [
     panelBg: "rgba(26,20,16,0.88)", panelBorder: "#3d2e1e",
     accent: "#f59e0b", accentAlt: "#ef4444",
     accentBgHover: "rgba(245,158,11,0.12)",
-    gradient: "linear-gradient(135deg, #f59e0b, #ef4444)",
+    gradient: "#f59e0b",
     hintBg: "rgba(26,20,16,0.8)",
   },
   {
@@ -56,7 +56,7 @@ const THEMES: Theme[] = [
     panelBg: "rgba(255,255,255,0.9)", panelBorder: "#c8d4e0",
     accent: "#0077b6", accentAlt: "#d62828",
     accentBgHover: "rgba(0,119,182,0.08)",
-    gradient: "linear-gradient(135deg, #0077b6, #d62828)",
+    gradient: "#0077b6",
     hintBg: "rgba(255,255,255,0.85)",
   },
   {
@@ -66,7 +66,7 @@ const THEMES: Theme[] = [
     panelBg: "rgba(255,252,245,0.92)", panelBorder: "#e0d0b8",
     accent: "#b45309", accentAlt: "#be123c",
     accentBgHover: "rgba(180,83,9,0.08)",
-    gradient: "linear-gradient(135deg, #b45309, #be123c)",
+    gradient: "#b45309",
     hintBg: "rgba(255,252,245,0.88)",
   },
   {
@@ -76,7 +76,7 @@ const THEMES: Theme[] = [
     panelBg: "rgba(255,255,255,0.92)", panelBorder: "#cbd5e1",
     accent: "#6366f1", accentAlt: "#ec4899",
     accentBgHover: "rgba(99,102,241,0.08)",
-    gradient: "linear-gradient(135deg, #6366f1, #ec4899)",
+    gradient: "#6366f1",
     hintBg: "rgba(255,255,255,0.85)",
   },
 ];
@@ -199,7 +199,7 @@ const ModelViewer = () => {
       }}>
         <h1 style={{
           fontSize: "2rem", fontWeight: 700, margin: 0,
-          background: t.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
+          color: t.accent,
         }}>
           גוף האדם — מודל תלת-ממדי
         </h1>
