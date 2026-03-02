@@ -4,6 +4,9 @@ import { Suspense, useRef, useCallback, useState, useEffect, useMemo } from "rea
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 import { supabase } from "@/integrations/supabase/client";
+import { getOrganDetail, getFallbackDetail } from "./OrganData";
+import type { OrganDetail } from "./OrganData";
+import OrganDialog from "./OrganDialog";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const DEFAULT_MODEL = `${SUPABASE_URL}/storage/v1/object/public/models/human_organs_1.glb`;
@@ -77,47 +80,7 @@ const THEMES: Theme[] = [
   },
 ];
 
-// ── Organ info ──
-const ORGAN_INFO: Record<string, { name: string; description: string; icon: string }> = {
-  heart: { name: "לב", description: "שואב דם לכל חלקי הגוף. פועם כ-100,000 פעמים ביום.", icon: "❤️" },
-  lung: { name: "ריאה", description: "אחראית על חילופי גזים — חמצן ופחמן דו-חמצני.", icon: "🫁" },
-  liver: { name: "כבד", description: "מסנן רעלים, מייצר מרה ומאחסן ויטמינים.", icon: "🫀" },
-  kidney: { name: "כליה", description: "מסננת פסולת מהדם ומייצרת שתן.", icon: "🫘" },
-  stomach: { name: "קיבה", description: "מפרקת מזון באמצעות חומצות ואנזימים.", icon: "🟤" },
-  brain: { name: "מוח", description: "מרכז העצבים — שולט בכל תפקודי הגוף.", icon: "🧠" },
-  intestine: { name: "מעי", description: "סופג חומרי הזנה ומים מהמזון.", icon: "🔄" },
-  colon: { name: "מעי גס", description: "סופג מים ומלחים, מכין פסולת להפרשה.", icon: "🔄" },
-  spleen: { name: "טחול", description: "מסנן דם ישן ומסייע למערכת החיסון.", icon: "🟣" },
-  pancreas: { name: "לבלב", description: "מפריש אינסולין ואנזימי עיכול.", icon: "🟡" },
-  bladder: { name: "שלפוחית השתן", description: "מאחסנת שתן עד להפרשה.", icon: "💧" },
-  gallbladder: { name: "כיס מרה", description: "מאחסן מרה שמיוצרת בכבד.", icon: "🟢" },
-  esophagus: { name: "ושט", description: "צינור שמוביל מזון מהפה לקיבה.", icon: "⬇️" },
-  trachea: { name: "קנה הנשימה", description: "מוביל אוויר מהגרון לריאות.", icon: "🌬️" },
-  bone: { name: "עצם", description: "מספקת תמיכה מבנית לגוף.", icon: "🦴" },
-  rib: { name: "צלע", description: "מגינה על הלב והריאות.", icon: "🦴" },
-  spine: { name: "עמוד שדרה", description: "תומך בגוף ומגן על חוט השדרה.", icon: "🦴" },
-  pelvis: { name: "אגן", description: "תומך באיברים פנימיים בבטן התחתונה.", icon: "🦴" },
-  skull: { name: "גולגולת", description: "מגינה על המוח.", icon: "💀" },
-  muscle: { name: "שריר", description: "מאפשר תנועה וייצוב הגוף.", icon: "💪" },
-  artery: { name: "עורק", description: "מוביל דם עשיר בחמצן מהלב לגוף.", icon: "🔴" },
-  vein: { name: "וריד", description: "מחזיר דם דל בחמצן חזרה ללב.", icon: "🔵" },
-  aorta: { name: "אבי העורקים", description: "העורק הגדול ביותר בגוף.", icon: "🔴" },
-  diaphragm: { name: "סרעפת", description: "שריר הנשימה הראשי.", icon: "🌬️" },
-  thyroid: { name: "בלוטת התריס", description: "מווסתת חילוף חומרים באמצעות הורמונים.", icon: "🦋" },
-  adrenal: { name: "בלוטת יותרת הכליה", description: "מפרישה אדרנלין וקורטיזול.", icon: "⚡" },
-};
-
-function getOrganInfo(meshName: string) {
-  const lower = meshName.toLowerCase();
-  for (const [key, info] of Object.entries(ORGAN_INFO)) {
-    if (lower.includes(key)) return info;
-  }
-  return null;
-}
-
-type OrganSelection = { name: string; description: string; icon: string; meshName: string } | null;
-
-function Model({ url, onSelect, selectedMesh, accent }: { url: string; onSelect: (info: OrganSelection) => void; selectedMesh: string | null; accent: string }) {
+function Model({ url, onSelect, selectedMesh, accent }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string }) {
   const gltf = useLoader(GLTFLoader, url);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const originalMaterials = useRef<Map<string, THREE.Material | THREE.Material[]>>(new Map());
@@ -154,16 +117,17 @@ function Model({ url, onSelect, selectedMesh, accent }: { url: string; onSelect:
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     const mesh = e.object as THREE.Mesh;
-    const info = getOrganInfo(mesh.name);
-    if (info) {
-      onSelect({ ...info, meshName: mesh.name });
+    const detail = getOrganDetail(mesh.name);
+    if (detail) {
+      onSelect(detail);
     } else {
-      onSelect({ name: mesh.name || "חלק לא מזוהה", description: "אין מידע נוסף על חלק זה.", icon: "🔍", meshName: mesh.name });
+      onSelect(getFallbackDetail(mesh.name, mesh.name || "חלק לא מזוהה", "אין מידע נוסף על חלק זה.", "🔍"));
     }
   };
 
   return <primitive object={sceneClone} scale={1} position={[0, -1, 0]} onClick={handleClick} />;
 }
+
 
 const VIEWS: { position: [number, number, number]; label: string; icon: string }[] = [
   { position: [0, 1, 4], label: "מלפנים", icon: "👤" },
@@ -201,7 +165,7 @@ const ModelViewer = () => {
   const [uploading, setUploading] = useState(false);
   const [modelList, setModelList] = useState<string[]>([]);
   const [showPanel, setShowPanel] = useState(false);
-  const [selectedOrgan, setSelectedOrgan] = useState<OrganSelection>(null);
+  const [selectedOrgan, setSelectedOrgan] = useState<OrganDetail | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [themeIdx, setThemeIdx] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -344,30 +308,9 @@ const ModelViewer = () => {
         )}
       </div>
 
-      {/* Organ info panel */}
+      {/* Organ dialog */}
       {selectedOrgan && (
-        <div style={{
-          position: "absolute", bottom: "80px", left: "50%", transform: "translateX(-50%)",
-          zIndex: 10, maxWidth: "400px", width: "90%",
-        }}>
-          <div style={{
-            background: t.panelBg, backdropFilter: "blur(12px)",
-            border: `1px solid ${t.accent}`, borderRadius: "16px",
-            padding: "16px 20px", textAlign: "center", direction: "rtl", position: "relative",
-          }}>
-            <button onClick={() => setSelectedOrgan(null)} style={{
-              position: "absolute", top: "8px", left: "12px", background: "none",
-              border: "none", color: t.textSecondary, cursor: "pointer", fontSize: "16px",
-            }}>✕</button>
-            <div style={{ fontSize: "28px", marginBottom: "4px" }}>{selectedOrgan.icon}</div>
-            <div style={{ fontSize: "1.1rem", fontWeight: 700, color: t.textPrimary, marginBottom: "6px" }}>
-              {selectedOrgan.name}
-            </div>
-            <div style={{ fontSize: "0.85rem", color: t.textSecondary, lineHeight: 1.6 }}>
-              {selectedOrgan.description}
-            </div>
-          </div>
-        </div>
+        <OrganDialog organ={selectedOrgan} theme={t} onClose={() => setSelectedOrgan(null)} />
       )}
 
       {/* Controls hint */}
