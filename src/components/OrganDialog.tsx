@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { OrganDetail } from "./OrganData";
 
@@ -14,44 +14,61 @@ type Theme = {
 };
 
 type AgeMode = "adult" | "kids";
+type TabKey = "overview" | "facts" | "stats";
 
-const backdropVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1 },
-  exit: { opacity: 0 },
-};
-
-const dialogVariants = {
-  hidden: { opacity: 0, scale: 0.88, y: 30 },
+const panelVariants = {
+  hidden: { x: "100%", opacity: 0 },
   visible: {
-    opacity: 1, scale: 1, y: 0,
-    transition: { type: "spring", stiffness: 300, damping: 28, mass: 0.8 },
+    x: 0,
+    opacity: 1,
+    transition: { type: "spring", stiffness: 260, damping: 30, mass: 0.9 },
   },
   exit: {
-    opacity: 0, scale: 0.92, y: 20,
-    transition: { duration: 0.2 },
+    x: "100%",
+    opacity: 0,
+    transition: { duration: 0.3, ease: [0.4, 0, 1, 1] },
   },
 };
 
-const contentVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } },
-  exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
+const staggerContainer = {
+  visible: {
+    transition: { staggerChildren: 0.06, delayChildren: 0.15 },
+  },
 };
 
-const factVariants = {
-  hidden: { opacity: 0, x: 20 },
+const fadeUp = {
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
+  },
+};
+
+const scaleIn = {
+  hidden: { opacity: 0, scale: 0.85 },
   visible: (i: number) => ({
-    opacity: 1, x: 0,
-    transition: { delay: i * 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+    opacity: 1,
+    scale: 1,
+    transition: {
+      delay: i * 0.08,
+      type: "spring",
+      stiffness: 400,
+      damping: 22,
+    },
   }),
 };
 
-const statVariants = {
-  hidden: { opacity: 0, scale: 0.8 },
+const factSlide = {
+  hidden: { opacity: 0, x: 30 },
   visible: (i: number) => ({
-    opacity: 1, scale: 1,
-    transition: { delay: 0.15 + i * 0.1, type: "spring", stiffness: 400, damping: 20 },
+    opacity: 1,
+    x: 0,
+    transition: {
+      delay: i * 0.07,
+      duration: 0.4,
+      ease: [0.16, 1, 0.3, 1],
+    },
   }),
 };
 
@@ -65,157 +82,185 @@ export default function OrganDialog({
   onClose: () => void;
 }) {
   const [imgLoaded, setImgLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState<"info" | "facts">("info");
-  const [hoveredFact, setHoveredFact] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [ageMode, setAgeMode] = useState<AgeMode>("adult");
+  const [hoveredFact, setHoveredFact] = useState<number | null>(null);
+  const [progressAnim, setProgressAnim] = useState(false);
 
   const isKids = ageMode === "kids";
   const summary = isKids ? organ.kidsSummary : organ.summary;
   const facts = isKids ? (organ.kidsFacts || []) : organ.facts;
   const funFact = isKids ? (organ.kidsFunFact || organ.funFact) : organ.funFact;
   const displayIcon = isKids ? (organ.kidsEmoji || organ.icon) : organ.icon;
-  const accentColor = isKids ? "#f59e0b" : t.accent;
+  const accent = isKids ? "#f59e0b" : t.accent;
+
+  // Trigger stat bar animation
+  useEffect(() => {
+    if (activeTab === "stats") {
+      setProgressAnim(false);
+      const timer = setTimeout(() => setProgressAnim(true), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, organ.meshName]);
+
+  const TABS: { key: TabKey; label: string; kidsLabel: string; icon: string }[] = [
+    { key: "overview", label: "סקירה כללית", kidsLabel: "📖 מה זה?", icon: "📋" },
+    { key: "facts", label: "עובדות", kidsLabel: "🤩 עובדות!", icon: "💡" },
+    { key: "stats", label: "נתונים", kidsLabel: "📊 מספרים!", icon: "📊" },
+  ];
+
+  // Build stat items from organ data
+  const statItems = [
+    organ.weight && { label: isKids ? "כמה שוקל?" : "משקל", value: organ.weight, icon: "⚖️" },
+    organ.size && { label: isKids ? "כמה גדול?" : "גודל", value: organ.size, icon: "📏" },
+    { label: "מערכת", value: organ.system, icon: "🏥" },
+  ].filter(Boolean) as { label: string; value: string; icon: string }[];
 
   return (
     <AnimatePresence>
       {/* Backdrop */}
       <motion.div
-        key="backdrop"
-        variants={backdropVariants}
-        initial="hidden" animate="visible" exit="exit"
+        key="organ-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         onClick={onClose}
         style={{
-          position: "fixed", inset: 0, zIndex: 100,
-          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)",
+          position: "fixed",
+          inset: 0,
+          zIndex: 100,
+          background: "rgba(0,0,0,0.55)",
+          backdropFilter: "blur(8px)",
         }}
       />
 
-      {/* Dialog */}
+      {/* Side Panel */}
       <motion.div
-        key="dialog"
-        variants={dialogVariants}
-        initial="hidden" animate="visible" exit="exit"
+        key="organ-panel"
+        variants={panelVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
         dir="rtl"
         style={{
-          position: "fixed", top: "50%", left: "50%",
-          x: "-50%", y: "-50%",
-          zIndex: 101, width: "min(560px, 94vw)", maxHeight: "90vh",
-          overflowY: "auto",
+          position: "fixed",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 101,
+          width: "min(520px, 96vw)",
           background: t.bg,
-          border: `1.5px solid ${t.panelBorder}`,
-          borderRadius: "28px",
-          boxShadow: `0 40px 100px rgba(0,0,0,0.5), 0 0 60px ${accentColor}10, 0 0 0 1px ${t.panelBorder}`,
+          borderLeft: `1px solid ${t.panelBorder}`,
+          boxShadow: `-20px 0 80px rgba(0,0,0,0.4), 0 0 40px ${accent}08`,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
         }}
       >
-        {/* Age mode toggle */}
-        <div style={{
-          display: "flex", justifyContent: "center", padding: "14px 24px 0", gap: "4px",
-        }}>
-          <div style={{
-            display: "flex", gap: "4px",
-            background: `${t.panelBorder}40`, borderRadius: "16px", padding: "4px",
-          }}>
-            {([
-              { key: "adult" as AgeMode, label: "🧑‍⚕️ מבוגרים" },
-              { key: "kids" as AgeMode, label: "🧒 ילדים" },
-            ]).map(mode => (
-              <motion.button
-                key={mode.key}
-                onClick={() => { setAgeMode(mode.key); setActiveTab("info"); setHoveredFact(null); }}
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  padding: "8px 20px", borderRadius: "12px", border: "none",
-                  cursor: "pointer", fontSize: "13px", fontWeight: 700,
-                  transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                  background: ageMode === mode.key ? accentColor : "transparent",
-                  color: ageMode === mode.key ? "#fff" : t.textSecondary,
-                }}
-              >
-                {mode.label}
-              </motion.button>
-            ))}
-          </div>
-        </div>
-
-        {/* Hero area */}
-        <div style={{
-          position: "relative", width: "100%", height: "220px",
-          background: `${accentColor}08`,
-          overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          {/* Animated decorative circles */}
+        {/* Hero Image Section */}
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            height: "280px",
+            flexShrink: 0,
+            overflow: "hidden",
+            background: `linear-gradient(160deg, ${accent}15, ${t.bg})`,
+          }}
+        >
+          {/* Animated background shapes */}
           <motion.div
-            animate={{
-              scale: [1, 1.1, 1],
-              opacity: [0.06, 0.1, 0.06],
-            }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            animate={{ rotate: [0, 360] }}
+            transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
             style={{
-              position: "absolute", top: "-50px", right: "-50px",
-              width: "200px", height: "200px", borderRadius: "50%",
-              background: `${accentColor}15`,
+              position: "absolute",
+              top: "-60%",
+              right: "-30%",
+              width: "400px",
+              height: "400px",
+              borderRadius: "50%",
+              border: `2px solid ${accent}10`,
             }}
           />
           <motion.div
-            animate={{
-              scale: [1, 1.15, 1],
-              opacity: [0.04, 0.08, 0.04],
-            }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            animate={{ rotate: [360, 0] }}
+            transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
             style={{
-              position: "absolute", bottom: "-40px", left: "-40px",
-              width: "160px", height: "160px", borderRadius: "50%",
-              background: `${accentColor}10`,
+              position: "absolute",
+              bottom: "-50%",
+              left: "-20%",
+              width: "300px",
+              height: "300px",
+              borderRadius: "50%",
+              border: `1.5px solid ${accent}08`,
             }}
           />
 
-          {/* Floating decorative particles */}
-          {Array.from({ length: 6 }).map((_, i) => (
+          {/* Floating particles */}
+          {Array.from({ length: 8 }).map((_, i) => (
             <motion.div
               key={i}
               animate={{
-                y: [0, -12, 0],
-                x: [0, (i % 2 === 0 ? 5 : -5), 0],
-                opacity: [0.15, 0.35, 0.15],
+                y: [0, -20, 0],
+                opacity: [0.1, 0.4, 0.1],
               }}
               transition={{
-                duration: 2.5 + i * 0.3,
+                duration: 3 + i * 0.5,
                 repeat: Infinity,
-                delay: i * 0.4,
+                delay: i * 0.3,
                 ease: "easeInOut",
               }}
               style={{
                 position: "absolute",
-                top: `${15 + (i * 25) % 70}%`,
-                left: `${10 + (i * 30) % 80}%`,
-                width: `${3 + i}px`, height: `${3 + i}px`,
+                top: `${10 + (i * 20) % 70}%`,
+                left: `${5 + (i * 25) % 85}%`,
+                width: `${3 + (i % 4)}px`,
+                height: `${3 + (i % 4)}px`,
                 borderRadius: "50%",
-                background: accentColor,
+                background: accent,
               }}
             />
           ))}
 
-          {/* Image or icon */}
+          {/* Image */}
           {organ.image ? (
             <motion.img
               src={organ.image}
               alt={organ.name}
               onLoad={() => setImgLoaded(true)}
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: imgLoaded ? 1 : 0, scale: imgLoaded ? 1 : 0.85 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0, scale: 1.1 }}
+              animate={{
+                opacity: imgLoaded ? 1 : 0,
+                scale: imgLoaded ? 1 : 1.1,
+              }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               style={{
-                width: "100%", height: "100%", objectFit: "contain",
-                padding: "24px",
-                filter: "drop-shadow(0 12px 32px rgba(0,0,0,0.25))",
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                padding: "32px 48px",
+                filter: "drop-shadow(0 16px 40px rgba(0,0,0,0.3))",
+                position: "relative",
+                zIndex: 1,
               }}
             />
           ) : (
-            <motion.span
-              animate={{ scale: [1, 1.08, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              style={{ fontSize: "100px" }}
-            >{displayIcon}</motion.span>
+            <motion.div
+              animate={{ scale: [1, 1.06, 1] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "120px",
+                position: "relative",
+                zIndex: 1,
+              }}
+            >
+              {displayIcon}
+            </motion.div>
           )}
 
           {/* Close button */}
@@ -224,250 +269,595 @@ export default function OrganDialog({
             whileHover={{ scale: 1.1, rotate: 90 }}
             whileTap={{ scale: 0.9 }}
             style={{
-              position: "absolute", top: "14px", left: "14px",
-              width: "42px", height: "42px", borderRadius: "14px",
-              background: `${t.bg}dd`, backdropFilter: "blur(16px)",
+              position: "absolute",
+              top: "16px",
+              left: "16px",
+              zIndex: 5,
+              width: "44px",
+              height: "44px",
+              borderRadius: "14px",
+              background: `${t.bg}cc`,
+              backdropFilter: "blur(16px)",
               border: `1px solid ${t.panelBorder}`,
-              color: t.textSecondary, cursor: "pointer", fontSize: "16px",
-              display: "flex", alignItems: "center", justifyContent: "center",
+              color: t.textSecondary,
+              cursor: "pointer",
+              fontSize: "18px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
-          >✕</motion.button>
+          >
+            ✕
+          </motion.button>
+
+          {/* Gradient overlay at bottom */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: "80px",
+              background: `linear-gradient(transparent, ${t.bg})`,
+              zIndex: 2,
+            }}
+          />
 
           {/* Icon badge */}
           <motion.div
             initial={{ scale: 0, y: 10 }}
             animate={{ scale: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 500, damping: 20, delay: 0.2 }}
+            transition={{ type: "spring", stiffness: 500, damping: 20, delay: 0.25 }}
             style={{
-              position: "absolute", bottom: "-24px", right: "24px",
-              width: "52px", height: "52px", borderRadius: "16px",
+              position: "absolute",
+              bottom: "-24px",
+              right: "24px",
+              zIndex: 5,
+              width: "56px",
+              height: "56px",
+              borderRadius: "18px",
               background: t.bg,
-              border: `2.5px solid ${accentColor}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "26px",
-              boxShadow: `0 6px 28px ${accentColor}30`,
+              border: `3px solid ${accent}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "28px",
+              boxShadow: `0 8px 32px ${accent}30`,
             }}
           >
             {displayIcon}
           </motion.div>
         </div>
 
-        {/* Content */}
-        <div style={{ padding: "38px 28px 32px" }}>
-          {/* Title */}
-          <motion.h2
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            style={{
-              fontSize: isKids ? "1.6rem" : "1.7rem",
-              fontWeight: 800, color: t.textPrimary,
-              margin: "0 0 8px", lineHeight: 1.2,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            {organ.name} {isKids && displayIcon}
-          </motion.h2>
+        {/* Scrollable Content */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "36px 24px 32px",
+          }}
+        >
+          <motion.div variants={staggerContainer} initial="hidden" animate="visible">
+            {/* Age toggle */}
+            <motion.div variants={fadeUp} style={{ marginBottom: "18px" }}>
+              <div
+                style={{
+                  display: "inline-flex",
+                  gap: "4px",
+                  background: `${t.panelBorder}40`,
+                  borderRadius: "14px",
+                  padding: "4px",
+                }}
+              >
+                {([
+                  { key: "adult" as AgeMode, label: "🧑‍⚕️ מבוגרים" },
+                  { key: "kids" as AgeMode, label: "🧒 ילדים" },
+                ] as const).map((mode) => (
+                  <motion.button
+                    key={mode.key}
+                    onClick={() => {
+                      setAgeMode(mode.key);
+                      setActiveTab("overview");
+                      setHoveredFact(null);
+                    }}
+                    whileTap={{ scale: 0.95 }}
+                    style={{
+                      padding: "7px 18px",
+                      borderRadius: "10px",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                      background: ageMode === mode.key ? accent : "transparent",
+                      color: ageMode === mode.key ? "#fff" : t.textSecondary,
+                    }}
+                  >
+                    {mode.label}
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 400, damping: 20 }}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: "6px",
-              fontSize: "12px", fontWeight: 600,
-              color: accentColor,
-              background: `${accentColor}10`,
-              borderRadius: "20px", padding: "5px 14px",
-              marginBottom: "22px",
-              border: `1px solid ${accentColor}20`,
-            }}
-          >
-            <motion.span
-              animate={{ scale: [1, 1.3, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              style={{ width: "6px", height: "6px", borderRadius: "50%", background: accentColor }}
-            />
-            {organ.system}
-          </motion.div>
+            {/* Title + System badge */}
+            <motion.h2
+              variants={fadeUp}
+              style={{
+                fontSize: isKids ? "1.7rem" : "1.8rem",
+                fontWeight: 900,
+                color: t.textPrimary,
+                margin: "0 0 10px",
+                lineHeight: 1.2,
+                letterSpacing: "-0.03em",
+              }}
+            >
+              {organ.name}
+            </motion.h2>
 
-          {/* Stats */}
-          {(organ.weight || organ.size) && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "22px" }}>
-              {[
-                organ.weight && { label: isKids ? "⚖️ כמה שוקל?" : "⚖️ משקל", value: organ.weight },
-                organ.size && { label: isKids ? "📏 כמה גדול?" : "📏 גודל", value: organ.size },
-              ].filter(Boolean).map((stat, i) => (
+            <motion.div variants={fadeUp}>
+              <motion.span
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: accent,
+                  background: `${accent}10`,
+                  borderRadius: "20px",
+                  padding: "6px 16px",
+                  marginBottom: "20px",
+                  border: `1px solid ${accent}20`,
+                }}
+              >
+                <span
+                  style={{
+                    width: "7px",
+                    height: "7px",
+                    borderRadius: "50%",
+                    background: accent,
+                    animation: "pulse 2s infinite",
+                  }}
+                />
+                {organ.system}
+              </motion.span>
+            </motion.div>
+
+            {/* Quick stats cards */}
+            <motion.div
+              variants={fadeUp}
+              style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${statItems.length}, 1fr)`,
+                gap: "10px",
+                marginBottom: "22px",
+              }}
+            >
+              {statItems.map((stat, i) => (
                 <motion.div
                   key={i}
                   custom={i}
-                  variants={statVariants}
-                  initial="hidden" animate="visible"
-                  whileHover={{ scale: 1.03, y: -2 }}
+                  variants={scaleIn}
+                  initial="hidden"
+                  animate="visible"
+                  whileHover={{
+                    y: -4,
+                    boxShadow: `0 12px 28px ${accent}18`,
+                  }}
                   style={{
-                    padding: "16px 18px", borderRadius: "16px",
-                    background: `${accentColor}06`,
+                    padding: "14px 16px",
+                    borderRadius: "16px",
+                    background: `${accent}06`,
                     border: `1px solid ${t.panelBorder}`,
                     cursor: "default",
                     transition: "box-shadow 0.3s",
+                    textAlign: "center",
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 24px ${accentColor}15`; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
                 >
-                  <div style={{ fontSize: "11px", color: t.textSecondary, marginBottom: "5px", fontWeight: 500 }}>
-                    {stat!.label}
+                  <div style={{ fontSize: "22px", marginBottom: "6px" }}>{stat.icon}</div>
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color: t.textSecondary,
+                      marginBottom: "4px",
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {stat.label}
                   </div>
-                  <div style={{ fontSize: "15px", fontWeight: 800, color: t.textPrimary }}>
-                    {stat!.value}
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 800,
+                      color: t.textPrimary,
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {stat.value}
                   </div>
                 </motion.div>
               ))}
-            </div>
-          )}
-
-          {/* Content tabs */}
-          <div style={{
-            display: "flex", gap: "4px", marginBottom: "18px",
-            background: `${t.panelBorder}40`, borderRadius: "14px", padding: "4px",
-          }}>
-            {(["info", "facts"] as const).map(tab => (
-              <motion.button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                whileTap={{ scale: 0.96 }}
-                style={{
-                  flex: 1, padding: "11px", borderRadius: "11px", border: "none",
-                  cursor: "pointer", fontSize: "13px", fontWeight: 700,
-                  transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                  background: activeTab === tab ? accentColor : "transparent",
-                  color: activeTab === tab ? "#fff" : t.textSecondary,
-                }}
-              >
-                {tab === "info"
-                  ? (isKids ? "📖 מה זה?" : "📋 סקירה")
-                  : (isKids ? "🤩 עובדות מגניבות!" : "💡 עובדות")}
-              </motion.button>
-            ))}
-          </div>
-
-          {/* Tab content */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${ageMode}-${activeTab}`}
-              variants={contentVariants}
-              initial="hidden" animate="visible" exit="exit"
-            >
-              {activeTab === "info" ? (
-                <p style={{
-                  fontSize: isKids ? "1rem" : "0.95rem",
-                  color: t.textSecondary,
-                  lineHeight: isKids ? 2.2 : 1.9,
-                  margin: 0, padding: "8px 0",
-                }}>
-                  {summary}
-                </p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {facts.length > 0 ? facts.map((fact, i) => (
-                    <motion.div
-                      key={i}
-                      custom={i}
-                      variants={factVariants}
-                      initial="hidden" animate="visible"
-                      onMouseEnter={() => setHoveredFact(i)}
-                      onMouseLeave={() => setHoveredFact(null)}
-                      whileHover={{ x: -6, scale: 1.01 }}
-                      style={{
-                        display: "flex", alignItems: "flex-start", gap: "12px",
-                        padding: isKids ? "14px 16px" : "12px 14px",
-                        borderRadius: "14px",
-                        background: hoveredFact === i ? `${accentColor}12` : `${accentColor}04`,
-                        border: `1px solid ${hoveredFact === i ? `${accentColor}35` : t.panelBorder}`,
-                        cursor: "default",
-                        transition: "background 0.2s, border-color 0.2s",
-                      }}
-                    >
-                      {!isKids && (
-                        <motion.span
-                          animate={{
-                            background: hoveredFact === i ? accentColor : `${accentColor}20`,
-                            color: hoveredFact === i ? "#fff" : accentColor,
-                          }}
-                          style={{
-                            minWidth: "30px", height: "30px", borderRadius: "10px",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: "12px", fontWeight: 800, flexShrink: 0,
-                          }}
-                        >{i + 1}</motion.span>
-                      )}
-                      <span style={{
-                        fontSize: isKids ? "0.95rem" : "0.88rem",
-                        color: t.textPrimary,
-                        lineHeight: isKids ? 1.8 : 1.7,
-                        fontWeight: 500,
-                      }}>
-                        {fact}
-                      </span>
-                    </motion.div>
-                  )) : (
-                    <p style={{ color: t.textSecondary, fontSize: "0.85rem", textAlign: "center", padding: "16px 0" }}>
-                      אין עובדות נוספות זמינות
-                    </p>
-                  )}
-                </div>
-              )}
             </motion.div>
-          </AnimatePresence>
 
-          {/* Fun fact */}
-          {funFact && (
+            {/* Tabs */}
             <motion.div
-              initial={{ opacity: 0, y: 15, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.4, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              whileHover={{ scale: 1.02 }}
+              variants={fadeUp}
               style={{
-                marginTop: "22px", padding: "18px 20px",
-                background: `${accentColor}08`,
-                borderRadius: "18px",
-                border: `1.5px solid ${accentColor}20`,
-                position: "relative", overflow: "hidden",
-                cursor: "default",
+                display: "flex",
+                gap: "3px",
+                marginBottom: "20px",
+                background: `${t.panelBorder}35`,
+                borderRadius: "14px",
+                padding: "4px",
               }}
             >
-              {/* Animated background glow */}
-              <motion.div
-                animate={{
-                  opacity: [0.03, 0.08, 0.03],
-                  scale: [1, 1.1, 1],
-                }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                style={{
-                  position: "absolute", top: "-20px", right: "-20px",
-                  width: "100px", height: "100px", borderRadius: "50%",
-                  background: accentColor,
-                }}
-              />
-              <div style={{
-                fontSize: "11px", fontWeight: 800,
-                color: accentColor,
-                marginBottom: "8px", letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                position: "relative",
-              }}>
-                {isKids ? "וואו! הידעתם? 🤯" : "הידעת? ✨"}
-              </div>
-              <div style={{
-                fontSize: isKids ? "0.95rem" : "0.9rem",
-                color: t.textPrimary,
-                lineHeight: isKids ? 1.9 : 1.7,
-                fontWeight: 500,
-                position: "relative",
-              }}>
-                {funFact}
-              </div>
+              {TABS.map((tab) => (
+                <motion.button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  whileTap={{ scale: 0.96 }}
+                  style={{
+                    flex: 1,
+                    padding: "11px 8px",
+                    borderRadius: "11px",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                    background: activeTab === tab.key ? accent : "transparent",
+                    color: activeTab === tab.key ? "#fff" : t.textSecondary,
+                  }}
+                >
+                  {isKids ? tab.kidsLabel : `${tab.icon} ${tab.label}`}
+                </motion.button>
+              ))}
             </motion.div>
-          )}
+
+            {/* Tab content */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${ageMode}-${activeTab}`}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } }}
+                exit={{ opacity: 0, y: -8, transition: { duration: 0.15 } }}
+              >
+                {activeTab === "overview" && (
+                  <div>
+                    <p
+                      style={{
+                        fontSize: isKids ? "1.05rem" : "0.95rem",
+                        color: t.textSecondary,
+                        lineHeight: isKids ? 2.2 : 1.95,
+                        margin: "0 0 20px",
+                        padding: 0,
+                      }}
+                    >
+                      {summary}
+                    </p>
+
+                    {/* Fun fact highlight card */}
+                    {funFact && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ delay: 0.2, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                        whileHover={{ scale: 1.02 }}
+                        style={{
+                          padding: "20px 22px",
+                          background: `linear-gradient(135deg, ${accent}12, ${accent}06)`,
+                          borderRadius: "20px",
+                          border: `1.5px solid ${accent}25`,
+                          position: "relative",
+                          overflow: "hidden",
+                          cursor: "default",
+                        }}
+                      >
+                        {/* Glow */}
+                        <motion.div
+                          animate={{
+                            opacity: [0.04, 0.1, 0.04],
+                            scale: [1, 1.15, 1],
+                          }}
+                          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                          style={{
+                            position: "absolute",
+                            top: "-20px",
+                            right: "-20px",
+                            width: "120px",
+                            height: "120px",
+                            borderRadius: "50%",
+                            background: accent,
+                          }}
+                        />
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 800,
+                            color: accent,
+                            marginBottom: "8px",
+                            letterSpacing: "0.05em",
+                            textTransform: "uppercase",
+                            position: "relative",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          <motion.span
+                            animate={{ rotate: [0, 15, -15, 0] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                          >
+                            {isKids ? "🤯" : "✨"}
+                          </motion.span>
+                          {isKids ? "וואו! הידעתם?" : "הידעת?"}
+                        </div>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: isKids ? "0.95rem" : "0.9rem",
+                            color: t.textPrimary,
+                            lineHeight: 1.8,
+                            fontWeight: 600,
+                            position: "relative",
+                          }}
+                        >
+                          {funFact}
+                        </p>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "facts" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {facts.length > 0 ? (
+                      facts.map((fact, i) => (
+                        <motion.div
+                          key={i}
+                          custom={i}
+                          variants={factSlide}
+                          initial="hidden"
+                          animate="visible"
+                          onMouseEnter={() => setHoveredFact(i)}
+                          onMouseLeave={() => setHoveredFact(null)}
+                          whileHover={{ x: -4, scale: 1.01 }}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "14px",
+                            padding: isKids ? "16px 18px" : "14px 16px",
+                            borderRadius: "16px",
+                            background:
+                              hoveredFact === i
+                                ? `${accent}14`
+                                : `${accent}04`,
+                            border: `1px solid ${
+                              hoveredFact === i ? `${accent}40` : t.panelBorder
+                            }`,
+                            cursor: "default",
+                            transition: "background 0.2s, border-color 0.2s",
+                          }}
+                        >
+                          {!isKids && (
+                            <motion.span
+                              animate={{
+                                background:
+                                  hoveredFact === i
+                                    ? accent
+                                    : `${accent}20`,
+                                color:
+                                  hoveredFact === i ? "#fff" : accent,
+                              }}
+                              style={{
+                                minWidth: "32px",
+                                height: "32px",
+                                borderRadius: "10px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "13px",
+                                fontWeight: 800,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {i + 1}
+                            </motion.span>
+                          )}
+                          <span
+                            style={{
+                              fontSize: isKids ? "0.95rem" : "0.9rem",
+                              color: t.textPrimary,
+                              lineHeight: isKids ? 1.9 : 1.75,
+                              fontWeight: 500,
+                            }}
+                          >
+                            {fact}
+                          </span>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <p
+                        style={{
+                          color: t.textSecondary,
+                          fontSize: "0.85rem",
+                          textAlign: "center",
+                          padding: "24px 0",
+                        }}
+                      >
+                        אין עובדות נוספות זמינות
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "stats" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    {/* Visual stat bars */}
+                    {statItems.map((stat, i) => (
+                      <motion.div
+                        key={i}
+                        custom={i}
+                        variants={scaleIn}
+                        initial="hidden"
+                        animate="visible"
+                        style={{
+                          padding: "18px 20px",
+                          borderRadius: "18px",
+                          background: `${accent}05`,
+                          border: `1px solid ${t.panelBorder}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: "10px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 700,
+                              color: t.textPrimary,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <span style={{ fontSize: "18px" }}>{stat.icon}</span>
+                            {stat.label}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "14px",
+                              fontWeight: 800,
+                              color: accent,
+                            }}
+                          >
+                            {stat.value}
+                          </span>
+                        </div>
+                        {/* Animated bar */}
+                        <div
+                          style={{
+                            height: "6px",
+                            borderRadius: "3px",
+                            background: `${t.panelBorder}`,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: progressAnim
+                                ? `${60 + ((i * 17) % 35)}%`
+                                : 0,
+                            }}
+                            transition={{
+                              duration: 0.8,
+                              delay: i * 0.15,
+                              ease: [0.16, 1, 0.3, 1],
+                            }}
+                            style={{
+                              height: "100%",
+                              borderRadius: "3px",
+                              background: `linear-gradient(90deg, ${accent}, ${accent}88)`,
+                            }}
+                          />
+                        </div>
+                      </motion.div>
+                    ))}
+
+                    {/* Additional info cards */}
+                    {funFact && (
+                      <motion.div
+                        custom={statItems.length}
+                        variants={scaleIn}
+                        initial="hidden"
+                        animate="visible"
+                        style={{
+                          padding: "18px 20px",
+                          borderRadius: "18px",
+                          background: `linear-gradient(135deg, ${accent}10, transparent)`,
+                          border: `1.5px solid ${accent}20`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 800,
+                            color: accent,
+                            marginBottom: "8px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          💡 עובדה מעניינת
+                        </div>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: "0.9rem",
+                            color: t.textPrimary,
+                            lineHeight: 1.8,
+                            fontWeight: 500,
+                          }}
+                        >
+                          {funFact}
+                        </p>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
+        </div>
+
+        {/* Footer with organ name */}
+        <div
+          style={{
+            flexShrink: 0,
+            padding: "16px 24px",
+            borderTop: `1px solid ${t.panelBorder}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: `${t.bg}`,
+          }}
+        >
+          <span
+            style={{
+              fontSize: "12px",
+              color: t.textSecondary,
+              fontWeight: 600,
+            }}
+          >
+            {organ.system} • {organ.name}
+          </span>
+          <motion.button
+            onClick={onClose}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            style={{
+              padding: "8px 20px",
+              borderRadius: "10px",
+              border: "none",
+              background: accent,
+              color: "#fff",
+              fontSize: "13px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            סגור
+          </motion.button>
         </div>
       </motion.div>
     </AnimatePresence>
