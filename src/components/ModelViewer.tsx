@@ -3,7 +3,7 @@ import { OrbitControls } from "@react-three/drei";
 import { Suspense, useRef, useCallback, useState, useEffect, useMemo } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
-import { getOrganDetail, getFallbackDetail } from "./OrganData";
+import { getOrganDetail, getFallbackDetail, ORGAN_DETAILS } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
 import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager";
@@ -122,7 +122,13 @@ function Model({ url, onSelect, selectedMesh, accent }: { url: string; onSelect:
     if (detail) {
       onSelect(detail);
     } else {
-      onSelect(getFallbackDetail(mesh.name, mesh.name || "חלק לא מזוהה", "אין מידע נוסף על חלק זה.", "🔍"));
+      // Single-mesh model — show general body info
+      onSelect(getFallbackDetail(
+        mesh.name,
+        "מערכת האיברים הפנימיים",
+        "המודל מציג את מערכת האיברים הפנימיים של גוף האדם, כולל מערכת העיכול, הכבד, הכליות ועוד. לחצו על כפתור 'אטלס איברים' בצד שמאל למטה כדי לחקור כל איבר בנפרד.",
+        "🫀"
+      ));
     }
   };
 
@@ -168,6 +174,8 @@ const ModelViewer = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showDevPanel, setShowDevPanel] = useState(false);
   const [themeIdx, setThemeIdx] = useState(0);
+  const [autoRotate, setAutoRotate] = useState(true);
+  const [showAtlas, setShowAtlas] = useState(false);
 
   const t = THEMES[themeIdx];
 
@@ -254,6 +262,63 @@ const ModelViewer = () => {
         )}
       </div>
 
+      {/* Organ Atlas - bottom left */}
+      <div style={{
+        position: "absolute", bottom: "80px", left: "16px", zIndex: 10,
+        display: "flex", flexDirection: "column", gap: "8px",
+        maxWidth: "260px", maxHeight: showAtlas ? "400px" : "auto",
+      }}>
+        <button onClick={() => setShowAtlas(a => !a)} style={{
+          ...btnStyle, justifyContent: "center",
+          background: showAtlas ? t.accentBgHover : t.panelBg,
+          borderColor: showAtlas ? t.accent : t.panelBorder,
+          width: "auto",
+        }}>
+          🫀 אטלס איברים
+        </button>
+        {showAtlas && (
+          <div style={{
+            background: t.panelBg, backdropFilter: "blur(12px)",
+            border: `1px solid ${t.panelBorder}`, borderRadius: "14px",
+            padding: "10px", overflowY: "auto", maxHeight: "320px",
+            display: "flex", flexDirection: "column", gap: "4px",
+          }}>
+            {Object.entries(ORGAN_DETAILS).map(([key, organ]) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setSelectedOrgan({ ...organ, meshName: key });
+                  setShowAtlas(false);
+                }}
+                style={{
+                  background: "transparent", border: `1px solid ${t.panelBorder}`,
+                  borderRadius: "10px", padding: "10px 12px",
+                  color: t.textPrimary, cursor: "pointer",
+                  fontSize: "12px", textAlign: "right",
+                  display: "flex", alignItems: "center", gap: "10px",
+                  transition: "all 0.15s", direction: "rtl",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = t.accent;
+                  e.currentTarget.style.background = t.accentBgHover;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = t.panelBorder;
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <span style={{ fontSize: "20px" }}>{organ.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: "13px" }}>{organ.name}</div>
+                  <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "1px" }}>{organ.system}</div>
+                </div>
+                <span style={{ fontSize: "11px", color: t.textSecondary }}>←</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Organ dialog */}
       {selectedOrgan && (
         <OrganDialog organ={selectedOrgan} theme={t} onClose={() => setSelectedOrgan(null)} />
@@ -262,13 +327,29 @@ const ModelViewer = () => {
       {/* Controls hint */}
       <div style={{
         position: "absolute", bottom: "24px", left: "50%", transform: "translateX(-50%)",
-        zIndex: 10, pointerEvents: "none"
+        zIndex: 10, display: "flex", gap: "8px", alignItems: "center",
       }}>
+        {/* Auto-rotate toggle */}
+        <button
+          onClick={() => setAutoRotate(r => !r)}
+          style={{
+            background: t.panelBg, backdropFilter: "blur(8px)",
+            border: `1px solid ${autoRotate ? t.accent : t.panelBorder}`,
+            borderRadius: "999px", padding: "10px 16px",
+            color: autoRotate ? t.accent : t.textSecondary,
+            cursor: "pointer", fontSize: "12px", fontWeight: 600,
+            display: "flex", alignItems: "center", gap: "6px",
+            transition: "all 0.2s",
+          }}
+        >
+          {autoRotate ? "⏸️ עצור סיבוב" : "▶️ סיבוב אוטומטי"}
+        </button>
+
         <div style={{
           display: "flex", gap: "16px", fontSize: "12px", color: t.textSecondary,
           background: t.hintBg, backdropFilter: "blur(8px)",
           borderRadius: "999px", padding: "10px 20px", border: `1px solid ${t.panelBorder}`,
-          direction: "rtl",
+          direction: "rtl", pointerEvents: "none",
         }}>
           <span>🖱️ סיבוב</span>
           <span>⚙️ גלגלת = זום</span>
@@ -376,7 +457,7 @@ const ModelViewer = () => {
         <OrbitControls
           enableDamping dampingFactor={0.05}
           minDistance={1.5} maxDistance={10}
-          autoRotate autoRotateSpeed={0.5}
+          autoRotate={autoRotate} autoRotateSpeed={0.5}
         />
       </Canvas>
     </div>
