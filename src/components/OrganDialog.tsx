@@ -54,7 +54,7 @@ export default function OrganDialog({
         {/* Hero image area */}
         <div style={{
           position: "relative", width: "100%", height: "200px",
-          background: theme.gradient, borderRadius: "20px 20px 0 0",
+          background: `${theme.accent}18`, borderRadius: "20px 20px 0 0",
           overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           {organ.image ? (
@@ -193,7 +193,7 @@ export default function OrganDialog({
                 }}>
                   <span style={{
                     minWidth: "24px", height: "24px", borderRadius: "50%",
-                    background: theme.gradient, color: "#fff",
+                    background: theme.accent, color: "#fff",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: "12px", fontWeight: 700, flexShrink: 0,
                   }}>{i + 1}</span>
@@ -213,17 +213,18 @@ export default function OrganDialog({
           {organ.funFact && (
             <div style={{
               marginTop: "16px", padding: "14px 16px",
-              background: theme.gradient, borderRadius: "12px",
+              background: `${theme.accent}12`, borderRadius: "12px",
+              border: `1px solid ${theme.accent}30`,
               position: "relative", overflow: "hidden",
             }}>
               <div style={{
                 position: "absolute", top: "-10px", right: "-5px",
-                fontSize: "50px", opacity: 0.15,
+                fontSize: "50px", opacity: 0.1,
               }}>💡</div>
-              <div style={{ fontSize: "11px", fontWeight: 700, color: "rgba(255,255,255,0.7)", marginBottom: "4px" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: theme.accent, marginBottom: "4px" }}>
                 הידעת?
               </div>
-              <div style={{ fontSize: "0.85rem", color: "#fff", lineHeight: 1.6, fontWeight: 500 }}>
+              <div style={{ fontSize: "0.85rem", color: theme.textPrimary, lineHeight: 1.6, fontWeight: 500 }}>
                 {organ.funFact}
               </div>
             </div>
