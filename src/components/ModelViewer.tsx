@@ -822,9 +822,10 @@ const ModelViewer = () => {
         style={{ touchAction: "none" }}
       >
         <color attach="background" args={[t.canvasBg]} />
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[5, 5, 5]} intensity={1.2} />
-        <directionalLight position={[-5, 3, -5]} intensity={0.4} color={t.accentAlt} />
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 5, 5]} intensity={1.4} castShadow />
+        <directionalLight position={[-5, 3, -5]} intensity={0.5} color={t.accentAlt} />
+        <directionalLight position={[0, -3, 3]} intensity={0.3} color="#ffffff" />
         <pointLight position={[0, 3, 0]} intensity={0.5} color={t.accent} />
         <Suspense fallback={null}>
           {useInteractive ? (
