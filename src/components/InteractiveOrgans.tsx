@@ -1,9 +1,11 @@
 import { useRef, useState, useMemo } from "react";
 import * as THREE from "three";
-import { ThreeEvent, useFrame } from "@react-three/fiber";
+import { ThreeEvent, useFrame, useLoader } from "@react-three/fiber";
 import { Html, Float } from "@react-three/drei";
 import { ORGAN_DETAILS } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
+import humanBodyFront from "@/assets/human-body-front.png";
+import humanBodyBack from "@/assets/human-body-back.png";
 
 export type LayerType = "skeleton" | "muscles" | "organs" | "vessels";
 
@@ -215,104 +217,48 @@ function OrganParticles({ position, color }: { position: [number, number, number
 
 function BodySilhouette() {
   const ref = useRef<THREE.Group>(null);
+  const frontTexture = useLoader(THREE.TextureLoader, humanBodyFront);
+  const backTexture = useLoader(THREE.TextureLoader, humanBodyBack);
+
   useFrame(({ clock }) => {
     if (!ref.current) return;
-    const breathe = 1 + Math.sin(clock.getElapsedTime() * 1.2) * 0.005;
+    const breathe = 1 + Math.sin(clock.getElapsedTime() * 1.2) * 0.003;
     ref.current.scale.set(1, breathe, 1);
   });
 
-  const skinColor = "#e8c4a8";
-  const skinOpacity = 0.18;
+  // The texture is 512x1024, body proportions ~1.4w x 3.6h in scene units
+  const planeW = 1.6;
+  const planeH = planeW * 2; // 2:1 aspect ratio matching texture
 
   return (
     <group ref={ref}>
-      {/* Head */}
-      <mesh position={[0, 2.02, 0]}>
-        <sphereGeometry args={[0.28, 32, 32]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={skinOpacity} roughness={0.7} metalness={0} clearcoat={0.3} clearcoatRoughness={0.5} depthWrite={false} side={THREE.DoubleSide} />
+      {/* Front-facing textured body plane */}
+      <mesh position={[0, 0.6, 0.01]}>
+        <planeGeometry args={[planeW, planeH]} />
+        <meshStandardMaterial
+          map={frontTexture}
+          transparent
+          opacity={0.85}
+          alphaTest={0.05}
+          side={THREE.FrontSide}
+          roughness={0.6}
+          metalness={0.05}
+          depthWrite={false}
+        />
       </mesh>
-      {/* Face features */}
-      <mesh position={[0.08, 2.08, 0.22]}>
-        <sphereGeometry args={[0.025, 16, 16]} />
-        <meshStandardMaterial color="#4a6fa5" transparent opacity={0.4} roughness={0.2} metalness={0.3} />
-      </mesh>
-      <mesh position={[-0.08, 2.08, 0.22]}>
-        <sphereGeometry args={[0.025, 16, 16]} />
-        <meshStandardMaterial color="#4a6fa5" transparent opacity={0.4} roughness={0.2} metalness={0.3} />
-      </mesh>
-      {/* Nose */}
-      <mesh position={[0, 2.0, 0.26]}>
-        <sphereGeometry args={[0.025, 12, 12]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={0.25} roughness={0.6} clearcoat={0.2} depthWrite={false} />
-      </mesh>
-      {/* Ears */}
-      <mesh position={[0.28, 2.04, 0]}>
-        <sphereGeometry args={[0.04, 12, 8]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={0.2} roughness={0.7} depthWrite={false} />
-      </mesh>
-      <mesh position={[-0.28, 2.04, 0]}>
-        <sphereGeometry args={[0.04, 12, 8]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={0.2} roughness={0.7} depthWrite={false} />
-      </mesh>
-      {/* Neck */}
-      <mesh position={[0, 1.62, 0]}>
-        <cylinderGeometry args={[0.08, 0.1, 0.18, 16]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={skinOpacity * 0.9} roughness={0.7} clearcoat={0.2} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      {/* Torso — right half skin, left half muscles */}
-      <mesh position={[0.15, 0.85, 0]}>
-        <cylinderGeometry args={[0.18, 0.16, 0.7, 16, 1, false, 0, Math.PI]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={skinOpacity} roughness={0.65} clearcoat={0.3} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[-0.15, 0.85, 0]}>
-        <cylinderGeometry args={[0.18, 0.16, 0.7, 16, 1, false, Math.PI, Math.PI]} />
-        <meshPhysicalMaterial color="#c05050" transparent opacity={0.12} roughness={0.5} clearcoat={0.1} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      {/* Abdomen — open cavity look */}
-      <mesh position={[0, 0.25, 0]}>
-        <cylinderGeometry args={[0.28, 0.26, 0.8, 16]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={0.08} roughness={0.7} clearcoat={0.15} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      {/* Pelvis */}
-      <mesh position={[0, -0.35, 0]}>
-        <sphereGeometry args={[0.26, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={0.1} roughness={0.7} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      {/* Legs */}
-      <mesh position={[0.13, -1.0, 0]}>
-        <cylinderGeometry args={[0.075, 0.06, 1.0, 12]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={0.1} roughness={0.65} clearcoat={0.2} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[-0.13, -1.0, 0]}>
-        <cylinderGeometry args={[0.075, 0.06, 1.0, 12]} />
-        <meshPhysicalMaterial color="#c05050" transparent opacity={0.08} roughness={0.5} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      {/* Upper arms */}
-      <mesh position={[0.46, 0.9, 0]} rotation={[0, 0, 0.12]}>
-        <cylinderGeometry args={[0.048, 0.038, 0.55, 12]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={0.1} roughness={0.65} clearcoat={0.2} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[-0.46, 0.9, 0]} rotation={[0, 0, -0.12]}>
-        <cylinderGeometry args={[0.048, 0.038, 0.55, 12]} />
-        <meshPhysicalMaterial color="#c05050" transparent opacity={0.08} roughness={0.5} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      {/* Forearms */}
-      <mesh position={[0.52, 0.5, 0]} rotation={[0, 0, 0.05]}>
-        <cylinderGeometry args={[0.038, 0.028, 0.5, 12]} />
-        <meshPhysicalMaterial color={skinColor} transparent opacity={0.08} roughness={0.65} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[-0.52, 0.5, 0]} rotation={[0, 0, -0.05]}>
-        <cylinderGeometry args={[0.038, 0.028, 0.5, 12]} />
-        <meshPhysicalMaterial color="#c05050" transparent opacity={0.06} roughness={0.5} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      {/* Clavicles */}
-      <mesh position={[0.2, 1.18, 0.04]} rotation={[0, 0, Math.PI / 2 - 0.15]}>
-        <cylinderGeometry args={[0.015, 0.015, 0.2, 8]} />
-        <meshPhysicalMaterial color="#e0d8c8" transparent opacity={0.12} roughness={0.5} depthWrite={false} />
-      </mesh>
-      <mesh position={[-0.2, 1.18, 0.04]} rotation={[0, 0, Math.PI / 2 + 0.15]}>
-        <cylinderGeometry args={[0.015, 0.015, 0.2, 8]} />
-        <meshPhysicalMaterial color="#e0d8c8" transparent opacity={0.12} roughness={0.5} depthWrite={false} />
+      {/* Back-facing textured body plane */}
+      <mesh position={[0, 0.6, -0.01]} rotation={[0, Math.PI, 0]}>
+        <planeGeometry args={[planeW, planeH]} />
+        <meshStandardMaterial
+          map={backTexture}
+          transparent
+          opacity={0.85}
+          alphaTest={0.05}
+          side={THREE.FrontSide}
+          roughness={0.6}
+          metalness={0.05}
+          depthWrite={false}
+        />
       </mesh>
     </group>
   );
