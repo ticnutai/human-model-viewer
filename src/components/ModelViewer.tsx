@@ -325,6 +325,7 @@ const ModelViewer = () => {
   const [moveMode, setMoveMode] = useState(false);
   const [showLayers, setShowLayers] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [detailMode, setDetailMode] = useState<{ url: string; label: string } | null>(null);
 
   // Sync from cloud prefs
   const themeIdx = prefs.themeIndex;
@@ -336,6 +337,30 @@ const ModelViewer = () => {
   const setThemeIdx = (idx: number) => updatePrefs({ themeIndex: idx });
   const setAutoRotate = (val: boolean) => updatePrefs({ autoRotate: val });
   const setUseInteractive = (val: boolean) => updatePrefs({ useInteractive: val });
+
+  // Detail model mapping - organs that have dedicated high-res cloud models
+  const DETAIL_MODELS: Record<string, { url: string; label: string }> = {
+    heart: { url: CLOUD_HEART_MODEL, label: "הלב — מודל מפורט" },
+  };
+
+  const enterDetailMode = useCallback((organKey: string) => {
+    const detail = DETAIL_MODELS[organKey];
+    if (!detail) return;
+    setDetailMode(detail);
+    setModelUrl(detail.url);
+    setModelKey(k => k + 1);
+    setUseInteractive(false);
+    handleViewChange([0, 0.5, 2.5], [0, 0, 0]);
+    setShowAtlas(false);
+    setMobileMenu(false);
+  }, []);
+
+  const exitDetailMode = useCallback(() => {
+    setDetailMode(null);
+    setModelUrl(DEFAULT_MODEL);
+    setModelKey(k => k + 1);
+    handleViewChange([0, 1, 4], [0, 0, 0]);
+  }, []);
 
   const LAYER_INFO: { key: LayerType; label: string; icon: string; color: string }[] = [
     { key: "skeleton", label: "שלד", icon: "🦴", color: "#e8dcc8" },
@@ -414,34 +439,55 @@ const ModelViewer = () => {
   // ── Atlas content (shared) ──
   const atlasContent = (
     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-      {Object.entries(ORGAN_DETAILS).map(([key, organ]) => (
-        <button
-          key={key}
-          onClick={() => {
-            setSelectedOrgan({ ...organ, meshName: key });
-            setShowAtlas(false);
-            setMobileMenu(false);
-            if (organ.cameraPos) {
-              handleViewChange(organ.cameraPos, organ.lookAt);
-            }
-          }}
-          style={{
-            background: "transparent", border: `1px solid ${t.panelBorder}`,
-            borderRadius: "10px", padding: "10px 12px",
-            color: t.textPrimary, cursor: "pointer",
-            fontSize: "12px", textAlign: "right",
-            display: "flex", alignItems: "center", gap: "10px",
-            transition: "all 0.15s", direction: "rtl",
-          }}
-        >
-          <span style={{ fontSize: "20px" }}>{organ.icon}</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: "13px" }}>{organ.name}</div>
-            <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "1px" }}>{organ.system}</div>
+      {Object.entries(ORGAN_DETAILS).map(([key, organ]) => {
+        const hasDetail = !!DETAIL_MODELS[key];
+        return (
+          <div key={key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <button
+              onClick={() => {
+                setSelectedOrgan({ ...organ, meshName: key });
+                setShowAtlas(false);
+                setMobileMenu(false);
+                if (organ.cameraPos) {
+                  handleViewChange(organ.cameraPos, organ.lookAt);
+                }
+              }}
+              style={{
+                background: "transparent", border: `1px solid ${t.panelBorder}`,
+                borderRadius: hasDetail ? "10px 10px 0 0" : "10px", padding: "10px 12px",
+                color: t.textPrimary, cursor: "pointer",
+                fontSize: "12px", textAlign: "right",
+                display: "flex", alignItems: "center", gap: "10px",
+                transition: "all 0.15s", direction: "rtl",
+              }}
+            >
+              <span style={{ fontSize: "20px" }}>{organ.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: "13px" }}>{organ.name}</div>
+                <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "1px" }}>{organ.system}</div>
+              </div>
+              <span style={{ fontSize: "11px", color: t.textSecondary }}>←</span>
+            </button>
+            {hasDetail && (
+              <button
+                onClick={() => enterDetailMode(key)}
+                style={{
+                  background: `${t.accent}15`, 
+                  border: `1px solid ${t.accent}40`,
+                  borderTop: "none",
+                  borderRadius: "0 0 10px 10px", padding: "8px 12px",
+                  color: t.accent, cursor: "pointer",
+                  fontSize: "11px", fontWeight: 600, textAlign: "center",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                  transition: "all 0.15s", direction: "rtl",
+                }}
+              >
+                🔬 תצוגת פירוט — מודל תלת-ממדי מפורט
+              </button>
+            )}
           </div>
-          <span style={{ fontSize: "11px", color: t.textSecondary }}>←</span>
-        </button>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -538,6 +584,30 @@ const ModelViewer = () => {
           </p>
         )}
       </div>
+
+      {/* Detail Mode Banner */}
+      {detailMode && (
+        <div style={{
+          position: "absolute", top: isMobile ? "56px" : "80px", left: "50%", transform: "translateX(-50%)",
+          zIndex: 30, display: "flex", alignItems: "center", gap: "10px",
+          background: `${t.accent}18`, backdropFilter: "blur(12px)",
+          border: `1px solid ${t.accent}50`, borderRadius: "12px",
+          padding: "8px 16px", direction: "rtl",
+        }}>
+          <span style={{ fontSize: "14px" }}>🔬</span>
+          <span style={{ fontSize: "13px", fontWeight: 600, color: t.accent }}>{detailMode.label}</span>
+          <button
+            onClick={exitDetailMode}
+            style={{
+              background: t.accent, color: "#fff", border: "none",
+              borderRadius: "8px", padding: "5px 12px", cursor: "pointer",
+              fontSize: "11px", fontWeight: 600, marginRight: "4px",
+            }}
+          >
+            ← חזרה למודל מלא
+          </button>
+        </div>
+      )}
 
       {/* ══════ DESKTOP LAYOUT ══════ */}
       {!isMobile && (
