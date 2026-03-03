@@ -9,6 +9,8 @@ import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager";
 import DevPanel from "./DevPanel";
 import InteractiveOrgans, { type LayerType } from "./InteractiveOrgans";
+import { usePreferences } from "@/hooks/usePreferences";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const DEFAULT_MODEL = `${SUPABASE_URL}/storage/v1/object/public/models/human_organs_1.glb`;
@@ -105,7 +107,6 @@ function Model({ url, onSelect, selectedMesh, accent, visibleLayers }: { url: st
   const meshLayerMap = useRef<Map<string, LayerType | null>>(new Map());
   const layers = visibleLayers ?? new Set<LayerType>(["skeleton", "muscles", "organs", "vessels"]);
   const allVisible = layers.size === 4;
-  // Track if model has separate meshes that map to layers
   const hasLayeredMeshes = useRef(false);
 
   useEffect(() => {
@@ -122,7 +123,6 @@ function Model({ url, onSelect, selectedMesh, accent, visibleLayers }: { url: st
     hasLayeredMeshes.current = foundLayered;
   }, [sceneClone]);
 
-  // Apply visibility and materials based on layers
   useEffect(() => {
     sceneClone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
@@ -131,16 +131,13 @@ function Model({ url, onSelect, selectedMesh, accent, visibleLayers }: { url: st
         if (!orig) return;
         const meshLayer = meshLayerMap.current.get(mesh.uuid);
 
-        // If model has layered meshes → true visibility toggle
         if (hasLayeredMeshes.current && meshLayer) {
           mesh.visible = layers.has(meshLayer);
           if (!mesh.visible) return;
         } else if (hasLayeredMeshes.current && !meshLayer) {
-          // Unclassified mesh in a layered model → always visible
           mesh.visible = true;
         }
 
-        // Apply selection highlight
         if (selectedMesh && mesh.name === selectedMesh) {
           mesh.material = new THREE.MeshStandardMaterial({
             color: new THREE.Color(accent),
@@ -152,7 +149,6 @@ function Model({ url, onSelect, selectedMesh, accent, visibleLayers }: { url: st
           mesh.material = Array.isArray(orig) ? orig.map(m => (m as THREE.Material).clone()) : (orig as THREE.Material).clone();
         }
 
-        // Fallback: single-mesh model → tinting simulation
         if (!hasLayeredMeshes.current && !allVisible) {
           const mat = mesh.material as THREE.MeshStandardMaterial;
           if (mat && mat.isMeshStandardMaterial) {
@@ -228,7 +224,47 @@ function CameraController({ targetPosition, targetLookAt }: { targetPosition: [n
   return null;
 }
 
+// ── Mobile Bottom Sheet Component ──
+function MobileBottomSheet({ isOpen, onClose, title, children, t }: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  t: Theme;
+}) {
+  if (!isOpen) return null;
+  return (
+    <>
+      <div onClick={onClose} style={{
+        position: "fixed", inset: 0, zIndex: 90,
+        background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)",
+      }} />
+      <div style={{
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 91,
+        background: t.bg, borderTop: `1px solid ${t.panelBorder}`,
+        borderRadius: "20px 20px 0 0", maxHeight: "70vh",
+        overflowY: "auto", direction: "rtl",
+        boxShadow: `0 -10px 40px rgba(0,0,0,0.3)`,
+      }}>
+        <div style={{ padding: "12px 16px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${t.panelBorder}` }}>
+          <span style={{ fontSize: "15px", fontWeight: 700, color: t.textPrimary }}>{title}</span>
+          <button onClick={onClose} style={{
+            width: "32px", height: "32px", borderRadius: "50%",
+            background: t.panelBg, border: `1px solid ${t.panelBorder}`,
+            color: t.textSecondary, cursor: "pointer", fontSize: "14px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>✕</button>
+        </div>
+        <div style={{ padding: "12px 16px 24px" }}>{children}</div>
+      </div>
+    </>
+  );
+}
+
 const ModelViewer = () => {
+  const isMobile = useIsMobile();
+  const { prefs, updatePrefs, loaded } = usePreferences();
+
   const cameraTargetRef = useRef<[number, number, number] | null>(null);
   const cameraLookAtRef = useRef<[number, number, number] | null>(null);
   const [renderKey, setRenderKey] = useState(0);
@@ -238,14 +274,21 @@ const ModelViewer = () => {
   const [selectedOrgan, setSelectedOrgan] = useState<OrganDetail | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDevPanel, setShowDevPanel] = useState(false);
-  const [themeIdx, setThemeIdx] = useState(0);
-  const [autoRotate, setAutoRotate] = useState(true);
   const [showAtlas, setShowAtlas] = useState(false);
-  const [useInteractive, setUseInteractive] = useState(true);
   const [moveMode, setMoveMode] = useState(false);
-  const [visibleLayers, setVisibleLayers] = useState<Set<LayerType>>(new Set(["skeleton", "muscles", "organs", "vessels"]));
   const [showLayers, setShowLayers] = useState(false);
-  const t = THEMES[themeIdx];
+  const [mobileMenu, setMobileMenu] = useState(false);
+
+  // Sync from cloud prefs
+  const themeIdx = prefs.themeIndex;
+  const autoRotate = prefs.autoRotate;
+  const useInteractive = prefs.useInteractive;
+  const visibleLayers = useMemo(() => new Set(prefs.visibleLayers as LayerType[]), [prefs.visibleLayers]);
+  const t = THEMES[themeIdx] || THEMES[0];
+
+  const setThemeIdx = (idx: number) => updatePrefs({ themeIndex: idx });
+  const setAutoRotate = (val: boolean) => updatePrefs({ autoRotate: val });
+  const setUseInteractive = (val: boolean) => updatePrefs({ useInteractive: val });
 
   const LAYER_INFO: { key: LayerType; label: string; icon: string; color: string }[] = [
     { key: "skeleton", label: "שלד", icon: "🦴", color: "#e8dcc8" },
@@ -255,11 +298,11 @@ const ModelViewer = () => {
   ];
 
   const toggleLayer = (layer: LayerType) => {
-    setVisibleLayers(prev => {
-      const next = new Set(prev);
-      if (next.has(layer)) next.delete(layer); else next.add(layer);
-      return next;
-    });
+    const next = [...prefs.visibleLayers];
+    const idx = next.indexOf(layer);
+    if (idx >= 0) next.splice(idx, 1);
+    else next.push(layer);
+    updatePrefs({ visibleLayers: next as LayerType[] });
   };
 
   const handleViewChange = useCallback((pos: [number, number, number], lookAt?: [number, number, number]) => {
@@ -276,340 +319,497 @@ const ModelViewer = () => {
   const btnStyle: React.CSSProperties = {
     background: t.panelBg, backdropFilter: "blur(8px)",
     border: `1px solid ${t.panelBorder}`, borderRadius: "10px",
-    padding: "10px 14px", color: t.textPrimary, cursor: "pointer",
-    fontSize: "13px", display: "flex", alignItems: "center", gap: "6px",
+    padding: isMobile ? "8px 10px" : "10px 14px",
+    color: t.textPrimary, cursor: "pointer",
+    fontSize: isMobile ? "12px" : "13px",
+    display: "flex", alignItems: "center", gap: "6px",
     transition: "border-color 0.2s, background 0.2s", width: "100%",
     direction: "rtl" as const, textAlign: "right" as const,
   };
 
-  return (
-    <div dir="rtl" style={{ width: "100vw", height: "100vh", background: t.bg, position: "relative", fontFamily: "system-ui, sans-serif" }}>
-      {/* Header */}
-      <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, zIndex: 10,
-        padding: "24px", pointerEvents: "none", textAlign: "center"
-      }}>
-        <h1 style={{
-          fontSize: "2rem", fontWeight: 700, margin: 0,
-          color: t.accent,
-        }}>
-          גוף האדם — מודל תלת-ממדי
-        </h1>
-        <p style={{ color: t.textSecondary, marginTop: "8px", fontSize: "0.875rem" }}>
-          סובבו, הגדילו והקטינו את המודל באמצעות העכבר
-        </p>
-      </div>
-
-      {/* Camera view buttons - right side */}
-      <div style={{
-        position: "absolute", top: "50%", right: "16px", transform: "translateY(-50%)",
-        zIndex: 10, display: "flex", flexDirection: "column", gap: "8px"
-      }}>
-        {VIEWS.map((view) => (
+  // ── Layers content (shared between desktop and mobile) ──
+  const layersContent = (
+    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      {LAYER_INFO.map((layer) => {
+        const active = visibleLayers.has(layer.key);
+        return (
           <button
-            key={view.label}
-            onClick={() => handleViewChange(view.position)}
-            style={{ ...btnStyle, width: "auto", justifyContent: "flex-start" }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.background = t.accentBgHover; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.panelBorder; e.currentTarget.style.background = t.panelBg; }}
+            key={layer.key}
+            onClick={() => toggleLayer(layer.key)}
+            style={{
+              background: active ? `${layer.color}18` : "transparent",
+              border: `1px solid ${active ? layer.color : t.panelBorder}`,
+              borderRadius: "10px", padding: "10px 12px",
+              color: active ? t.textPrimary : t.textSecondary,
+              cursor: "pointer", fontSize: "13px", textAlign: "right",
+              display: "flex", alignItems: "center", gap: "10px",
+              transition: "all 0.15s", direction: "rtl",
+              opacity: active ? 1 : 0.5,
+            }}
           >
-            <span>{view.icon}</span>
-            <span>{view.label}</span>
+            <span style={{
+              width: "20px", height: "20px", borderRadius: "6px",
+              background: active ? layer.color : "transparent",
+              border: `2px solid ${layer.color}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "11px", color: "#fff", flexShrink: 0,
+            }}>
+              {active && "✓"}
+            </span>
+            <span style={{ fontSize: "16px" }}>{layer.icon}</span>
+            <span style={{ fontWeight: 600 }}>{layer.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // ── Atlas content (shared) ──
+  const atlasContent = (
+    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      {Object.entries(ORGAN_DETAILS).map(([key, organ]) => (
+        <button
+          key={key}
+          onClick={() => {
+            setSelectedOrgan({ ...organ, meshName: key });
+            setShowAtlas(false);
+            setMobileMenu(false);
+            if (organ.cameraPos) {
+              handleViewChange(organ.cameraPos, organ.lookAt);
+            }
+          }}
+          style={{
+            background: "transparent", border: `1px solid ${t.panelBorder}`,
+            borderRadius: "10px", padding: "10px 12px",
+            color: t.textPrimary, cursor: "pointer",
+            fontSize: "12px", textAlign: "right",
+            display: "flex", alignItems: "center", gap: "10px",
+            transition: "all 0.15s", direction: "rtl",
+          }}
+        >
+          <span style={{ fontSize: "20px" }}>{organ.icon}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: "13px" }}>{organ.name}</div>
+            <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "1px" }}>{organ.system}</div>
+          </div>
+          <span style={{ fontSize: "11px", color: t.textSecondary }}>←</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  // ── Settings content (shared) ──
+  const settingsContent = (
+    <div style={{ direction: "rtl" }}>
+      <div style={{ fontSize: "13px", fontWeight: 700, color: t.textPrimary, marginBottom: "10px", textAlign: "right" }}>
+        🎨 ערכת נושא
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "14px" }}>
+        {THEMES.map((theme, idx) => (
+          <button
+            key={theme.name}
+            onClick={() => setThemeIdx(idx)}
+            style={{
+              background: idx === themeIdx ? t.accentBgHover : "transparent",
+              border: `1px solid ${idx === themeIdx ? t.accent : t.panelBorder}`,
+              borderRadius: "8px", padding: "8px 12px",
+              color: t.textPrimary, cursor: "pointer",
+              fontSize: "13px", textAlign: "right",
+              display: "flex", alignItems: "center", gap: "8px",
+              transition: "all 0.15s",
+            }}
+          >
+            <span style={{
+              width: "16px", height: "16px", borderRadius: "50%",
+              background: theme.gradient, flexShrink: 0,
+              border: `2px solid ${idx === themeIdx ? theme.accent : "transparent"}`,
+            }} />
+            <span>{theme.name}</span>
+            {idx === themeIdx && <span style={{ marginRight: "auto", fontSize: "11px" }}>✓</span>}
           </button>
         ))}
       </div>
 
-      {/* Model Manager panel - top left */}
-      <div style={{
-        position: "absolute", top: "16px", left: "16px", zIndex: 10,
-        display: "flex", flexDirection: "column", gap: "8px", maxWidth: "300px",
-      }}>
-        <button onClick={() => setShowPanel(p => !p)} style={{
-          ...btnStyle, justifyContent: "center",
-          background: showPanel ? t.accentBgHover : t.panelBg,
-          borderColor: showPanel ? t.accent : t.panelBorder,
-        }}>
-          📂 ניהול מודלים
+      <div style={{ height: "1px", background: t.panelBorder, margin: "4px 0 12px" }} />
+
+      {/* Toggle controls */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+        <button
+          onClick={() => setAutoRotate(!autoRotate)}
+          style={{
+            ...btnStyle, justifyContent: "center",
+            borderColor: autoRotate ? t.accent : t.panelBorder,
+          }}
+        >
+          {autoRotate ? "⏸️ עצור סיבוב" : "▶️ סיבוב אוטומטי"}
         </button>
-        {showPanel && (
-          <div style={{
-            background: t.panelBg, backdropFilter: "blur(12px)",
-            border: `1px solid ${t.panelBorder}`, borderRadius: "12px",
-            padding: "12px",
-          }}>
-            <ModelManager
-              theme={t}
-              onSelectModel={handleSelectModel}
-              currentModelUrl={modelUrl}
-            />
-          </div>
+        <button
+          onClick={() => setUseInteractive(!useInteractive)}
+          style={{
+            ...btnStyle, justifyContent: "center",
+            borderColor: useInteractive ? t.accent : t.panelBorder,
+          }}
+        >
+          {useInteractive ? "🫀 מודל אינטראקטיבי" : "📦 מודל GLB"}
+        </button>
+      </div>
+
+      <div style={{ height: "1px", background: t.panelBorder, margin: "4px 0 12px" }} />
+
+      <button
+        onClick={() => { setShowDevPanel(true); setShowSettings(false); setMobileMenu(false); }}
+        style={{
+          width: "100%", background: t.gradient,
+          border: "none", borderRadius: "8px",
+          padding: "10px 12px", color: "#fff",
+          cursor: "pointer", fontSize: "13px", fontWeight: 600,
+          display: "flex", alignItems: "center", gap: "8px",
+          justifyContent: "center", transition: "opacity 0.2s",
+        }}
+      >
+        🛠️ פאנל מפתחים
+      </button>
+    </div>
+  );
+
+  return (
+    <div dir="rtl" style={{ width: "100vw", height: "100vh", background: t.bg, position: "relative", fontFamily: "system-ui, sans-serif", overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, zIndex: 10,
+        padding: isMobile ? "12px 16px" : "24px", pointerEvents: "none", textAlign: "center"
+      }}>
+        <h1 style={{
+          fontSize: isMobile ? "1.2rem" : "2rem", fontWeight: 700, margin: 0,
+          color: t.accent,
+        }}>
+          גוף האדם — מודל תלת-ממדי
+        </h1>
+        {!isMobile && (
+          <p style={{ color: t.textSecondary, marginTop: "8px", fontSize: "0.875rem" }}>
+            סובבו, הגדילו והקטינו את המודל באמצעות העכבר
+          </p>
         )}
       </div>
 
-      {/* Organ Atlas & Layers - bottom left */}
-      <div style={{
-        position: "absolute", bottom: "80px", left: "16px", zIndex: 10,
-        display: "flex", flexDirection: "column", gap: "8px",
-        maxWidth: "260px",
-      }}>
-        {/* Layers toggle */}
-        <button onClick={() => setShowLayers(a => !a)} style={{
-          ...btnStyle, justifyContent: "center",
-          background: showLayers ? t.accentBgHover : t.panelBg,
-          borderColor: showLayers ? t.accent : t.panelBorder,
-          width: "auto",
-        }}>
-          🗂️ שכבות
-        </button>
-        {showLayers && (
+      {/* ══════ DESKTOP LAYOUT ══════ */}
+      {!isMobile && (
+        <>
+          {/* Camera view buttons - right side */}
           <div style={{
-            background: t.panelBg, backdropFilter: "blur(12px)",
-            border: `1px solid ${t.panelBorder}`, borderRadius: "14px",
-            padding: "10px", display: "flex", flexDirection: "column", gap: "4px",
+            position: "absolute", top: "50%", right: "16px", transform: "translateY(-50%)",
+            zIndex: 10, display: "flex", flexDirection: "column", gap: "8px"
           }}>
-            {LAYER_INFO.map((layer) => {
-              const active = visibleLayers.has(layer.key);
-              return (
-                <button
-                  key={layer.key}
-                  onClick={() => toggleLayer(layer.key)}
-                  style={{
-                    background: active ? `${layer.color}18` : "transparent",
-                    border: `1px solid ${active ? layer.color : t.panelBorder}`,
-                    borderRadius: "10px", padding: "10px 12px",
-                    color: active ? t.textPrimary : t.textSecondary,
-                    cursor: "pointer", fontSize: "13px", textAlign: "right",
-                    display: "flex", alignItems: "center", gap: "10px",
-                    transition: "all 0.15s", direction: "rtl",
-                    opacity: active ? 1 : 0.5,
-                  }}
-                >
-                  <span style={{
-                    width: "20px", height: "20px", borderRadius: "6px",
-                    background: active ? layer.color : "transparent",
-                    border: `2px solid ${layer.color}`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "11px", color: "#fff", flexShrink: 0,
-                  }}>
-                    {active && "✓"}
-                  </span>
-                  <span style={{ fontSize: "16px" }}>{layer.icon}</span>
-                  <span style={{ fontWeight: 600 }}>{layer.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        <button onClick={() => setShowAtlas(a => !a)} style={{
-          ...btnStyle, justifyContent: "center",
-          background: showAtlas ? t.accentBgHover : t.panelBg,
-          borderColor: showAtlas ? t.accent : t.panelBorder,
-          width: "auto",
-        }}>
-          🫀 אטלס איברים
-        </button>
-        {showAtlas && (
-          <div style={{
-            background: t.panelBg, backdropFilter: "blur(12px)",
-            border: `1px solid ${t.panelBorder}`, borderRadius: "14px",
-            padding: "10px", overflowY: "auto", maxHeight: "320px",
-            display: "flex", flexDirection: "column", gap: "4px",
-          }}>
-            {Object.entries(ORGAN_DETAILS).map(([key, organ]) => (
+            {VIEWS.map((view) => (
               <button
-                key={key}
-                onClick={() => {
-                  setSelectedOrgan({ ...organ, meshName: key });
-                  setShowAtlas(false);
-                  if (organ.cameraPos) {
-                    handleViewChange(organ.cameraPos, organ.lookAt);
-                  }
-                }}
-                style={{
-                  background: "transparent", border: `1px solid ${t.panelBorder}`,
-                  borderRadius: "10px", padding: "10px 12px",
-                  color: t.textPrimary, cursor: "pointer",
-                  fontSize: "12px", textAlign: "right",
-                  display: "flex", alignItems: "center", gap: "10px",
-                  transition: "all 0.15s", direction: "rtl",
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = t.accent;
-                  e.currentTarget.style.background = t.accentBgHover;
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = t.panelBorder;
-                  e.currentTarget.style.background = "transparent";
-                }}
+                key={view.label}
+                onClick={() => handleViewChange(view.position)}
+                style={{ ...btnStyle, width: "auto", justifyContent: "flex-start" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.background = t.accentBgHover; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.panelBorder; e.currentTarget.style.background = t.panelBg; }}
               >
-                <span style={{ fontSize: "20px" }}>{organ.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: "13px" }}>{organ.name}</div>
-                  <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "1px" }}>{organ.system}</div>
-                </div>
-                <span style={{ fontSize: "11px", color: t.textSecondary }}>←</span>
+                <span>{view.icon}</span>
+                <span>{view.label}</span>
               </button>
             ))}
           </div>
-        )}
-      </div>
+
+          {/* Model Manager panel - top left */}
+          <div style={{
+            position: "absolute", top: "16px", left: "16px", zIndex: 10,
+            display: "flex", flexDirection: "column", gap: "8px", maxWidth: "300px",
+          }}>
+            <button onClick={() => setShowPanel(p => !p)} style={{
+              ...btnStyle, justifyContent: "center",
+              background: showPanel ? t.accentBgHover : t.panelBg,
+              borderColor: showPanel ? t.accent : t.panelBorder,
+            }}>
+              📂 ניהול מודלים
+            </button>
+            {showPanel && (
+              <div style={{
+                background: t.panelBg, backdropFilter: "blur(12px)",
+                border: `1px solid ${t.panelBorder}`, borderRadius: "12px",
+                padding: "12px",
+              }}>
+                <ModelManager theme={t} onSelectModel={handleSelectModel} currentModelUrl={modelUrl} />
+              </div>
+            )}
+          </div>
+
+          {/* Layers & Atlas - bottom left */}
+          <div style={{
+            position: "absolute", bottom: "80px", left: "16px", zIndex: 10,
+            display: "flex", flexDirection: "column", gap: "8px", maxWidth: "260px",
+          }}>
+            <button onClick={() => setShowLayers(a => !a)} style={{
+              ...btnStyle, justifyContent: "center",
+              background: showLayers ? t.accentBgHover : t.panelBg,
+              borderColor: showLayers ? t.accent : t.panelBorder, width: "auto",
+            }}>
+              🗂️ שכבות
+            </button>
+            {showLayers && (
+              <div style={{
+                background: t.panelBg, backdropFilter: "blur(12px)",
+                border: `1px solid ${t.panelBorder}`, borderRadius: "14px",
+                padding: "10px",
+              }}>
+                {layersContent}
+              </div>
+            )}
+
+            <button onClick={() => setShowAtlas(a => !a)} style={{
+              ...btnStyle, justifyContent: "center",
+              background: showAtlas ? t.accentBgHover : t.panelBg,
+              borderColor: showAtlas ? t.accent : t.panelBorder, width: "auto",
+            }}>
+              🫀 אטלס איברים
+            </button>
+            {showAtlas && (
+              <div style={{
+                background: t.panelBg, backdropFilter: "blur(12px)",
+                border: `1px solid ${t.panelBorder}`, borderRadius: "14px",
+                padding: "10px", overflowY: "auto", maxHeight: "320px",
+              }}>
+                {atlasContent}
+              </div>
+            )}
+          </div>
+
+          {/* Controls hint - bottom center */}
+          <div style={{
+            position: "absolute", bottom: "24px", left: "50%", transform: "translateX(-50%)",
+            zIndex: 10, display: "flex", gap: "8px", alignItems: "center",
+          }}>
+            <button
+              onClick={() => { setMoveMode(m => !m); if (!moveMode) setAutoRotate(false); }}
+              style={{
+                background: moveMode ? t.accent : t.panelBg, backdropFilter: "blur(8px)",
+                border: `1px solid ${moveMode ? t.accent : t.panelBorder}`,
+                borderRadius: "999px", padding: "10px 16px",
+                color: moveMode ? "#fff" : t.textSecondary,
+                cursor: "pointer", fontSize: "12px", fontWeight: 600,
+                display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="5 9 2 12 5 15" /><polyline points="9 5 12 2 15 5" />
+                <polyline points="15 19 12 22 9 19" /><polyline points="19 9 22 12 19 15" />
+                <line x1="2" y1="12" x2="22" y2="12" /><line x1="12" y1="2" x2="12" y2="22" />
+              </svg>
+              {moveMode ? "מצב הזזה" : "הזזה"}
+            </button>
+
+            <button
+              onClick={() => setAutoRotate(!autoRotate)}
+              style={{
+                background: t.panelBg, backdropFilter: "blur(8px)",
+                border: `1px solid ${autoRotate ? t.accent : t.panelBorder}`,
+                borderRadius: "999px", padding: "10px 16px",
+                color: autoRotate ? t.accent : t.textSecondary,
+                cursor: "pointer", fontSize: "12px", fontWeight: 600,
+                display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s",
+              }}
+            >
+              {autoRotate ? "⏸️ עצור סיבוב" : "▶️ סיבוב אוטומטי"}
+            </button>
+
+            <button
+              onClick={() => setUseInteractive(!useInteractive)}
+              style={{
+                background: t.panelBg, backdropFilter: "blur(8px)",
+                border: `1px solid ${useInteractive ? t.accent : t.panelBorder}`,
+                borderRadius: "999px", padding: "10px 16px",
+                color: useInteractive ? t.accent : t.textSecondary,
+                cursor: "pointer", fontSize: "12px", fontWeight: 600,
+                display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s",
+              }}
+            >
+              {useInteractive ? "🫀 מודל אינטראקטיבי" : "📦 מודל GLB"}
+            </button>
+
+            <div style={{
+              display: "flex", gap: "16px", fontSize: "12px", color: t.textSecondary,
+              background: t.hintBg, backdropFilter: "blur(8px)",
+              borderRadius: "999px", padding: "10px 20px", border: `1px solid ${t.panelBorder}`,
+              direction: "rtl", pointerEvents: "none",
+            }}>
+              <span>{moveMode ? "🖱️ גרירה = הזזה" : "🖱️ סיבוב"}</span>
+              <span>⚙️ גלגלת = זום</span>
+              <span>🖱️ לחיצה = מידע על איבר</span>
+            </div>
+          </div>
+
+          {/* Settings button - bottom right */}
+          <div style={{ position: "absolute", bottom: "24px", right: "16px", zIndex: 20 }}>
+            <button
+              onClick={() => setShowSettings(s => !s)}
+              style={{
+                width: "48px", height: "48px", borderRadius: "50%",
+                background: showSettings ? t.accentBgHover : t.panelBg, backdropFilter: "blur(8px)",
+                border: `1px solid ${showSettings ? t.accent : t.panelBorder}`,
+                color: t.textPrimary, cursor: "pointer", fontSize: "20px",
+                display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s",
+              }}
+            >⚙️</button>
+
+            {showSettings && (
+              <div style={{
+                position: "absolute", bottom: "56px", right: 0,
+                background: t.panelBg, backdropFilter: "blur(12px)",
+                border: `1px solid ${t.panelBorder}`, borderRadius: "14px",
+                padding: "14px", width: "220px", direction: "rtl",
+              }}>
+                {settingsContent}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ══════ MOBILE LAYOUT ══════ */}
+      {isMobile && (
+        <>
+          {/* Mobile floating action buttons */}
+          <div style={{
+            position: "absolute", bottom: "16px", left: "50%", transform: "translateX(-50%)",
+            zIndex: 20, display: "flex", gap: "8px", alignItems: "center",
+          }}>
+            {/* Views quick-access */}
+            {VIEWS.slice(0, 3).map((view) => (
+              <button
+                key={view.label}
+                onClick={() => handleViewChange(view.position)}
+                style={{
+                  width: "40px", height: "40px", borderRadius: "50%",
+                  background: t.panelBg, backdropFilter: "blur(8px)",
+                  border: `1px solid ${t.panelBorder}`,
+                  color: t.textPrimary, cursor: "pointer", fontSize: "16px",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+                title={view.label}
+              >
+                {view.icon}
+              </button>
+            ))}
+          </div>
+
+          {/* Mobile hamburger menu */}
+          <button
+            onClick={() => setMobileMenu(true)}
+            style={{
+              position: "absolute", top: "12px", left: "12px", zIndex: 20,
+              width: "44px", height: "44px", borderRadius: "14px",
+              background: t.panelBg, backdropFilter: "blur(8px)",
+              border: `1px solid ${t.panelBorder}`,
+              color: t.textPrimary, cursor: "pointer", fontSize: "20px",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >☰</button>
+
+          {/* Mobile settings shortcut */}
+          <button
+            onClick={() => setShowSettings(true)}
+            style={{
+              position: "absolute", top: "12px", right: "12px", zIndex: 20,
+              width: "44px", height: "44px", borderRadius: "14px",
+              background: t.panelBg, backdropFilter: "blur(8px)",
+              border: `1px solid ${t.panelBorder}`,
+              color: t.textPrimary, cursor: "pointer", fontSize: "20px",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >⚙️</button>
+
+          {/* Mobile hint */}
+          <div style={{
+            position: "absolute", bottom: "68px", left: "50%", transform: "translateX(-50%)",
+            zIndex: 10, fontSize: "11px", color: t.textSecondary,
+            background: t.hintBg, backdropFilter: "blur(8px)",
+            borderRadius: "999px", padding: "6px 14px", border: `1px solid ${t.panelBorder}`,
+            whiteSpace: "nowrap", pointerEvents: "none",
+          }}>
+            👆 גררו לסיבוב • צבטו לזום • לחצו לפרטים
+          </div>
+
+          {/* Mobile main menu bottom sheet */}
+          <MobileBottomSheet isOpen={mobileMenu} onClose={() => setMobileMenu(false)} title="תפריט" t={t}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <button onClick={() => { setShowLayers(true); setMobileMenu(false); }} style={{ ...btnStyle, justifyContent: "center" }}>
+                🗂️ שכבות
+              </button>
+              <button onClick={() => { setShowAtlas(true); setMobileMenu(false); }} style={{ ...btnStyle, justifyContent: "center" }}>
+                🫀 אטלס איברים
+              </button>
+              <button onClick={() => { setShowPanel(true); setMobileMenu(false); }} style={{ ...btnStyle, justifyContent: "center" }}>
+                📂 ניהול מודלים
+              </button>
+
+              {/* All camera views */}
+              <div style={{ fontSize: "12px", fontWeight: 700, color: t.textSecondary, marginTop: "8px" }}>📷 תצוגות מצלמה</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                {VIEWS.map((view) => (
+                  <button
+                    key={view.label}
+                    onClick={() => { handleViewChange(view.position); setMobileMenu(false); }}
+                    style={{ ...btnStyle, justifyContent: "center", padding: "10px" }}
+                  >
+                    <span>{view.icon}</span> <span>{view.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Toggles */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginTop: "4px" }}>
+                <button
+                  onClick={() => { setMoveMode(m => !m); if (!moveMode) updatePrefs({ autoRotate: false }); }}
+                  style={{
+                    ...btnStyle, justifyContent: "center",
+                    background: moveMode ? t.accent : t.panelBg,
+                    color: moveMode ? "#fff" : t.textPrimary,
+                  }}
+                >
+                  {moveMode ? "🔄 הזזה" : "✋ הזזה"}
+                </button>
+                <button
+                  onClick={() => setAutoRotate(!autoRotate)}
+                  style={{
+                    ...btnStyle, justifyContent: "center",
+                    borderColor: autoRotate ? t.accent : t.panelBorder,
+                  }}
+                >
+                  {autoRotate ? "⏸️ סיבוב" : "▶️ סיבוב"}
+                </button>
+              </div>
+            </div>
+          </MobileBottomSheet>
+
+          {/* Mobile layers sheet */}
+          <MobileBottomSheet isOpen={showLayers} onClose={() => setShowLayers(false)} title="🗂️ שכבות" t={t}>
+            {layersContent}
+          </MobileBottomSheet>
+
+          {/* Mobile atlas sheet */}
+          <MobileBottomSheet isOpen={showAtlas} onClose={() => setShowAtlas(false)} title="🫀 אטלס איברים" t={t}>
+            {atlasContent}
+          </MobileBottomSheet>
+
+          {/* Mobile settings sheet */}
+          <MobileBottomSheet isOpen={showSettings} onClose={() => setShowSettings(false)} title="⚙️ הגדרות" t={t}>
+            {settingsContent}
+          </MobileBottomSheet>
+
+          {/* Mobile model manager sheet */}
+          <MobileBottomSheet isOpen={showPanel} onClose={() => setShowPanel(false)} title="📂 ניהול מודלים" t={t}>
+            <ModelManager theme={t} onSelectModel={handleSelectModel} currentModelUrl={modelUrl} />
+          </MobileBottomSheet>
+        </>
+      )}
 
       {/* Organ dialog */}
       {selectedOrgan && (
         <OrganDialog organ={selectedOrgan} theme={t} onClose={() => setSelectedOrgan(null)} />
       )}
-
-      {/* Controls hint */}
-      <div style={{
-        position: "absolute", bottom: "24px", left: "50%", transform: "translateX(-50%)",
-        zIndex: 10, display: "flex", gap: "8px", alignItems: "center",
-      }}>
-        {/* Move mode toggle */}
-        <button
-          onClick={() => { setMoveMode(m => !m); if (!moveMode) setAutoRotate(false); }}
-          style={{
-            background: moveMode ? t.accent : t.panelBg,
-            backdropFilter: "blur(8px)",
-            border: `1px solid ${moveMode ? t.accent : t.panelBorder}`,
-            borderRadius: "999px", padding: "10px 16px",
-            color: moveMode ? "#fff" : t.textSecondary,
-            cursor: "pointer", fontSize: "12px", fontWeight: 600,
-            display: "flex", alignItems: "center", gap: "6px",
-            transition: "all 0.2s",
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="5 9 2 12 5 15" />
-            <polyline points="9 5 12 2 15 5" />
-            <polyline points="15 19 12 22 9 19" />
-            <polyline points="19 9 22 12 19 15" />
-            <line x1="2" y1="12" x2="22" y2="12" />
-            <line x1="12" y1="2" x2="12" y2="22" />
-          </svg>
-          {moveMode ? "מצב הזזה" : "הזזה"}
-        </button>
-
-        {/* Auto-rotate toggle */}
-        <button
-          onClick={() => setAutoRotate(r => !r)}
-          style={{
-            background: t.panelBg, backdropFilter: "blur(8px)",
-            border: `1px solid ${autoRotate ? t.accent : t.panelBorder}`,
-            borderRadius: "999px", padding: "10px 16px",
-            color: autoRotate ? t.accent : t.textSecondary,
-            cursor: "pointer", fontSize: "12px", fontWeight: 600,
-            display: "flex", alignItems: "center", gap: "6px",
-            transition: "all 0.2s",
-          }}
-        >
-          {autoRotate ? "⏸️ עצור סיבוב" : "▶️ סיבוב אוטומטי"}
-        </button>
-
-        {/* Interactive/GLB model toggle */}
-        <button
-          onClick={() => setUseInteractive(v => !v)}
-          style={{
-            background: t.panelBg, backdropFilter: "blur(8px)",
-            border: `1px solid ${useInteractive ? t.accent : t.panelBorder}`,
-            borderRadius: "999px", padding: "10px 16px",
-            color: useInteractive ? t.accent : t.textSecondary,
-            cursor: "pointer", fontSize: "12px", fontWeight: 600,
-            display: "flex", alignItems: "center", gap: "6px",
-            transition: "all 0.2s",
-          }}
-        >
-          {useInteractive ? "🫀 מודל אינטראקטיבי" : "📦 מודל GLB"}
-        </button>
-        <div style={{
-          display: "flex", gap: "16px", fontSize: "12px", color: t.textSecondary,
-          background: t.hintBg, backdropFilter: "blur(8px)",
-          borderRadius: "999px", padding: "10px 20px", border: `1px solid ${t.panelBorder}`,
-          direction: "rtl", pointerEvents: "none",
-        }}>
-          <span>{moveMode ? "🖱️ גרירה = הזזה" : "🖱️ סיבוב"}</span>
-          <span>⚙️ גלגלת = זום</span>
-          <span>🖱️ לחיצה = מידע על איבר</span>
-        </div>
-      </div>
-
-      {/* Settings button - bottom right */}
-      <div style={{
-        position: "absolute", bottom: "24px", right: "16px", zIndex: 20,
-      }}>
-        <button
-          onClick={() => setShowSettings(s => !s)}
-          style={{
-            width: "48px", height: "48px", borderRadius: "50%",
-            background: showSettings ? t.accentBgHover : t.panelBg,
-            backdropFilter: "blur(8px)",
-            border: `1px solid ${showSettings ? t.accent : t.panelBorder}`,
-            color: t.textPrimary, cursor: "pointer", fontSize: "20px",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "all 0.2s",
-          }}
-        >⚙️</button>
-
-        {showSettings && (
-          <div style={{
-            position: "absolute", bottom: "56px", right: 0,
-            background: t.panelBg, backdropFilter: "blur(12px)",
-            border: `1px solid ${t.panelBorder}`, borderRadius: "14px",
-            padding: "14px", width: "220px", direction: "rtl",
-          }}>
-            {/* Theme section */}
-            <div style={{
-              fontSize: "13px", fontWeight: 700, color: t.textPrimary,
-              marginBottom: "10px", textAlign: "right",
-            }}>🎨 ערכת נושא</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "14px" }}>
-              {THEMES.map((theme, idx) => (
-                <button
-                  key={theme.name}
-                  onClick={() => setThemeIdx(idx)}
-                  style={{
-                    background: idx === themeIdx ? t.accentBgHover : "transparent",
-                    border: `1px solid ${idx === themeIdx ? t.accent : t.panelBorder}`,
-                    borderRadius: "8px", padding: "8px 12px",
-                    color: t.textPrimary, cursor: "pointer",
-                    fontSize: "13px", textAlign: "right",
-                    display: "flex", alignItems: "center", gap: "8px",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <span style={{
-                    width: "16px", height: "16px", borderRadius: "50%",
-                    background: theme.gradient, flexShrink: 0,
-                    border: `2px solid ${idx === themeIdx ? theme.accent : "transparent"}`,
-                  }} />
-                  <span>{theme.name}</span>
-                  {idx === themeIdx && <span style={{ marginRight: "auto", fontSize: "11px" }}>✓</span>}
-                </button>
-              ))}
-            </div>
-
-            {/* Divider */}
-            <div style={{ height: "1px", background: t.panelBorder, margin: "4px 0 12px" }} />
-
-            {/* Developer panel button */}
-            <button
-              onClick={() => { setShowDevPanel(true); setShowSettings(false); }}
-              style={{
-                width: "100%", background: t.gradient,
-                border: "none", borderRadius: "8px",
-                padding: "10px 12px", color: "#fff",
-                cursor: "pointer", fontSize: "13px", fontWeight: 600,
-                display: "flex", alignItems: "center", gap: "8px",
-                justifyContent: "center", transition: "opacity 0.2s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-            >
-              🛠️ פאנל מפתחים
-            </button>
-          </div>
-        )}
-      </div>
 
       {/* Dev Panel */}
       {showDevPanel && <DevPanel theme={t} onClose={() => setShowDevPanel(false)} />}
@@ -617,8 +817,9 @@ const ModelViewer = () => {
       {/* 3D Canvas */}
       <Canvas
         key={modelKey}
-        camera={{ position: [0, 1, 4], fov: 50 }}
+        camera={{ position: [0, 1, 4], fov: isMobile ? 55 : 50 }}
         gl={{ antialias: true }}
+        style={{ touchAction: "none" }}
       >
         <color attach="background" args={[t.canvasBg]} />
         <ambientLight intensity={0.5} />
@@ -643,6 +844,10 @@ const ModelViewer = () => {
             LEFT: moveMode ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
             MIDDLE: THREE.MOUSE.DOLLY,
             RIGHT: THREE.MOUSE.PAN,
+          }}
+          touches={{
+            ONE: moveMode ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN,
           }}
         />
       </Canvas>

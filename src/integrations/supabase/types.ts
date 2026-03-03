@@ -133,6 +133,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_preferences: {
+        Row: {
+          auto_rotate: boolean
+          camera_position: Json | null
+          created_at: string
+          device_type: string | null
+          id: string
+          theme_index: number
+          updated_at: string
+          use_interactive: boolean
+          user_id: string
+          visible_layers: string[]
+        }
+        Insert: {
+          auto_rotate?: boolean
+          camera_position?: Json | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          theme_index?: number
+          updated_at?: string
+          use_interactive?: boolean
+          user_id: string
+          visible_layers?: string[]
+        }
+        Update: {
+          auto_rotate?: boolean
+          camera_position?: Json | null
+          created_at?: string
+          device_type?: string | null
+          id?: string
+          theme_index?: number
+          updated_at?: string
+          use_interactive?: boolean
+          user_id?: string
+          visible_layers?: string[]
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
