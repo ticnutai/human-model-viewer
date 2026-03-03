@@ -53,7 +53,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
       "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg/600px-Diagram_of_the_human_heart_%28cropped%29.svg.png",
       "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Heart_anterior_exterior_view.jpg/600px-Heart_anterior_exterior_view.jpg",
     ],
-    cameraPos: [0.8, 0.4, 2.2], lookAt: [0.15, 0.3, 0],
+    cameraPos: [0.6, 0.7, 2.2], lookAt: [0.1, 0.6, 0],
   },
   lung: {
     name: "הריאות", icon: "🫁",
@@ -78,7 +78,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     kidsEmoji: "🎈",
     videoUrl: "https://www.youtube.com/embed/8NUxvJS-_0k",
     videoTitle: "מערכת הנשימה - הסבר מפורט",
-    cameraPos: [0, 0.6, 2.5], lookAt: [0, 0.5, 0],
+    cameraPos: [0, 0.9, 2.5], lookAt: [0, 0.8, 0],
   },
   liver: {
     name: "הכבד", icon: "🫀",
@@ -103,7 +103,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     kidsEmoji: "🦸",
     videoUrl: "https://www.youtube.com/embed/MvhGkExojyI",
     videoTitle: "הכבד - האיבר המדהים",
-    cameraPos: [-0.8, 0.2, 2.2], lookAt: [-0.2, 0.1, 0],
+    cameraPos: [-0.6, 0.5, 2.2], lookAt: [-0.15, 0.4, 0],
   },
   kidney: {
     name: "הכליות", icon: "🫘",
@@ -128,7 +128,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     kidsEmoji: "🧽",
     videoUrl: "https://www.youtube.com/embed/FE3zS_-eAjA",
     videoTitle: "הכליות - מערכת הסינון של הגוף",
-    cameraPos: [0, -0.2, 2.0], lookAt: [0, -0.2, 0],
+    cameraPos: [0, 0.3, 2.0], lookAt: [0, 0.3, 0],
   },
   stomach: {
     name: "הקיבה", icon: "🟤",
@@ -153,7 +153,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     kidsEmoji: "🌀",
     videoUrl: "https://www.youtube.com/embed/o18UycWRsaA",
     videoTitle: "הקיבה - תהליך העיכול",
-    cameraPos: [0.3, -0.1, 2.2], lookAt: [0.1, -0.1, 0],
+    cameraPos: [0.3, 0.4, 2.2], lookAt: [0.1, 0.4, 0],
   },
   brain: {
     name: "המוח", icon: "🧠",
@@ -178,7 +178,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     kidsEmoji: "🌟",
     videoUrl: "https://www.youtube.com/embed/kMKc8nfPATI",
     videoTitle: "המוח האנושי - הסבר מקיף",
-    cameraPos: [0, 1.8, 2.0], lookAt: [0, 1.5, 0],
+    cameraPos: [0, 1.7, 2.0], lookAt: [0, 1.5, 0],
   },
   intestine: {
     name: "המעי הדק", icon: "🔄",
@@ -201,7 +201,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "המעי הדק ארוך כל כך שהוא מתכופף בתוך הבטן כמו סליל ענק!",
     kidsEmoji: "🎢",
-    cameraPos: [0, -0.5, 2.5], lookAt: [0, -0.5, 0],
+    cameraPos: [0, 0.1, 2.5], lookAt: [0, 0.1, 0],
   },
   colon: {
     name: "המעי הגס", icon: "🔄",
@@ -224,7 +224,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "בתוך המעי הגס שלכם יש יותר חיידקים ממה שיש כוכבים בשביל החלב!",
     kidsEmoji: "🧺",
-    cameraPos: [0, -0.7, 2.5], lookAt: [0, -0.7, 0],
+    cameraPos: [0, 0.1, 2.5], lookAt: [0, 0.1, 0],
   },
   spleen: {
     name: "הטחול", icon: "🟣",
@@ -247,7 +247,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "אפשר לחיות בלי טחול — אבל הגוף יצטרך לעבוד קצת יותר קשה כדי להגן עליכם!",
     kidsEmoji: "🔍",
-    cameraPos: [-0.6, 0, 2.0], lookAt: [-0.3, 0, 0],
+    cameraPos: [-0.5, 0.4, 2.0], lookAt: [-0.2, 0.4, 0],
   },
   pancreas: {
     name: "הלבלב", icon: "🟡",
@@ -270,7 +270,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הלבלב הוא המנהל של הסוכר בגוף — הוא מחליט כמה סוכר ישאר בדם!",
     kidsEmoji: "👨‍🍳",
-    cameraPos: [-0.4, -0.1, 2.0], lookAt: [-0.15, -0.1, 0],
+    cameraPos: [-0.3, 0.35, 2.0], lookAt: [-0.1, 0.35, 0],
   },
   bladder: {
     name: "שלפוחית השתן", icon: "💧",
@@ -293,7 +293,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "כשאתם ישנים, השלפוחית מתרחבת יותר כדי שלא תצטרכו לקום בלילה!",
     kidsEmoji: "🎈",
-    cameraPos: [0, -1.0, 2.0], lookAt: [0, -1.0, 0],
+    cameraPos: [0, -0.2, 2.0], lookAt: [0, -0.2, 0],
   },
   bone: {
     name: "העצמות", icon: "🦴",
@@ -339,7 +339,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הגולגולת שלכם עשויה מ-22 חלקים שמחוברים כמו פאזל — אי אפשר לפרק אותה!",
     kidsEmoji: "⛑️",
-    cameraPos: [0, 2.0, 1.8], lookAt: [0, 1.7, 0],
+    cameraPos: [0, 1.8, 1.8], lookAt: [0, 1.6, 0],
   },
   muscle: {
     name: "השרירים", icon: "💪",
@@ -385,7 +385,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הדם שזורם באבי העורקים עושה סיבוב שלם בגוף תוך דקה בלבד!",
     kidsEmoji: "🛣️",
-    cameraPos: [0, 0.2, 2.5], lookAt: [0, 0.1, 0],
+    cameraPos: [0, 0.5, 2.5], lookAt: [0, 0.4, 0],
   },
   diaphragm: {
     name: "הסרעפת", icon: "🌬️",
@@ -408,7 +408,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "כשמשהו מצחיק אתכם, הסרעפת זזה מהר מאוד — ולכן צחוק גורם לכם לנשום מהר!",
     kidsEmoji: "🤸",
-    cameraPos: [0, -0.3, 2.5], lookAt: [0, -0.3, 0],
+    cameraPos: [0, 0.55, 2.5], lookAt: [0, 0.55, 0],
   },
 };
 
