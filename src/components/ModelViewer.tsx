@@ -1,5 +1,6 @@
 import { Canvas, useLoader, useThree, ThreeEvent } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, Environment } from "@react-three/drei";
+import { EffectComposer, Bloom, N8AO, Vignette } from "@react-three/postprocessing";
 import { Suspense, useRef, useCallback, useState, useEffect, useMemo } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
@@ -13,7 +14,10 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const DEFAULT_MODEL = `${SUPABASE_URL}/storage/v1/object/public/models/human_organs_1.glb`;
+// Use cloud-uploaded models as primary sources
+const CLOUD_ORGANS_MODEL = `${SUPABASE_URL}/storage/v1/object/public/models/1772475374181_human_organs%20(1).glb`;
+const CLOUD_HEART_MODEL = `${SUPABASE_URL}/storage/v1/object/public/models/1772470980259_human_heart_3d_model__anatomy__medical_project.glb`;
+const DEFAULT_MODEL = CLOUD_ORGANS_MODEL;
 
 // ── Theme definitions ──
 type Theme = {
@@ -109,11 +113,50 @@ function Model({ url, onSelect, selectedMesh, accent, visibleLayers }: { url: st
   const allVisible = layers.size === 4;
   const hasLayeredMeshes = useRef(false);
 
+  // Enhance materials for realism on first load
   useEffect(() => {
     let foundLayered = false;
     sceneClone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
+        
+        // Upgrade materials to PBR Physical
+        const upgradeMaterial = (mat: THREE.Material): THREE.Material => {
+          if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhongMaterial || mat instanceof THREE.MeshLambertMaterial) {
+            const color = (mat as any).color?.clone() || new THREE.Color(0xcccccc);
+            const map = (mat as any).map || null;
+            const normalMap = (mat as any).normalMap || null;
+            const physical = new THREE.MeshPhysicalMaterial({
+              color,
+              map,
+              normalMap,
+              roughness: 0.55,
+              metalness: 0.05,
+              clearcoat: 0.4,
+              clearcoatRoughness: 0.3,
+              sheen: 0.3,
+              sheenRoughness: 0.5,
+              sheenColor: new THREE.Color(color).lerp(new THREE.Color("#ffffff"), 0.3),
+              envMapIntensity: 1.2,
+              transparent: mat.transparent,
+              opacity: mat.opacity,
+              side: mat.side,
+            });
+            return physical;
+          }
+          return mat;
+        };
+        
+        if (Array.isArray(mesh.material)) {
+          mesh.material = mesh.material.map(m => upgradeMaterial(m));
+        } else {
+          mesh.material = upgradeMaterial(mesh.material);
+        }
+        
+        // Enable shadows
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        
         originalMaterials.current.set(mesh.uuid, Array.isArray(mesh.material) ? mesh.material.map(m => m.clone()) : mesh.material.clone());
         const layer = classifyMeshToLayer(mesh.name);
         meshLayerMap.current.set(mesh.uuid, layer);
@@ -139,11 +182,15 @@ function Model({ url, onSelect, selectedMesh, accent, visibleLayers }: { url: st
         }
 
         if (selectedMesh && mesh.name === selectedMesh) {
-          mesh.material = new THREE.MeshStandardMaterial({
+          mesh.material = new THREE.MeshPhysicalMaterial({
             color: new THREE.Color(accent),
             emissive: new THREE.Color(accent),
-            emissiveIntensity: 0.4,
+            emissiveIntensity: 0.5,
             transparent: true, opacity: 0.9,
+            clearcoat: 0.8,
+            clearcoatRoughness: 0.1,
+            roughness: 0.3,
+            metalness: 0.1,
           });
         } else {
           mesh.material = Array.isArray(orig) ? orig.map(m => (m as THREE.Material).clone()) : (orig as THREE.Material).clone();
@@ -818,15 +865,28 @@ const ModelViewer = () => {
       <Canvas
         key={modelKey}
         camera={{ position: [0, 1, 4], fov: isMobile ? 55 : 50 }}
-        gl={{ antialias: true }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+        shadows
         style={{ touchAction: "none" }}
       >
         <color attach="background" args={[t.canvasBg]} />
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[5, 5, 5]} intensity={1.4} castShadow />
-        <directionalLight position={[-5, 3, -5]} intensity={0.5} color={t.accentAlt} />
-        <directionalLight position={[0, -3, 3]} intensity={0.3} color="#ffffff" />
-        <pointLight position={[0, 3, 0]} intensity={0.5} color={t.accent} />
+        
+        {/* Enhanced lighting setup for realism */}
+        <ambientLight intensity={0.3} />
+        <directionalLight 
+          position={[5, 8, 5]} intensity={1.8} castShadow
+          shadow-mapSize-width={2048} shadow-mapSize-height={2048}
+          shadow-camera-far={50} shadow-bias={-0.0001}
+        />
+        <directionalLight position={[-4, 4, -3]} intensity={0.6} color="#b0c4de" />
+        <directionalLight position={[0, -2, 4]} intensity={0.3} color="#ffe4c4" />
+        <pointLight position={[0, 3, 0]} intensity={0.4} color={t.accent} distance={10} decay={2} />
+        <pointLight position={[2, 0, 2]} intensity={0.2} color="#ffd4a0" distance={8} decay={2} />
+        <spotLight position={[0, 6, 2]} angle={0.4} penumbra={0.5} intensity={0.8} castShadow color="#ffffff" />
+        
+        {/* Environment for reflections */}
+        <Environment preset="studio" environmentIntensity={0.4} />
+        
         <Suspense fallback={null}>
           {useInteractive ? (
             <InteractiveOrgans onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} />
@@ -834,6 +894,23 @@ const ModelViewer = () => {
             <Model url={modelUrl} onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} />
           )}
         </Suspense>
+        
+        {/* Post-processing effects for cinematic quality */}
+        <EffectComposer>
+          <Bloom
+            intensity={0.3}
+            luminanceThreshold={0.8}
+            luminanceSmoothing={0.9}
+            mipmapBlur
+          />
+          <N8AO
+            aoRadius={0.5}
+            intensity={2}
+            distanceFalloff={0.5}
+          />
+          <Vignette eskil={false} offset={0.1} darkness={0.4} />
+        </EffectComposer>
+        
         <CameraController key={renderKey} targetPosition={cameraTargetRef.current} targetLookAt={cameraLookAtRef.current} />
         <OrbitControls
           enableDamping dampingFactor={0.05}
