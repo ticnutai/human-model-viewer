@@ -221,68 +221,98 @@ function BodySilhouette() {
     ref.current.scale.set(1, breathe, 1);
   });
 
+  const skinColor = "#e8c4a8";
+  const skinOpacity = 0.18;
+
   return (
     <group ref={ref}>
       {/* Head */}
       <mesh position={[0, 2.02, 0]}>
         <sphereGeometry args={[0.28, 32, 32]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.1} depthWrite={false} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={skinOpacity} roughness={0.7} metalness={0} clearcoat={0.3} clearcoatRoughness={0.5} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Face features */}
+      <mesh position={[0.08, 2.08, 0.22]}>
+        <sphereGeometry args={[0.025, 16, 16]} />
+        <meshStandardMaterial color="#4a6fa5" transparent opacity={0.4} roughness={0.2} metalness={0.3} />
+      </mesh>
+      <mesh position={[-0.08, 2.08, 0.22]}>
+        <sphereGeometry args={[0.025, 16, 16]} />
+        <meshStandardMaterial color="#4a6fa5" transparent opacity={0.4} roughness={0.2} metalness={0.3} />
+      </mesh>
+      {/* Nose */}
+      <mesh position={[0, 2.0, 0.26]}>
+        <sphereGeometry args={[0.025, 12, 12]} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={0.25} roughness={0.6} clearcoat={0.2} depthWrite={false} />
+      </mesh>
+      {/* Ears */}
+      <mesh position={[0.28, 2.04, 0]}>
+        <sphereGeometry args={[0.04, 12, 8]} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={0.2} roughness={0.7} depthWrite={false} />
+      </mesh>
+      <mesh position={[-0.28, 2.04, 0]}>
+        <sphereGeometry args={[0.04, 12, 8]} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={0.2} roughness={0.7} depthWrite={false} />
       </mesh>
       {/* Neck */}
       <mesh position={[0, 1.62, 0]}>
-        <cylinderGeometry args={[0.07, 0.09, 0.18, 16]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.08} depthWrite={false} />
+        <cylinderGeometry args={[0.08, 0.1, 0.18, 16]} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={skinOpacity * 0.9} roughness={0.7} clearcoat={0.2} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-      {/* Torso — tapered */}
-      <mesh position={[0, 0.85, 0]}>
-        <cylinderGeometry args={[0.32, 0.28, 0.7, 16]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.07} depthWrite={false} />
+      {/* Torso — right half skin, left half muscles */}
+      <mesh position={[0.15, 0.85, 0]}>
+        <cylinderGeometry args={[0.18, 0.16, 0.7, 16, 1, false, 0, Math.PI]} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={skinOpacity} roughness={0.65} clearcoat={0.3} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-      {/* Abdomen */}
+      <mesh position={[-0.15, 0.85, 0]}>
+        <cylinderGeometry args={[0.18, 0.16, 0.7, 16, 1, false, Math.PI, Math.PI]} />
+        <meshPhysicalMaterial color="#c05050" transparent opacity={0.12} roughness={0.5} clearcoat={0.1} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Abdomen — open cavity look */}
       <mesh position={[0, 0.25, 0]}>
         <cylinderGeometry args={[0.28, 0.26, 0.8, 16]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.06} depthWrite={false} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={0.08} roughness={0.7} clearcoat={0.15} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       {/* Pelvis */}
       <mesh position={[0, -0.35, 0]}>
         <sphereGeometry args={[0.26, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={0.1} roughness={0.7} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       {/* Legs */}
       <mesh position={[0.13, -1.0, 0]}>
-        <cylinderGeometry args={[0.07, 0.055, 1.0, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
+        <cylinderGeometry args={[0.075, 0.06, 1.0, 12]} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={0.1} roughness={0.65} clearcoat={0.2} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[-0.13, -1.0, 0]}>
-        <cylinderGeometry args={[0.07, 0.055, 1.0, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
+        <cylinderGeometry args={[0.075, 0.06, 1.0, 12]} />
+        <meshPhysicalMaterial color="#c05050" transparent opacity={0.08} roughness={0.5} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       {/* Upper arms */}
       <mesh position={[0.46, 0.9, 0]} rotation={[0, 0, 0.12]}>
-        <cylinderGeometry args={[0.045, 0.035, 0.55, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
+        <cylinderGeometry args={[0.048, 0.038, 0.55, 12]} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={0.1} roughness={0.65} clearcoat={0.2} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[-0.46, 0.9, 0]} rotation={[0, 0, -0.12]}>
-        <cylinderGeometry args={[0.045, 0.035, 0.55, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
+        <cylinderGeometry args={[0.048, 0.038, 0.55, 12]} />
+        <meshPhysicalMaterial color="#c05050" transparent opacity={0.08} roughness={0.5} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       {/* Forearms */}
       <mesh position={[0.52, 0.5, 0]} rotation={[0, 0, 0.05]}>
-        <cylinderGeometry args={[0.035, 0.025, 0.5, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.04} depthWrite={false} />
+        <cylinderGeometry args={[0.038, 0.028, 0.5, 12]} />
+        <meshPhysicalMaterial color={skinColor} transparent opacity={0.08} roughness={0.65} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[-0.52, 0.5, 0]} rotation={[0, 0, -0.05]}>
-        <cylinderGeometry args={[0.035, 0.025, 0.5, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.04} depthWrite={false} />
+        <cylinderGeometry args={[0.038, 0.028, 0.5, 12]} />
+        <meshPhysicalMaterial color="#c05050" transparent opacity={0.06} roughness={0.5} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-      {/* Clavicles (collarbones) */}
+      {/* Clavicles */}
       <mesh position={[0.2, 1.18, 0.04]} rotation={[0, 0, Math.PI / 2 - 0.15]}>
         <cylinderGeometry args={[0.015, 0.015, 0.2, 8]} />
-        <meshStandardMaterial color="#3a3a4a" transparent opacity={0.06} depthWrite={false} />
+        <meshPhysicalMaterial color="#e0d8c8" transparent opacity={0.12} roughness={0.5} depthWrite={false} />
       </mesh>
       <mesh position={[-0.2, 1.18, 0.04]} rotation={[0, 0, Math.PI / 2 + 0.15]}>
         <cylinderGeometry args={[0.015, 0.015, 0.2, 8]} />
-        <meshStandardMaterial color="#3a3a4a" transparent opacity={0.06} depthWrite={false} />
+        <meshPhysicalMaterial color="#e0d8c8" transparent opacity={0.12} roughness={0.5} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -407,7 +437,7 @@ function OrganMesh({
 
     meshRef.current.scale.set(sx, sy, sz);
 
-    const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+    const mat = meshRef.current.material as THREE.MeshPhysicalMaterial;
     const targetEmissive = isSelected ? 0.6 : hovered ? 0.3 : 0.08;
     mat.emissiveIntensity += (targetEmissive - mat.emissiveIntensity) * 0.1;
 
@@ -441,14 +471,19 @@ function OrganMesh({
         {shape.geometry === "capsule" && <capsuleGeometry args={[0.5, 1, 8, 16]} />}
         {shape.geometry === "box" && <boxGeometry args={[1, 1, 1]} />}
         {shape.geometry === "torus" && <torusGeometry args={[1, 0.3, 16, 32]} />}
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           color={color}
           emissive={color}
           emissiveIntensity={0.08}
           transparent
           opacity={0.75}
-          roughness={0.3}
-          metalness={0.15}
+          roughness={0.25}
+          metalness={0.05}
+          clearcoat={0.6}
+          clearcoatRoughness={0.3}
+          sheen={0.3}
+          sheenColor={new THREE.Color(color).lerp(new THREE.Color("#ffffff"), 0.3)}
+          sheenRoughness={0.4}
         />
       </mesh>
 

@@ -9,14 +9,18 @@ type OrganDetail = {
   weight?: string;
   size?: string;
   funFact?: string;
+  // Media
+  videoUrl?: string;
+  videoTitle?: string;
+  images?: string[];
   // Kids content
   kidsSummary: string;
   kidsFacts: string[];
   kidsFunFact?: string;
   kidsEmoji?: string;
-  // Camera position: where the camera moves to view this organ
+  kidsVideoUrl?: string;
+  // Camera position
   cameraPos?: [number, number, number];
-  // Look-at point: the anatomical position of the organ in the model
   lookAt?: [number, number, number];
 };
 
@@ -42,6 +46,13 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הלב שלכם חזק כל כך שהוא יכול להתיז מים עד הקומה השלישית!",
     kidsEmoji: "💖",
+    videoUrl: "https://www.youtube.com/embed/CWFyxn0qDEU",
+    videoTitle: "איך הלב עובד - אנימציה רפואית",
+    kidsVideoUrl: "https://www.youtube.com/embed/bEIoSkt8rKE",
+    images: [
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg/600px-Diagram_of_the_human_heart_%28cropped%29.svg.png",
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Heart_anterior_exterior_view.jpg/600px-Heart_anterior_exterior_view.jpg",
+    ],
     cameraPos: [0.8, 0.4, 2.2], lookAt: [0.15, 0.3, 0],
   },
   lung: {
@@ -65,6 +76,8 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "אם נפרוש את כל הבועות הקטנטנות שבתוך הריאות, הן יכסו מגרש טניס שלם!",
     kidsEmoji: "🎈",
+    videoUrl: "https://www.youtube.com/embed/8NUxvJS-_0k",
+    videoTitle: "מערכת הנשימה - הסבר מפורט",
     cameraPos: [0, 0.6, 2.5], lookAt: [0, 0.5, 0],
   },
   liver: {
@@ -88,6 +101,8 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "אפילו אם חותכים ממנו חתיכה גדולה, הוא גדל מחדש כמו זנב של לטאה!",
     kidsEmoji: "🦸",
+    videoUrl: "https://www.youtube.com/embed/MvhGkExojyI",
+    videoTitle: "הכבד - האיבר המדהים",
     cameraPos: [-0.8, 0.2, 2.2], lookAt: [-0.2, 0.1, 0],
   },
   kidney: {
@@ -111,6 +126,8 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הכליות שלכם מנקות כמעט 200 ליטר דם כל יום — זה כמו אמבטיה שלמה!",
     kidsEmoji: "🧽",
+    videoUrl: "https://www.youtube.com/embed/FE3zS_-eAjA",
+    videoTitle: "הכליות - מערכת הסינון של הגוף",
     cameraPos: [0, -0.2, 2.0], lookAt: [0, -0.2, 0],
   },
   stomach: {
@@ -134,6 +151,8 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הקיבה שלכם מייצרת ריר חדש כל כמה ימים כדי להגן על עצמה — כמו שריון קסום!",
     kidsEmoji: "🌀",
+    videoUrl: "https://www.youtube.com/embed/o18UycWRsaA",
+    videoTitle: "הקיבה - תהליך העיכול",
     cameraPos: [0.3, -0.1, 2.2], lookAt: [0.1, -0.1, 0],
   },
   brain: {
@@ -157,6 +176,8 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "המוח שלכם משתמש באותה כמות חשמל כמו נורה קטנה — אבל הוא חכם פי מיליון!",
     kidsEmoji: "🌟",
+    videoUrl: "https://www.youtube.com/embed/kMKc8nfPATI",
+    videoTitle: "המוח האנושי - הסבר מקיף",
     cameraPos: [0, 1.8, 2.0], lookAt: [0, 1.5, 0],
   },
   intestine: {

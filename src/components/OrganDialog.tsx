@@ -15,7 +15,7 @@ type Theme = {
 };
 
 type AgeMode = "adult" | "kids";
-type TabKey = "overview" | "facts" | "stats";
+type TabKey = "overview" | "facts" | "stats" | "media";
 
 const panelVariants = {
   hidden: { x: "100%", opacity: 0 },
@@ -108,8 +108,11 @@ export default function OrganDialog({
   const TABS: { key: TabKey; label: string; kidsLabel: string; icon: string }[] = [
     { key: "overview", label: "סקירה כללית", kidsLabel: "📖 מה זה?", icon: "📋" },
     { key: "facts", label: "עובדות", kidsLabel: "🤩 עובדות!", icon: "💡" },
+    { key: "media", label: "מדיה", kidsLabel: "🎬 סרטונים!", icon: "🎬" },
     { key: "stats", label: "נתונים", kidsLabel: "📊 מספרים!", icon: "📊" },
   ];
+
+  const videoUrl = isKids ? (organ.kidsVideoUrl || organ.videoUrl) : organ.videoUrl;
 
   // Build stat items from organ data
   const statItems = [
@@ -146,14 +149,18 @@ export default function OrganDialog({
         dir="rtl"
         style={{
           position: "fixed",
-          top: 0,
+          top: isMobile ? "auto" : 0,
+          bottom: isMobile ? 0 : "auto",
           right: 0,
-          bottom: 0,
+          left: isMobile ? 0 : "auto",
+          height: isMobile ? "92vh" : "100vh",
           zIndex: 101,
-          width: isMobile ? "100vw" : "min(520px, 96vw)",
+          width: isMobile ? "100vw" : "min(480px, 96vw)",
           background: t.bg,
-          borderLeft: `1px solid ${t.panelBorder}`,
-          boxShadow: `-20px 0 80px rgba(0,0,0,0.4), 0 0 40px ${accent}08`,
+          borderLeft: isMobile ? "none" : `0.5px solid ${t.panelBorder}60`,
+          borderTop: isMobile ? `0.5px solid ${t.panelBorder}60` : "none",
+          borderRadius: isMobile ? "20px 20px 0 0" : 0,
+          boxShadow: `-8px 0 40px rgba(0,0,0,0.25)`,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -333,12 +340,21 @@ export default function OrganDialog({
 
         {/* Scrollable Content */}
         <div
+          className="organ-dialog-scroll"
           style={{
             flex: 1,
             overflowY: "auto",
             padding: isMobile ? "28px 16px 24px" : "36px 24px 32px",
           }}
         >
+          {/* Custom thin scrollbar styles */}
+          <style>{`
+            .organ-dialog-scroll::-webkit-scrollbar { width: 4px; }
+            .organ-dialog-scroll::-webkit-scrollbar-track { background: transparent; }
+            .organ-dialog-scroll::-webkit-scrollbar-thumb { background: ${t.panelBorder}; border-radius: 4px; }
+            .organ-dialog-scroll::-webkit-scrollbar-thumb:hover { background: ${accent}80; }
+            .organ-dialog-scroll { scrollbar-width: thin; scrollbar-color: ${t.panelBorder} transparent; }
+          `}</style>
           <motion.div variants={staggerContainer} initial="hidden" animate="visible">
             {/* Age toggle */}
             <motion.div variants={fadeUp} style={{ marginBottom: "18px" }}>
@@ -814,6 +830,123 @@ export default function OrganDialog({
                           {funFact}
                         </p>
                       </motion.div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "media" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    {/* Video embed */}
+                    {videoUrl && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                      >
+                        <div style={{
+                          fontSize: "12px", fontWeight: 700, color: t.textSecondary,
+                          marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px",
+                          textTransform: "uppercase", letterSpacing: "0.04em",
+                        }}>
+                          🎬 {organ.videoTitle || "סרטון הסבר"}
+                        </div>
+                        <div style={{
+                          position: "relative", width: "100%", paddingBottom: "56.25%",
+                          borderRadius: "14px", overflow: "hidden",
+                          border: `0.5px solid ${t.panelBorder}60`,
+                        }}>
+                          <iframe
+                            src={videoUrl}
+                            title={organ.videoTitle || organ.name}
+                            style={{
+                              position: "absolute", top: 0, left: 0,
+                              width: "100%", height: "100%", border: "none",
+                            }}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Image gallery */}
+                    {organ.images && organ.images.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2, duration: 0.5 }}
+                      >
+                        <div style={{
+                          fontSize: "12px", fontWeight: 700, color: t.textSecondary,
+                          marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.04em",
+                        }}>
+                          🖼️ תמונות נוספות
+                        </div>
+                        <div style={{
+                          display: "grid",
+                          gridTemplateColumns: organ.images.length > 1 ? "1fr 1fr" : "1fr",
+                          gap: "8px",
+                        }}>
+                          {organ.images.map((img, i) => (
+                            <motion.div
+                              key={i}
+                              whileHover={{ scale: 1.03 }}
+                              style={{
+                                borderRadius: "12px", overflow: "hidden",
+                                border: `0.5px solid ${t.panelBorder}60`,
+                                background: `${accent}06`,
+                                cursor: "pointer",
+                              }}
+                              onClick={() => window.open(img, "_blank")}
+                            >
+                              <img
+                                src={img}
+                                alt={`${organ.name} ${i + 1}`}
+                                style={{
+                                  width: "100%", height: "140px",
+                                  objectFit: "contain", padding: "8px",
+                                }}
+                              />
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Main organ image */}
+                    {organ.image && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3, duration: 0.5 }}
+                      >
+                        <div style={{
+                          fontSize: "12px", fontWeight: 700, color: t.textSecondary,
+                          marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.04em",
+                        }}>
+                          📐 דיאגרמה אנטומית
+                        </div>
+                        <div style={{
+                          borderRadius: "14px", overflow: "hidden",
+                          border: `0.5px solid ${t.panelBorder}60`,
+                          background: `${accent}04`,
+                        }}>
+                          <img
+                            src={organ.image}
+                            alt={organ.name}
+                            style={{
+                              width: "100%", maxHeight: "260px",
+                              objectFit: "contain", padding: "16px",
+                            }}
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {!videoUrl && !organ.images?.length && !organ.image && (
+                      <p style={{ color: t.textSecondary, fontSize: "0.85rem", textAlign: "center", padding: "24px 0" }}>
+                        אין מדיה זמינה עבור איבר זה
+                      </p>
                     )}
                   </div>
                 )}
