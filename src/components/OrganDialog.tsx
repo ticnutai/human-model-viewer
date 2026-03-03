@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { OrganDetail } from "./OrganData";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type Theme = {
   textPrimary: string;
@@ -81,6 +82,7 @@ export default function OrganDialog({
   theme: Theme;
   onClose: () => void;
 }) {
+  const isMobile = useIsMobile();
   const [imgLoaded, setImgLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [ageMode, setAgeMode] = useState<AgeMode>("adult");
@@ -148,7 +150,7 @@ export default function OrganDialog({
           right: 0,
           bottom: 0,
           zIndex: 101,
-          width: "min(520px, 96vw)",
+          width: isMobile ? "100vw" : "min(520px, 96vw)",
           background: t.bg,
           borderLeft: `1px solid ${t.panelBorder}`,
           boxShadow: `-20px 0 80px rgba(0,0,0,0.4), 0 0 40px ${accent}08`,
@@ -162,7 +164,7 @@ export default function OrganDialog({
           style={{
             position: "relative",
             width: "100%",
-            height: "280px",
+            height: isMobile ? "200px" : "280px",
             flexShrink: 0,
             overflow: "hidden",
             background: `linear-gradient(160deg, ${accent}15, ${t.bg})`,
@@ -334,7 +336,7 @@ export default function OrganDialog({
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "36px 24px 32px",
+            padding: isMobile ? "28px 16px 24px" : "36px 24px 32px",
           }}
         >
           <motion.div variants={staggerContainer} initial="hidden" animate="visible">
