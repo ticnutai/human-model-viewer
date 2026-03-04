@@ -100,6 +100,9 @@ export default function ModelManager({
   const [newCatIcon, setNewCatIcon] = useState("📁");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [moveModel, setMoveModel] = useState<string | null>(null);
+  const [expandedModel, setExpandedModel] = useState<string | null>(null);
+  const [editingModel, setEditingModel] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ display_name: string; hebrew_name: string; notes: string; category_id: string | null }>({ display_name: "", hebrew_name: "", notes: "", category_id: null });
 
   // Upload state
   const [uploading, setUploading] = useState(false);
@@ -118,6 +121,27 @@ export default function ModelManager({
   const [sketchfabError, setSketchfabError] = useState<string | null>(null);
   const [previewUid, setPreviewUid] = useState<string | null>(null);
   const [importingUid, setImportingUid] = useState<string | null>(null);
+
+  const startEditing = (model: ModelRecord) => {
+    setEditingModel(model.id);
+    setEditForm({
+      display_name: model.display_name,
+      hebrew_name: model.hebrew_name || "",
+      notes: model.notes || "",
+      category_id: model.category_id,
+    });
+  };
+
+  const saveEdit = async (modelId: string) => {
+    await supabase.from("models").update({
+      display_name: editForm.display_name,
+      hebrew_name: editForm.hebrew_name,
+      notes: editForm.notes,
+      category_id: editForm.category_id,
+    }).eq("id", modelId);
+    setEditingModel(null);
+    await load();
+  };
 
   const getSavedSketchfabToken = () => localStorage.getItem(SKETCHFAB_TOKEN_STORAGE_KEY)?.trim() || "";
 
@@ -954,7 +978,7 @@ export default function ModelManager({
       )}
 
       {/* Model list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "280px", overflowY: "auto" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px", overflowY: "auto" }}>
         {combinedModels.length === 0 && (
           <div style={{
             color: t.textSecondary, fontSize: "13px", textAlign: "center",
@@ -966,7 +990,11 @@ export default function ModelManager({
         {combinedModels.map(model => {
           const isActive = currentModelUrl === model.url || currentModelUrl.includes(model.url.replace(`${SUPABASE_URL}/storage/v1/object/public/`, ""));
           const isHovered = hoveredModel === model.id;
+          const isExpanded = expandedModel === model.id;
+          const isEditing = editingModel === model.id;
           const meshBadgeColor = model.meshLevel === "high" ? "#22c55e" : model.meshLevel === "medium" ? "#eab308" : t.textSecondary;
+          const rec = model.record;
+          const catName = categories.find(c => c.id === model.categoryId);
 
           return (
             <div
@@ -974,161 +1002,234 @@ export default function ModelManager({
               onMouseEnter={() => setHoveredModel(model.id)}
               onMouseLeave={() => setHoveredModel(null)}
               style={{
-                display: "flex", alignItems: "center", gap: "10px",
-                padding: "10px 12px", borderRadius: "12px",
-                background: isActive ? `${t.accent}12` : isHovered ? `${t.accent}06` : "transparent",
+                borderRadius: "14px",
+                background: isActive ? `${t.accent}10` : isHovered ? `${t.accent}04` : t.bg,
                 border: `1.5px solid ${isActive ? t.accent : isHovered ? `${t.accent}40` : t.panelBorder}`,
                 transition: "all 0.2s ease",
-                cursor: "pointer",
+                overflow: "hidden",
               }}
-              onClick={() => onSelectModel(model.url)}
             >
-              {/* Icon */}
-              <div style={{
-                width: "36px", height: "36px", borderRadius: "10px",
-                background: isActive ? t.accent : `${t.accent}12`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "16px", flexShrink: 0,
-                transition: "all 0.2s",
-              }}>
-                {isActive ? "✦" : "🧬"}
-              </div>
-
-              {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: "13px", fontWeight: 700,
-                  color: isActive ? t.accent : t.textPrimary,
-                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                }}>
-                  {model.displayName}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: "10px", color: t.textSecondary }}>
-                    {formatSize(model.fileSize)} • {new Date(model.createdAt).toLocaleDateString("he-IL")}
-                  </span>
-                  {model.downloads > 0 && (
-                    <span style={{ fontSize: "10px", color: t.textSecondary }}>
-                      ⬇ {model.downloads.toLocaleString("en-US")}
-                    </span>
-                  )}
-                  {model.likes > 0 && (
-                    <span style={{ fontSize: "10px", color: t.textSecondary }}>
-                      👍 {model.likes.toLocaleString("en-US")}
-                    </span>
-                  )}
-                  <span style={{
-                    fontSize: "9px", fontWeight: 700,
-                    color: meshBadgeColor,
-                    border: `1px solid ${meshBadgeColor}66`,
-                    borderRadius: "999px",
-                    padding: "1px 6px",
-                    background: `${meshBadgeColor}14`,
-                  }}>
-                    GLB • Mesh {model.meshLevel === "high" ? "גבוה" : model.meshLevel === "medium" ? "בינוני" : "נמוך"}
-                  </span>
-                  {model.organClickable && (
-                    <span style={{
-                      fontSize: "9px", fontWeight: 700,
-                      color: t.accent,
-                      border: `1px solid ${t.accent}66`,
-                      borderRadius: "999px",
-                      padding: "1px 6px",
-                      background: `${t.accent}12`,
-                    }}>
-                      מפורט ללחיצות איברים
-                    </span>
-                  )}
-                  {model.recommendedScore > 0 && (
-                    <span style={{
-                      fontSize: "9px", fontWeight: 700,
-                      color: "#f59e0b",
-                      border: "1px solid rgba(245,158,11,0.45)",
-                      borderRadius: "999px",
-                      padding: "1px 6px",
-                      background: "rgba(245,158,11,0.12)",
-                    }}>
-                      ⭐ {Math.round(model.recommendedScore)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              {model.source === "cloud" && model.record && (
-              <div style={{ display: "flex", gap: "2px", opacity: isHovered || isActive ? 1 : 0, transition: "opacity 0.2s" }}
-                onClick={e => e.stopPropagation()}
+              {/* Main row - clickable to select model */}
+              <div
+                style={{
+                  display: "flex", alignItems: "center", gap: "10px",
+                  padding: "10px 12px", cursor: "pointer",
+                }}
+                onClick={() => onSelectModel(model.url)}
               >
-                {/* Move */}
-                <div style={{ position: "relative" }}>
-                  <button
-                    onClick={() => setMoveModel(moveModel === model.id ? null : model.id)}
-                    title="העבר לקטגוריה"
-                    style={{
-                      background: "transparent", border: "none", cursor: "pointer",
-                      fontSize: "14px", padding: "4px 6px", color: t.textSecondary,
-                      borderRadius: "6px", transition: "background 0.15s",
-                    }}
-                  >📂</button>
-                  {moveModel === model.id && (
-                    <div style={{
-                      position: "absolute", top: "100%", left: 0, zIndex: 50,
-                      background: t.bg, border: `1px solid ${t.panelBorder}`,
-                      borderRadius: "10px", padding: "6px", minWidth: "130px",
-                      boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+                <div style={{
+                  width: "36px", height: "36px", borderRadius: "10px",
+                  background: isActive ? t.accent : `${t.accent}12`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: "16px", flexShrink: 0, color: isActive ? "#fff" : t.textPrimary,
+                }}>
+                  {isActive ? "✦" : "🧬"}
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: "13px", fontWeight: 700,
+                    color: isActive ? t.accent : t.textPrimary,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>
+                    {rec?.hebrew_name ? `${rec.hebrew_name} — ${model.displayName}` : model.displayName}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "10px", color: t.textSecondary }}>
+                      {formatSize(model.fileSize)} • {new Date(model.createdAt).toLocaleDateString("he-IL")}
+                    </span>
+                    {catName && (
+                      <span style={{
+                        fontSize: "9px", fontWeight: 600, color: t.accent,
+                        background: `${t.accent}12`, borderRadius: "999px", padding: "1px 8px",
+                      }}>
+                        {catName.icon} {catName.name}
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: "9px", fontWeight: 700, color: meshBadgeColor,
+                      border: `1px solid ${meshBadgeColor}66`, borderRadius: "999px",
+                      padding: "1px 6px", background: `${meshBadgeColor}14`,
                     }}>
-                      {categories.map(cat => (
-                        <button
-                          key={cat.id}
-                          onClick={() => handleMove(model.record!.id, cat.id)}
+                      Mesh {model.meshLevel === "high" ? "גבוה" : model.meshLevel === "medium" ? "בינוני" : "נמוך"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div style={{ display: "flex", gap: "2px", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                  {model.source === "cloud" && rec && (
+                    <>
+                      <button
+                        onClick={() => setExpandedModel(isExpanded ? null : model.id)}
+                        title="פרטים ועריכה"
+                        style={{
+                          background: isExpanded ? `${t.accent}18` : "transparent", border: "none",
+                          cursor: "pointer", fontSize: "14px", padding: "4px 6px",
+                          color: isExpanded ? t.accent : t.textSecondary, borderRadius: "6px",
+                        }}
+                      >📋</button>
+                      <button
+                        onClick={() => { startEditing(rec); setExpandedModel(model.id); }}
+                        title="ערוך"
+                        style={{
+                          background: "transparent", border: "none", cursor: "pointer",
+                          fontSize: "14px", padding: "4px 6px", color: t.textSecondary, borderRadius: "6px",
+                        }}
+                      >✏️</button>
+                      {confirmDelete === model.id ? (
+                        <div style={{ display: "flex", gap: "3px" }}>
+                          <button onClick={() => handleDelete(rec)} style={{
+                            background: t.accentAlt, color: "#fff", border: "none",
+                            borderRadius: "6px", padding: "4px 10px", cursor: "pointer",
+                            fontSize: "10px", fontWeight: 600,
+                          }}>מחק</button>
+                          <button onClick={() => setConfirmDelete(null)} style={{
+                            background: "transparent", color: t.textSecondary,
+                            border: `1px solid ${t.panelBorder}`, borderRadius: "6px",
+                            padding: "4px 8px", cursor: "pointer", fontSize: "10px",
+                          }}>בטל</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmDelete(model.id)} title="מחק"
                           style={{
-                            width: "100%", padding: "7px 10px", border: "none",
-                            borderRadius: "7px", fontSize: "12px", cursor: "pointer",
-                            textAlign: "right", color: t.textPrimary,
-                            background: model.record!.category_id === cat.id ? `${t.accent}15` : "transparent",
-                            fontWeight: model.record!.category_id === cat.id ? 700 : 400,
-                            transition: "background 0.15s",
+                            background: "transparent", border: "none", cursor: "pointer",
+                            fontSize: "14px", padding: "4px 6px", color: t.textSecondary, borderRadius: "6px",
+                          }}>🗑️</button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Expanded detail card */}
+              {isExpanded && rec && (
+                <div style={{
+                  padding: "12px 14px", borderTop: `1px solid ${t.panelBorder}`,
+                  background: `${t.accent}04`, display: "flex", flexDirection: "column", gap: "10px",
+                }}>
+                  {isEditing ? (
+                    /* Edit mode */
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                        <div>
+                          <label style={{ fontSize: "10px", color: t.textSecondary, fontWeight: 600 }}>שם תצוגה (EN)</label>
+                          <input
+                            value={editForm.display_name}
+                            onChange={e => setEditForm(f => ({ ...f, display_name: e.target.value }))}
+                            style={{
+                              width: "100%", background: t.bg, border: `1px solid ${t.panelBorder}`,
+                              borderRadius: "8px", padding: "7px 10px", color: t.textPrimary,
+                              fontSize: "12px", direction: "ltr", marginTop: "4px",
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "10px", color: t.textSecondary, fontWeight: 600 }}>🇮🇱 שם בעברית</label>
+                          <input
+                            value={editForm.hebrew_name}
+                            onChange={e => setEditForm(f => ({ ...f, hebrew_name: e.target.value }))}
+                            placeholder="למשל: לב אנושי"
+                            style={{
+                              width: "100%", background: t.bg, border: `1px solid ${t.panelBorder}`,
+                              borderRadius: "8px", padding: "7px 10px", color: t.textPrimary,
+                              fontSize: "12px", direction: "rtl", marginTop: "4px",
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "10px", color: t.textSecondary, fontWeight: 600 }}>📂 קטגוריה</label>
+                        <select
+                          value={editForm.category_id || ""}
+                          onChange={e => setEditForm(f => ({ ...f, category_id: e.target.value || null }))}
+                          style={{
+                            width: "100%", background: t.bg, border: `1px solid ${t.panelBorder}`,
+                            borderRadius: "8px", padding: "7px 10px", color: t.textPrimary,
+                            fontSize: "12px", marginTop: "4px",
                           }}
                         >
-                          {cat.icon} {cat.name}
-                        </button>
-                      ))}
-                    </div>
+                          <option value="">ללא קטגוריה</option>
+                          {categories.map(c => (
+                            <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "10px", color: t.textSecondary, fontWeight: 600 }}>📝 הערות</label>
+                        <textarea
+                          value={editForm.notes}
+                          onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                          placeholder="הוסף הערות, תיאור, מקור..."
+                          rows={3}
+                          style={{
+                            width: "100%", background: t.bg, border: `1px solid ${t.panelBorder}`,
+                            borderRadius: "8px", padding: "7px 10px", color: t.textPrimary,
+                            fontSize: "12px", direction: "rtl", marginTop: "4px", resize: "vertical",
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", gap: "8px", justifyContent: "flex-start" }}>
+                        <button onClick={() => saveEdit(rec.id)} style={{
+                          background: t.accent, color: "#fff", border: "none", borderRadius: "8px",
+                          padding: "7px 18px", cursor: "pointer", fontSize: "12px", fontWeight: 700,
+                        }}>💾 שמור</button>
+                        <button onClick={() => setEditingModel(null)} style={{
+                          background: "transparent", color: t.textSecondary,
+                          border: `1px solid ${t.panelBorder}`, borderRadius: "8px",
+                          padding: "7px 14px", cursor: "pointer", fontSize: "12px",
+                        }}>ביטול</button>
+                      </div>
+                    </>
+                  ) : (
+                    /* View mode */
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                        <div>
+                          <div style={{ fontSize: "10px", color: t.textSecondary, fontWeight: 600 }}>שם תצוגה</div>
+                          <div style={{ fontSize: "12px", color: t.textPrimary, marginTop: "2px" }}>{rec.display_name}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "10px", color: t.textSecondary, fontWeight: 600 }}>🇮🇱 שם בעברית</div>
+                          <div style={{ fontSize: "12px", color: t.textPrimary, marginTop: "2px" }}>
+                            {rec.hebrew_name || <span style={{ opacity: 0.4 }}>לא הוגדר</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "10px", color: t.textSecondary, fontWeight: 600 }}>📂 קטגוריה</div>
+                        <div style={{ fontSize: "12px", color: t.textPrimary, marginTop: "2px" }}>
+                          {catName ? `${catName.icon} ${catName.name}` : <span style={{ opacity: 0.4 }}>ללא קטגוריה</span>}
+                        </div>
+                      </div>
+                      {rec.notes && (
+                        <div>
+                          <div style={{ fontSize: "10px", color: t.textSecondary, fontWeight: 600 }}>📝 הערות</div>
+                          <div style={{ fontSize: "12px", color: t.textPrimary, marginTop: "2px", whiteSpace: "pre-wrap" }}>{rec.notes}</div>
+                        </div>
+                      )}
+                      {/* Mesh parts */}
+                      {rec.mesh_parts && Array.isArray(rec.mesh_parts) && rec.mesh_parts.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: "10px", color: t.textSecondary, fontWeight: 600, marginBottom: "4px" }}>🧩 חלקי Mesh שזוהו ({rec.mesh_parts.length})</div>
+                          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                            {(rec.mesh_parts as string[]).map((part, i) => (
+                              <span key={i} style={{
+                                fontSize: "10px", background: `${t.accent}12`, color: t.textPrimary,
+                                border: `1px solid ${t.accent}30`, borderRadius: "6px", padding: "2px 8px",
+                              }}>{part}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <button onClick={() => startEditing(rec)} style={{
+                        background: `${t.accent}12`, color: t.accent, border: `1px solid ${t.accent}30`,
+                        borderRadius: "8px", padding: "6px 14px", cursor: "pointer",
+                        fontSize: "11px", fontWeight: 600, alignSelf: "flex-start",
+                      }}>✏️ ערוך פרטים</button>
+                    </>
                   )}
                 </div>
-
-                {/* Delete */}
-                {confirmDelete === model.id ? (
-                  <div style={{ display: "flex", gap: "3px" }}>
-                    <button
-                      onClick={() => handleDelete(model.record!)}
-                      style={{
-                        background: t.accentAlt, color: "#fff", border: "none",
-                        borderRadius: "6px", padding: "4px 10px", cursor: "pointer",
-                        fontSize: "10px", fontWeight: 600,
-                      }}
-                    >מחק</button>
-                    <button
-                      onClick={() => setConfirmDelete(null)}
-                      style={{
-                        background: "transparent", color: t.textSecondary,
-                        border: `1px solid ${t.panelBorder}`, borderRadius: "6px",
-                        padding: "4px 8px", cursor: "pointer", fontSize: "10px",
-                      }}
-                    >בטל</button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setConfirmDelete(model.id)}
-                    title="מחק מודל"
-                    style={{
-                      background: "transparent", border: "none", cursor: "pointer",
-                      fontSize: "14px", padding: "4px 6px", color: t.textSecondary,
-                      borderRadius: "6px",
-                    }}
-                  >🗑️</button>
-                )}
-              </div>
               )}
             </div>
           );
