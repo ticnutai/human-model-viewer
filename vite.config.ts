@@ -18,7 +18,10 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
     strictPort: false,
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(),
+    mode === "development" && process.env.LOVABLE_TAGGER === "true" && componentTagger(),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
