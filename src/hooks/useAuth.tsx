@@ -37,6 +37,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    // Safety timeout: ensure loading completes even if auth check hangs
+    const safetyTimer = setTimeout(() => {
+      setLoading((prev) => {
+        if (prev) {
+          if (import.meta.env.DEV) console.warn("[AUTH_DEBUG] safety timeout — forcing loading=false");
+        }
+        return false;
+      });
+    }, 3000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (import.meta.env.DEV) {
@@ -72,7 +82,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
