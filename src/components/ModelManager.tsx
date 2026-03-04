@@ -1,5 +1,67 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import * as THREE from "three";
+
+const MESH_HEBREW: Record<string, string> = {
+  heart: "לב", liver: "כבד", lung: "ריאה", lungs: "ריאות", kidney: "כליה",
+  kidneys: "כליות", brain: "מוח", stomach: "קיבה", intestine: "מעי",
+  intestines: "מעיים", spine: "עמוד שדרה", skull: "גולגולת", femur: "עצם הירך",
+  tibia: "שוקה", humerus: "עצם הזרוע", radius: "עצם החישור", ulna: "עצם האמה",
+  pelvis: "אגן", rib: "צלע", ribs: "צלעות", sternum: "עצם החזה",
+  clavicle: "עצם הבריח", scapula: "שכמה", pancreas: "לבלב",
+  spleen: "טחול", bladder: "שלפוחית", esophagus: "ושט", trachea: "קנה הנשימה",
+  aorta: "אבי העורקים", vein: "וריד", artery: "עורק", muscle: "שריר",
+  tendon: "גיד", ligament: "רצועה", cartilage: "סחוס", bone: "עצם",
+  skin: "עור", eye: "עין", ear: "אוזן", nose: "אף", mouth: "פה",
+  tongue: "לשון", tooth: "שן", teeth: "שיניים", hand: "יד", foot: "כף רגל",
+  finger: "אצבע", thumb: "אגודל", diaphragm: "סרעפת", thyroid: "בלוטת התריס",
+  adrenal: "בלוטת יותרת הכליה", gallbladder: "כיס המרה", appendix: "תוספתן",
+  colon: "מעי גס", rectum: "חלחולת", duodenum: "תריסריון",
+  vertebra: "חוליה", vertebrae: "חוליות", disc: "דיסק", nerve: "עצב",
+  bicep: "דו-ראשי", tricep: "תלת-ראשי", deltoid: "דלתא", pectoral: "חזה",
+  trapezius: "טרפז", gluteus: "עכוז", quadricep: "ארבע-ראשי",
+  hamstring: "שריר ירך אחורי", calf: "שוק", abs: "בטן", torso: "פלג גוף",
+  head: "ראש", neck: "צוואר", shoulder: "כתף", arm: "זרוע", leg: "רגל",
+  chest: "חזה", back: "גב", hip: "ירך", knee: "ברך", ankle: "קרסול",
+  wrist: "שורש כף היד", elbow: "מרפק",
+};
+
+function translateMeshName(name: string): string {
+  const lower = name.toLowerCase().replace(/[_\-\.]/g, " ");
+  for (const [en, he] of Object.entries(MESH_HEBREW)) {
+    if (lower.includes(en)) return `${he} (${name})`;
+  }
+  return name;
+}
+
+async function analyzeGlbMeshes(urlOrFile: string | File): Promise<string[]> {
+  const loader = new GLTFLoader();
+  return new Promise((resolve) => {
+    const onLoad = (gltf: any) => {
+      const names: string[] = [];
+      gltf.scene.traverse((child: THREE.Object3D) => {
+        if ((child as THREE.Mesh).isMesh && child.name) {
+          names.push(child.name);
+        }
+      });
+      resolve(names);
+    };
+    const onError = () => resolve([]);
+
+    if (typeof urlOrFile === "string") {
+      loader.load(urlOrFile, onLoad, undefined, onError);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const buffer = e.target?.result as ArrayBuffer;
+        loader.parse(buffer, "", onLoad, onError);
+      };
+      reader.onerror = () => resolve([]);
+      reader.readAsArrayBuffer(urlOrFile);
+    }
+  });
+}
 
 type Category = {
   id: string;
@@ -465,12 +527,18 @@ export default function ModelManager({
 
     if (success) {
       const url = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
+      // Analyze meshes from the original file
+      setUploadFileName(`${file.name} — מנתח חלקי Mesh...`);
+      const meshNames = await analyzeGlbMeshes(file);
+      const translatedMeshes = meshNames.map(translateMeshName);
+
       await supabase.from("models").insert({
         file_name: fileName,
         display_name: file.name.replace(".glb", ""),
         category_id: activeCategory || categories[0]?.id || null,
         file_size: file.size,
         file_url: url,
+        mesh_parts: translatedMeshes,
       });
       onSelectModel(url);
       await load();
@@ -496,12 +564,17 @@ export default function ModelManager({
     const success = await uploadWithProgress(data.file, data.fileName, data.offset);
     if (success) {
       const url = `${SUPABASE_URL}/storage/v1/object/public/models/${data.fileName}`;
+      setUploadFileName(`${data.file.name} — מנתח חלקי Mesh...`);
+      const meshNames = await analyzeGlbMeshes(data.file);
+      const translatedMeshes = meshNames.map(translateMeshName);
+
       await supabase.from("models").insert({
         file_name: data.fileName,
         display_name: data.file.name.replace(".glb", ""),
         category_id: activeCategory || categories[0]?.id || null,
         file_size: data.file.size,
         file_url: url,
+        mesh_parts: translatedMeshes,
       });
       onSelectModel(url);
       await load();
