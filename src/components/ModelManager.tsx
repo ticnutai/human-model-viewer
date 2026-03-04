@@ -285,55 +285,76 @@ export default function ModelManager({
     setSketchfabError(null);
 
     try {
+      // ── 1. Fetch download URL from Sketchfab API ───────────────────────
       const downloadRes = await fetch(`https://api.sketchfab.com/v3/models/${model.uid}/download`, {
-        headers: {
-          Authorization: `Token ${token}`,
-          Accept: "application/json",
-        },
+        headers: { Authorization: `Token ${token}`, Accept: "application/json" },
       });
-
-      if (!downloadRes.ok) {
-        throw new Error(`download endpoint failed ${downloadRes.status}`);
-      }
+      if (!downloadRes.ok) throw new Error(`download endpoint failed ${downloadRes.status}`);
 
       const downloadPayload = await downloadRes.json();
       const glbUrl = pickGlbDownloadUrl(downloadPayload);
-      if (!glbUrl) {
-        throw new Error("GLB not available for selected model");
-      }
+      if (!glbUrl) throw new Error("GLB not available for selected model");
 
+      // ── 2. Download the GLB blob ───────────────────────────────────────
       const fileRes = await fetch(glbUrl);
-      if (!fileRes.ok) {
-        throw new Error(`GLB download failed ${fileRes.status}`);
-      }
-
+      if (!fileRes.ok) throw new Error(`GLB download failed ${fileRes.status}`);
       const glbBlob = await fileRes.blob();
+
+      // ── 3. Wrap as File so uploadWithProgress can track it ────────────
       const fileName = `${Date.now()}_sketchfab_${model.uid}.glb`;
+      const glbFile = new File([glbBlob], fileName, { type: "model/gltf-binary" });
 
-      const { error: uploadStorageError } = await supabase.storage
-        .from("models")
-        .upload(fileName, glbBlob, {
-          upsert: true,
-          contentType: "model/gltf-binary",
+      // ── 4. Use the shared upload pipeline (progress bar + resume) ─────
+      abortRef.current = false;
+      pausedRef.current = false;
+      setUploading(true);
+      setUploadProgress(0);
+      setUploadError(null);
+      setUploadFileName(`📥 מייבא: ${model.name}`);
+      resumeDataRef.current = null;
+
+      const success = await uploadWithProgress(glbFile, fileName);
+
+      if (success) {
+        const importedUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
+        const thumbUrl = pickBestThumb(model) || null;
+
+        // ── 5. Mesh analysis (same as local upload) ──────────────────────
+        setUploadFileName(`${model.name} — מנתח חלקי Mesh...`);
+        const meshNames = await analyzeGlbMeshes(glbFile);
+        const translatedMeshes = meshNames.map(translateMeshName);
+
+        // ── 6. Save to DB with mesh_parts + thumbnail ────────────────────
+        const { error: insertError } = await supabase.from("models").insert({
+          file_name: fileName,
+          display_name: model.name,
+          category_id: activeCategory || categories[0]?.id || null,
+          file_size: glbBlob.size,
+          file_url: importedUrl,
+          thumbnail_url: thumbUrl,
+          mesh_parts: translatedMeshes,
         });
+        if (insertError) throw insertError;
 
-      if (uploadStorageError) throw uploadStorageError;
-
-      const importedUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
-
-      const { error: insertError } = await supabase.from("models").insert({
-        file_name: fileName,
-        display_name: model.name,
-        category_id: activeCategory || categories[0]?.id || null,
-        file_size: glbBlob.size,
-        file_url: importedUrl,
-      });
-
-      if (insertError) throw insertError;
-      onSelectModel(importedUrl);
-      await load();
-    } catch {
-      setSketchfabError(`ייבוא נכשל עבור ${model.name}.`);
+        onSelectModel(importedUrl);
+        await load();
+        setTimeout(() => {
+          setUploading(false);
+          setUploadProgress(0);
+          setUploadFileName("");
+        }, 1200);
+      } else {
+        // Upload errored/paused — keep the progress bar visible only if resume data was saved
+        if (!resumeDataRef.current) {
+          setUploading(false);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSketchfabError(`ייבוא נכשל עבור ${model.name}: ${msg}`);
+      setUploading(false);
+      setUploadProgress(0);
+      setUploadFileName("");
     } finally {
       setImportingUid(null);
     }
