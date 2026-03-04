@@ -44,6 +44,36 @@ export type Database = {
         }
         Relationships: []
       }
+      migration_logs: {
+        Row: {
+          duration_ms: number | null
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          name: string
+          sql_content: string | null
+          status: string
+        }
+        Insert: {
+          duration_ms?: number | null
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          name: string
+          sql_content?: string | null
+          status?: string
+        }
+        Update: {
+          duration_ms?: number | null
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          name?: string
+          sql_content?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       model_categories: {
         Row: {
           created_at: string
@@ -195,6 +225,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      execute_safe_migration: {
+        Args: { p_migration_name: string; p_migration_sql: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

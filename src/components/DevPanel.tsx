@@ -84,6 +84,11 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
     }
   }, []);
 
+  const loadMigrationLogs = useCallback(async () => {
+    const { data } = await supabase.from("migration_logs" as any).select("*").order("executed_at", { ascending: false }).limit(20);
+    if (data) setMigrationLogs(data as any);
+  }, []);
+
   useEffect(() => {
     loadMigrations();
     loadStorage();
@@ -101,11 +106,6 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
       localStorage.setItem("dev_edge_functions", JSON.stringify(edgeFunctions));
     }
   }, [edgeFunctions]);
-
-  const loadMigrationLogs = useCallback(async () => {
-    const { data } = await supabase.from("migration_logs" as any).select("*").order("executed_at", { ascending: false }).limit(20);
-    if (data) setMigrationLogs(data as any);
-  }, []);
 
   const runMigrationRpc = async (migrationId: string, name: string, sql: string) => {
     if (!sql?.trim()) {
