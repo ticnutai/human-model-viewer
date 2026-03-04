@@ -16,6 +16,24 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const DEFAULT_MODEL = `${SUPABASE_URL}/storage/v1/object/public/models/human_organs_1.glb`;
 const SKETCHFAB_TOKEN_STORAGE_KEY = "sketchfab-api-token";
 
+const readAsciiPrefix = async (url: string, length = 96) => {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  const buf = await res.arrayBuffer();
+  const bytes = new Uint8Array(buf.slice(0, length));
+  return new TextDecoder("utf-8").decode(bytes).trim();
+};
+
+const isLikelyGitLfsPointer = (prefix: string) => {
+  return prefix.startsWith("version https://git-lfs.github.com/spec/v1");
+};
+
+const isLikelyGlbMagic = (prefix: string) => {
+  return prefix.startsWith("glTF");
+};
+
 // ── Theme definitions ──
 type Theme = {
   name: string;
@@ -223,6 +241,7 @@ const ModelViewer = () => {
   const [lessonIndex, setLessonIndex] = useState(0);
   const [apiTokenInput, setApiTokenInput] = useState("");
   const [apiTokenSaved, setApiTokenSaved] = useState(false);
+  const [modelLoadWarning, setModelLoadWarning] = useState<string | null>(null);
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerType>>(new Set(["skeleton", "muscles", "organs", "vessels"]));
   const t = THEMES[themeIdx];
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
@@ -267,10 +286,43 @@ const ModelViewer = () => {
     setRenderKey(k => k + 1);
   }, []);
 
-  const handleSelectModel = useCallback((url: string) => {
+  const handleSelectModel = useCallback(async (url: string) => {
+    setModelLoadWarning(null);
+
+    const isLocalGlb = url.startsWith("/models/") && url.toLowerCase().endsWith(".glb");
+    if (isLocalGlb) {
+      try {
+        const prefix = await readAsciiPrefix(url, 96);
+        if (isLikelyGitLfsPointer(prefix)) {
+          setModelLoadWarning(
+            lang === "en"
+              ? "This model is a Git LFS pointer (not binary GLB) in this environment. Select a cloud model or upload a valid GLB."
+              : "המודל הוא קובץ מצביע של Git LFS (ולא GLB בינארי) בסביבה הזו. יש לבחור מודל ענן או להעלות GLB תקין."
+          );
+          return;
+        }
+
+        if (!isLikelyGlbMagic(prefix)) {
+          setModelLoadWarning(
+            lang === "en"
+              ? "Selected model file is not a valid GLB binary."
+              : "קובץ המודל שנבחר אינו GLB בינארי תקין."
+          );
+          return;
+        }
+      } catch {
+        setModelLoadWarning(
+          lang === "en"
+            ? "Could not validate selected model file."
+            : "לא ניתן לאמת את קובץ המודל שנבחר."
+        );
+        return;
+      }
+    }
+
     setModelUrl(url);
     setModelKey(k => k + 1);
-  }, []);
+  }, [lang]);
 
   const focusOrganByKey = useCallback((key: string) => {
     const organ = ORGAN_DETAILS[key];
@@ -546,6 +598,46 @@ const ModelViewer = () => {
       {/* Organ dialog */}
       {selectedOrgan && (
         <OrganDialog organ={selectedOrgan} theme={t} onClose={() => setSelectedOrgan(null)} />
+      )}
+
+      {modelLoadWarning && (
+        <div
+          style={{
+            position: "absolute",
+            top: "84px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 30,
+            maxWidth: "min(92vw, 760px)",
+            background: t.panelBg,
+            border: `1px solid ${t.accentAlt}`,
+            borderRadius: "12px",
+            padding: "10px 14px",
+            color: t.textPrimary,
+            fontSize: "12px",
+            boxShadow: "0 8px 28px rgba(0,0,0,0.18)",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <span style={{ color: t.accentAlt, fontWeight: 700 }}>⚠</span>
+          <span style={{ flex: 1 }}>{modelLoadWarning}</span>
+          <button
+            onClick={() => setModelLoadWarning(null)}
+            style={{
+              border: `1px solid ${t.panelBorder}`,
+              background: "transparent",
+              color: t.textSecondary,
+              borderRadius: "8px",
+              padding: "4px 8px",
+              cursor: "pointer",
+              fontSize: "11px",
+            }}
+          >
+            {lang === "en" ? "Close" : "סגור"}
+          </button>
+        </div>
       )}
 
       {/* Controls hint */}

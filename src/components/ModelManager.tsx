@@ -83,7 +83,7 @@ export default function ModelManager({
   currentModelUrl,
 }: {
   theme: Theme;
-  onSelectModel: (url: string) => void;
+  onSelectModel: (url: string) => void | Promise<void>;
   currentModelUrl: string;
 }) {
   const [models, setModels] = useState<ModelRecord[]>([]);
@@ -279,9 +279,20 @@ export default function ModelManager({
       const manifest = await res.json();
       const assets: LocalManifestAsset[] = Array.isArray(manifest?.assets) ? manifest.assets : [];
       const createdAt = typeof manifest?.lastUpdated === "string" ? manifest.lastUpdated : new Date().toISOString();
+      const isLovableHost = typeof window !== "undefined" && /(^|\.)lovableproject\.com$/i.test(window.location.hostname);
 
       const local = assets
-        .filter((asset) => typeof asset.path === "string" && asset.path.toLowerCase().endsWith(".glb") && asset.path.startsWith("public/models/"))
+        .filter((asset) => {
+          if (!(typeof asset.path === "string" && asset.path.toLowerCase().endsWith(".glb") && asset.path.startsWith("public/models/"))) {
+            return false;
+          }
+
+          if (isLovableHost && asset.path.startsWith("public/models/sketchfab/")) {
+            return false;
+          }
+
+          return true;
+        })
         .map((asset) => {
           const displayName = normalizeDisplayNameFromPath(asset.path);
           const relevance = buildRelevance(displayName);

@@ -32,6 +32,11 @@ type Theme = {
   bg: string;
 };
 
+const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID as string | undefined;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+
+type MigrationConnectionState = "idle" | "checking" | "ok" | "failed";
+
 export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<"migrations" | "storage" | "edge" | "info">("migrations");
   const [migrations, setMigrations] = useState<Migration[]>([]);
@@ -46,6 +51,11 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [migrationConnectionState, setMigrationConnectionState] = useState<MigrationConnectionState>("idle");
+  const [migrationConnectionMessage, setMigrationConnectionMessage] = useState<string>("");
+  const [runningMigrationId, setRunningMigrationId] = useState<string | null>(null);
+  const [migrationLogs, setMigrationLogs] = useState<{id:string;name:string;status:string;error_message?:string;duration_ms?:number;executed_at:string}[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edge functions state
@@ -76,12 +86,13 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
   useEffect(() => {
     loadMigrations();
     loadStorage();
+    loadMigrationLogs();
     // Load edge functions from localStorage
     const saved = localStorage.getItem("dev_edge_functions");
     if (saved) {
       try { setEdgeFunctions(JSON.parse(saved)); } catch { /* ignore */ }
     }
-  }, [loadMigrations, loadStorage]);
+  }, [loadMigrations, loadStorage, loadMigrationLogs]);
 
   // Persist edge functions
   useEffect(() => {
@@ -89,6 +100,78 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
       localStorage.setItem("dev_edge_functions", JSON.stringify(edgeFunctions));
     }
   }, [edgeFunctions]);
+
+  const loadMigrationLogs = useCallback(async () => {
+    const { data } = await supabase.from("migration_logs" as any).select("*").order("executed_at", { ascending: false }).limit(20);
+    if (data) setMigrationLogs(data as any);
+  }, []);
+
+  const runMigrationRpc = async (migrationId: string, name: string, sql: string) => {
+    if (!sql?.trim()) {
+      alert("אין תוכן SQL להרצה.");
+      return;
+    }
+    if (!confirm(`להריץ את המיגרציה "${name}"?\n\n⚠️ פעולה זו לא ניתנת לביטול.`)) return;
+    setRunningMigrationId(migrationId);
+    try {
+      const { data, error } = await (supabase.rpc as any)("execute_safe_migration", {
+        p_migration_name: name,
+        p_migration_sql: sql,
+      });
+      if (error) {
+        if (error.message?.includes("function") && error.message?.includes("does not exist")) {
+          alert("❌ הפונקציה execute_safe_migration לא נמצאה.\n\nיש להריץ קודם את:\nscripts/bootstrap-migration-runner.sql\n\nב-SQL Editor בדאשבורד Supabase.");
+        } else {
+          alert(`❌ שגיאת RPC: ${error.message}`);
+        }
+        return;
+      }
+      if (data?.success) {
+        alert(`✅ מיגרציה הורצה בהצלחה!\nזמן: ${data.duration_ms}ms`);
+        await updateStatus(migrationId, "applied");
+      } else {
+        alert(`❌ מיגרציה נכשלה:\n${data?.error}`);
+        await updateStatus(migrationId, "failed");
+      }
+      await loadMigrationLogs();
+    } catch (err) {
+      alert(`❌ שגיאה: ${err instanceof Error ? err.message : "שגיאה לא ידועה"}`);
+    } finally {
+      setRunningMigrationId(null);
+    }
+  };
+
+  const checkMigrationDataApi = async () => {
+    setMigrationConnectionState("checking");
+    setMigrationConnectionMessage("בודק חיבור...");
+    try {
+      const { data, error } = await supabase
+        .from("model_categories")
+        .select("id,name")
+        .limit(1);
+
+      if (error) {
+        setMigrationConnectionState("failed");
+        setMigrationConnectionMessage(`חיבור נכשל: ${error.message}`);
+        return;
+      }
+
+      setMigrationConnectionState("ok");
+      setMigrationConnectionMessage(`חיבור תקין (Data API). נמצאו ${data?.length ?? 0} רשומות בדיקה.`);
+    } catch (err) {
+      setMigrationConnectionState("failed");
+      setMigrationConnectionMessage(`חיבור נכשל: ${err instanceof Error ? err.message : "שגיאה לא ידועה"}`);
+    }
+  };
+
+  const copyText = async (text: string, successMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setMigrationConnectionMessage(successMessage);
+    } catch {
+      setMigrationConnectionMessage("לא ניתן להעתיק אוטומטית. יש להעתיק ידנית.");
+    }
+  };
 
   const addMigration = async () => {
     if (!newName.trim()) return;
@@ -388,6 +471,127 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
           {activeTab === "migrations" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
 
+              <div style={{
+                padding: "12px 14px",
+                borderRadius: "12px",
+                background: `${t.accent}08`,
+                border: `1px solid ${t.panelBorder}`,
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: t.textPrimary }}>
+                  🔗 חיבור מיגרציות לענן (Supabase)
+                </div>
+                <div style={{ fontSize: "11px", color: t.textSecondary, lineHeight: 1.6 }}>
+                  פרויקט: <strong>{SUPABASE_PROJECT_ID || "לא מוגדר"}</strong><br />
+                  URL: <strong>{SUPABASE_URL || "לא מוגדר"}</strong><br />
+                  הערה: כאן ניתן לבדוק Data API ולשכפל פקודות CLI; הרצת מיגרציות בפועל מתבצעת בטרמינל עם login.
+                </div>
+
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  <button
+                    onClick={checkMigrationDataApi}
+                    disabled={migrationConnectionState === "checking"}
+                    style={{ ...btnStyle, fontSize: "11px", padding: "6px 10px" }}
+                  >
+                    {migrationConnectionState === "checking" ? "⏳ בודק..." : "🧪 בדוק Data API"}
+                  </button>
+
+                  <button
+                    onClick={() => copyText("npx --yes supabase login", "הועתק: supabase login")}
+                    style={{ ...btnStyle, fontSize: "11px", padding: "6px 10px" }}
+                  >
+                    📋 העתק login
+                  </button>
+
+                  <button
+                    onClick={() => copyText(`npx --yes supabase link --project-ref ${SUPABASE_PROJECT_ID || "<project-ref>"}`, "הועתק: supabase link")}
+                    style={{ ...btnStyle, fontSize: "11px", padding: "6px 10px" }}
+                  >
+                    📋 העתק link
+                  </button>
+
+                  <button
+                    onClick={() => copyText("npx --yes supabase migration list --linked", "הועתק: migration list")}
+                    style={{ ...btnStyle, fontSize: "11px", padding: "6px 10px" }}
+                  >
+                    📋 העתק list
+                  </button>
+
+                  <button
+                    onClick={() => copyText("npx --yes supabase db push --linked", "הועתק: db push")}
+                    style={{ ...btnStyle, fontSize: "11px", padding: "6px 10px" }}
+                  >
+                    📋 העתק push
+                  </button>
+                </div>
+
+                {migrationConnectionMessage && (
+                  <div style={{
+                    fontSize: "11px",
+                    color: migrationConnectionState === "failed" ? "#ef4444" : migrationConnectionState === "ok" ? "#22c55e" : t.textSecondary,
+                    border: `1px solid ${migrationConnectionState === "failed" ? "#ef444455" : t.panelBorder}`,
+                    borderRadius: "8px",
+                    padding: "6px 8px",
+                    background: migrationConnectionState === "failed" ? "#ef444410" : "transparent",
+                  }}>
+                    {migrationConnectionMessage}
+                  </div>
+                )}
+              </div>
+
+              {/* Migration Logs (from execute_safe_migration) */}
+              <div style={{
+                padding: "10px 14px",
+                borderRadius: "12px",
+                background: `${t.accent}04`,
+                border: `1px solid ${t.panelBorder}`,
+              }}>
+                <div style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  cursor: "pointer",
+                }} onClick={() => setShowLogs(prev => !prev)}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: t.textPrimary }}>
+                    📜 לוג הרצות ({migrationLogs.length})
+                  </span>
+                  <span style={{
+                    fontSize: "12px", color: t.textSecondary,
+                    transform: showLogs ? "rotate(180deg)" : "none",
+                    transition: "transform 0.2s",
+                  }}>▼</span>
+                </div>
+                {showLogs && (
+                  <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                    {migrationLogs.length === 0 ? (
+                      <div style={{ fontSize: "11px", color: t.textSecondary, textAlign: "center", padding: "8px 0" }}>
+                        אין לוגים עדיין. הרץ מיגרציה כדי לראות תוצאות.
+                      </div>
+                    ) : migrationLogs.map(log => (
+                      <div key={log.id} style={{
+                        display: "flex", gap: "6px", alignItems: "center",
+                        padding: "6px 8px", borderRadius: "6px",
+                        background: log.status === "success" ? "#22c55e10" : log.status === "failed" ? "#ef444410" : "transparent",
+                        border: `1px solid ${log.status === "failed" ? "#ef444430" : t.panelBorder}`,
+                        fontSize: "11px",
+                      }}>
+                        <span>{log.status === "success" ? "✅" : log.status === "failed" ? "❌" : "⏳"}</span>
+                        <span style={{ flex: 1, color: t.textPrimary, fontWeight: 600 }}>{log.name}</span>
+                        <span style={{ color: t.textSecondary, fontSize: "10px" }}>
+                          {log.duration_ms != null ? `${log.duration_ms}ms` : ""} • {new Date(log.executed_at).toLocaleString("he-IL")}
+                        </span>
+                        {log.error_message && (
+                          <span title={log.error_message} style={{ color: "#ef4444", cursor: "help" }}>⚠️</span>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={loadMigrationLogs} style={{ ...btnStyle, fontSize: "10px", padding: "4px 8px", alignSelf: "flex-end" }}>
+                      🔄 רענן
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Stats bar */}
               <div style={{
                 display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px",
@@ -603,6 +807,21 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
                             }}>אין תוכן SQL</div>
                           )}
                           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            {/* ▶ Run via RPC — actual execution */}
+                            {m.sql_content && m.status !== "applied" && (
+                              <button
+                                onClick={() => runMigrationRpc(m.id, m.name, m.sql_content!)}
+                                disabled={runningMigrationId === m.id}
+                                style={{
+                                  ...btnStyle, fontSize: "10px", padding: "5px 12px",
+                                  background: runningMigrationId === m.id ? "#6366f1" : "#2563eb",
+                                  color: "#fff", border: "none", fontWeight: 700,
+                                  opacity: runningMigrationId === m.id ? 0.7 : 1,
+                                }}
+                              >
+                                {runningMigrationId === m.id ? "⏳ מריץ..." : "▶ הרץ בענן"}
+                              </button>
+                            )}
                             {m.status === "pending" && (
                               <button onClick={() => updateStatus(m.id, "applied")} style={{
                                 ...btnStyle, fontSize: "10px", padding: "5px 12px", background: "#22c55e", color: "#fff", border: "none",

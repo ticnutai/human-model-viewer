@@ -15,7 +15,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "migrate:pending": "node scripts/direct-run.mjs pending",
+    "migrate:logs": "node scripts/direct-run.mjs logs",
+    "migrate:file": "node scripts/direct-run.mjs file"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
