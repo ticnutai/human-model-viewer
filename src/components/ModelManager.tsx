@@ -168,6 +168,8 @@ export default function ModelManager({
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
   const [editingModel, setEditingModel] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{ display_name: string; hebrew_name: string; notes: string; category_id: string | null; media_type: string }>({ display_name: "", hebrew_name: "", notes: "", category_id: null, media_type: "glb" });
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
+  const [inlineEditValue, setInlineEditValue] = useState("");
 
   // Upload state
   const [uploading, setUploading] = useState(false);
@@ -207,6 +209,13 @@ export default function ModelManager({
       media_type: editForm.media_type,
     }).eq("id", modelId);
     setEditingModel(null);
+    await load();
+  };
+
+  const saveInlineName = async (modelId: string) => {
+    if (!inlineEditValue.trim()) { setInlineEditId(null); return; }
+    await supabase.from("models").update({ hebrew_name: inlineEditValue.trim() }).eq("id", modelId);
+    setInlineEditId(null);
     await load();
   };
 
@@ -1190,10 +1199,13 @@ export default function ModelManager({
           const isHovered = hoveredModel === model.id;
           const isExpanded = expandedModel === model.id;
           const isEditing = editingModel === model.id;
+          const isInlineEditing = inlineEditId === model.id;
           const meshBadgeColor = model.meshLevel === "high" ? "#22c55e" : model.meshLevel === "medium" ? "#eab308" : t.textSecondary;
           const rec = model.record;
           const catName = categories.find(c => c.id === model.categoryId);
           const mediaIcon = model.mediaType === "animation" ? "🎬" : model.mediaType === "image" ? "🖼️" : model.mediaType === "video" ? "📹" : "🧬";
+          const hebrewName = rec?.hebrew_name || "";
+          const thumb = rec?.thumbnail_url || null;
 
           return (
             <div
@@ -1208,95 +1220,163 @@ export default function ModelManager({
                 overflow: "hidden",
               }}
             >
-              {/* Main row - clickable to select model */}
-              <div
-                style={{
-                  display: "flex", alignItems: "center", gap: "10px",
-                  padding: "10px 12px", cursor: "pointer",
-                }}
-                onClick={() => onSelectModel(model.url)}
-              >
-                <div style={{
-                  width: "36px", height: "36px", borderRadius: "10px",
-                  background: isActive ? t.accent : `${t.accent}12`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "16px", flexShrink: 0, color: isActive ? "#fff" : t.textPrimary,
-                }}>
-                  {isActive ? "✦" : mediaIcon}
+              {/* ── Main row ─────────────────────────────────────── */}
+              <div style={{ display: "flex", alignItems: "stretch", gap: "0" }}>
+
+                {/* Thumbnail / icon — click to load model */}
+                <div
+                  onClick={() => onSelectModel(model.url)}
+                  style={{
+                    width: "56px", minHeight: "64px", flexShrink: 0,
+                    background: isActive ? t.accent : `${t.accent}12`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "22px", cursor: "pointer",
+                    borderRadius: "12px 0 0 12px",
+                    overflow: "hidden",
+                  }}
+                >
+                  {thumb ? (
+                    <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <span style={{ color: isActive ? "#fff" : t.textPrimary }}>
+                      {isActive ? "✦" : mediaIcon}
+                    </span>
+                  )}
                 </div>
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: "13px", fontWeight: 700,
-                    color: isActive ? t.accent : t.textPrimary,
-                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                  }}>
-                    {rec?.hebrew_name ? `${rec.hebrew_name} — ${model.displayName}` : model.displayName}
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0, padding: "8px 10px", display: "flex", flexDirection: "column", gap: "4px" }}>
+
+                  {/* Hebrew name — inline editable */}
+                  {isInlineEditing ? (
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }} onClick={e => e.stopPropagation()}>
+                      <input
+                        autoFocus
+                        value={inlineEditValue}
+                        onChange={e => setInlineEditValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") void saveInlineName(model.id);
+                          if (e.key === "Escape") setInlineEditId(null);
+                        }}
+                        placeholder="שם בעברית..."
+                        style={{
+                          flex: 1, background: t.bg,
+                          border: `1.5px solid ${t.accent}`,
+                          borderRadius: "7px", padding: "4px 8px",
+                          color: t.textPrimary, fontSize: "13px",
+                          fontWeight: 700, direction: "rtl", outline: "none",
+                        }}
+                      />
+                      <button onClick={() => void saveInlineName(model.id)} style={{
+                        background: t.accent, color: "#fff", border: "none",
+                        borderRadius: "6px", padding: "4px 10px", cursor: "pointer",
+                        fontSize: "11px", fontWeight: 700,
+                      }}>✓</button>
+                      <button onClick={() => setInlineEditId(null)} style={{
+                        background: "transparent", color: t.textSecondary,
+                        border: `1px solid ${t.panelBorder}`, borderRadius: "6px",
+                        padding: "4px 8px", cursor: "pointer", fontSize: "11px",
+                      }}>✕</button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+                      onClick={() => onSelectModel(model.url)}
+                    >
+                      <span style={{
+                        fontSize: "14px", fontWeight: 700,
+                        color: isActive ? t.accent : hebrewName ? t.textPrimary : t.textSecondary,
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        fontStyle: hebrewName ? "normal" : "italic",
+                        flex: 1,
+                      }}>
+                        {hebrewName || "לחץ לעריכת שם בעברית..."}
+                      </span>
+                      {/* Inline edit pencil — only for cloud models */}
+                      {model.source === "cloud" && rec && isHovered && !isInlineEditing && (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            setInlineEditId(model.id);
+                            setInlineEditValue(hebrewName);
+                          }}
+                          title="ערוך שם בעברית"
+                          style={{
+                            background: "transparent", border: "none", cursor: "pointer",
+                            fontSize: "12px", padding: "2px 4px", color: t.accent,
+                            flexShrink: 0,
+                          }}
+                        >✏️</button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* English filename — smaller */}
+                  <div
+                    style={{ fontSize: "11px", color: t.textSecondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}
+                    onClick={() => onSelectModel(model.url)}
+                  >
+                    {model.displayName}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "10px", color: t.textSecondary }}>
-                      {formatSize(model.fileSize)} • {new Date(model.createdAt).toLocaleDateString("he-IL")}
-                    </span>
+
+                  {/* Badges row */}
+                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
                     {catName && (
                       <span style={{
                         fontSize: "9px", fontWeight: 600, color: t.accent,
-                        background: `${t.accent}12`, borderRadius: "999px", padding: "1px 8px",
-                      }}>
-                        {catName.icon} {catName.name}
-                      </span>
+                        background: `${t.accent}12`, borderRadius: "999px", padding: "1px 7px",
+                      }}>{catName.icon} {catName.name}</span>
                     )}
                     <span style={{
-                      fontSize: "9px", fontWeight: 700, color: meshBadgeColor,
-                      border: `1px solid ${meshBadgeColor}66`, borderRadius: "999px",
-                      padding: "1px 6px", background: `${meshBadgeColor}14`,
+                      fontSize: "9px", fontWeight: 600,
+                      color: model.mediaType === "glb" ? "#8b5cf6" : model.mediaType === "animation" ? "#f59e0b" : model.mediaType === "image" ? "#10b981" : "#3b82f6",
+                      background: model.mediaType === "glb" ? "#8b5cf612" : model.mediaType === "animation" ? "#f59e0b12" : model.mediaType === "image" ? "#10b98112" : "#3b82f612",
+                      borderRadius: "999px", padding: "1px 7px",
                     }}>
-                      Mesh {model.meshLevel === "high" ? "גבוה" : model.meshLevel === "medium" ? "בינוני" : "נמוך"}
+                      {mediaIcon} {model.mediaType === "glb" ? "3D" : model.mediaType === "animation" ? "אנימציה" : model.mediaType === "image" ? "תמונה" : "וידאו"}
+                    </span>
+                    <span style={{ fontSize: "9px", color: t.textSecondary }}>
+                      {formatSize(model.fileSize)} • {new Date(model.createdAt).toLocaleDateString("he-IL")}
                     </span>
                   </div>
                 </div>
 
-                {/* Action buttons */}
-                <div style={{ display: "flex", gap: "2px", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                  {model.source === "cloud" && rec && (
+                {/* Action buttons column */}
+                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: "2px", padding: "6px 6px 6px 0", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                  {model.source === "cloud" && rec ? (
                     <>
                       <button
                         onClick={() => setExpandedModel(isExpanded ? null : model.id)}
-                        title="פרטים ועריכה"
+                        title="פרטים"
                         style={{
                           background: isExpanded ? `${t.accent}18` : "transparent", border: "none",
-                          cursor: "pointer", fontSize: "14px", padding: "4px 6px",
+                          cursor: "pointer", fontSize: "15px", padding: "4px 6px",
                           color: isExpanded ? t.accent : t.textSecondary, borderRadius: "6px",
                         }}
                       >📋</button>
-                      <button
-                        onClick={() => { startEditing(rec); setExpandedModel(model.id); }}
-                        title="ערוך"
-                        style={{
-                          background: "transparent", border: "none", cursor: "pointer",
-                          fontSize: "14px", padding: "4px 6px", color: t.textSecondary, borderRadius: "6px",
-                        }}
-                      >✏️</button>
                       {confirmDelete === model.id ? (
-                        <div style={{ display: "flex", gap: "3px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                           <button onClick={() => handleDelete(rec)} style={{
                             background: t.accentAlt, color: "#fff", border: "none",
-                            borderRadius: "6px", padding: "4px 10px", cursor: "pointer",
-                            fontSize: "10px", fontWeight: 600,
+                            borderRadius: "6px", padding: "3px 8px", cursor: "pointer",
+                            fontSize: "9px", fontWeight: 600,
                           }}>מחק</button>
                           <button onClick={() => setConfirmDelete(null)} style={{
                             background: "transparent", color: t.textSecondary,
                             border: `1px solid ${t.panelBorder}`, borderRadius: "6px",
-                            padding: "4px 8px", cursor: "pointer", fontSize: "10px",
+                            padding: "3px 6px", cursor: "pointer", fontSize: "9px",
                           }}>בטל</button>
                         </div>
                       ) : (
                         <button onClick={() => setConfirmDelete(model.id)} title="מחק"
                           style={{
                             background: "transparent", border: "none", cursor: "pointer",
-                            fontSize: "14px", padding: "4px 6px", color: t.textSecondary, borderRadius: "6px",
+                            fontSize: "15px", padding: "4px 6px", color: t.textSecondary, borderRadius: "6px",
                           }}>🗑️</button>
                       )}
                     </>
+                  ) : (
+                    <div style={{ width: "28px" }} />
                   )}
                 </div>
               </div>
