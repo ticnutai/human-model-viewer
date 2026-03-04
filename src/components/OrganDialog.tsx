@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { OrganDetail } from "./OrganData";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { getElementTypeLabel, getLocalizedOrganName, getLocalizedOrganSystem, getLatinOrganName } from "./OrganData";
 
 type Theme = {
   textPrimary: string;
@@ -15,21 +16,7 @@ type Theme = {
 };
 
 type AgeMode = "adult" | "kids";
-type TabKey = "overview" | "facts" | "stats" | "media";
-
-const panelVariants = {
-  hidden: { x: "100%", opacity: 0 },
-  visible: {
-    x: 0,
-    opacity: 1,
-    transition: { type: "spring", stiffness: 260, damping: 30, mass: 0.9 },
-  },
-  exit: {
-    x: "100%",
-    opacity: 0,
-    transition: { duration: 0.3, ease: [0.4, 0, 1, 1] },
-  },
-};
+type TabKey = "overview" | "facts" | "media" | "stats";
 
 const staggerContainer = {
   visible: {
@@ -82,12 +69,16 @@ export default function OrganDialog({
   theme: Theme;
   onClose: () => void;
 }) {
-  const isMobile = useIsMobile();
+  const { t: tr, lang, isRTL } = useLanguage();
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [ageMode, setAgeMode] = useState<AgeMode>("adult");
   const [hoveredFact, setHoveredFact] = useState<number | null>(null);
   const [progressAnim, setProgressAnim] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(520);
+  const [nonBlocking, setNonBlocking] = useState(true);
+  const [expandedPanel, setExpandedPanel] = useState(false);
 
   const isKids = ageMode === "kids";
   const summary = isKids ? organ.kidsSummary : organ.summary;
@@ -95,6 +86,22 @@ export default function OrganDialog({
   const funFact = isKids ? (organ.kidsFunFact || organ.funFact) : organ.funFact;
   const displayIcon = isKids ? (organ.kidsEmoji || organ.icon) : organ.icon;
   const accent = isKids ? "#f59e0b" : t.accent;
+  const mediaItems = organ.media ?? [];
+  const panelOffset = isRTL ? 420 : -420;
+  const organName = getLocalizedOrganName(organ.meshName, organ.name, lang);
+  const systemLabel = getLocalizedOrganSystem(organ.meshName, organ.system, lang);
+  const latinName = organ.latinName ?? getLatinOrganName(organ.meshName);
+  const computedPanelWidth = expandedPanel ? "min(92vw, 920px)" : `min(${Math.max(360, panelWidth)}px, 96vw)`;
+
+  const panelTitle = lang === "en" ? "Organ Information" : "מידע על האיבר";
+  const nonBlockingLabel = nonBlocking
+    ? (lang === "en" ? "Block background" : "חסום רקע")
+    : (lang === "en" ? "Unblock background" : "פתח רקע");
+
+  useEffect(() => {
+    setImgLoaded(false);
+    setImgFailed(false);
+  }, [organ.meshName]);
 
   // Trigger stat bar animation
   useEffect(() => {
@@ -106,19 +113,17 @@ export default function OrganDialog({
   }, [activeTab, organ.meshName]);
 
   const TABS: { key: TabKey; label: string; kidsLabel: string; icon: string }[] = [
-    { key: "overview", label: "סקירה כללית", kidsLabel: "📖 מה זה?", icon: "📋" },
-    { key: "facts", label: "עובדות", kidsLabel: "🤩 עובדות!", icon: "💡" },
-    { key: "media", label: "מדיה", kidsLabel: "🎬 סרטונים!", icon: "🎬" },
-    { key: "stats", label: "נתונים", kidsLabel: "📊 מספרים!", icon: "📊" },
+    { key: "overview", label: tr("dialog.tab.overview"), kidsLabel: tr("dialog.tab.kids.overview"), icon: "📋" },
+    { key: "facts", label: tr("dialog.tab.facts"), kidsLabel: tr("dialog.tab.kids.facts"), icon: "💡" },
+    { key: "media", label: tr("dialog.tab.media"), kidsLabel: tr("dialog.tab.kids.media"), icon: "🎬" },
+    { key: "stats", label: tr("dialog.tab.stats"), kidsLabel: tr("dialog.tab.kids.stats"), icon: "📊" },
   ];
-
-  const videoUrl = isKids ? (organ.kidsVideoUrl || organ.videoUrl) : organ.videoUrl;
 
   // Build stat items from organ data
   const statItems = [
-    organ.weight && { label: isKids ? "כמה שוקל?" : "משקל", value: organ.weight, icon: "⚖️" },
-    organ.size && { label: isKids ? "כמה גדול?" : "גודל", value: organ.size, icon: "📏" },
-    { label: "מערכת", value: organ.system, icon: "🏥" },
+    organ.weight && { label: tr("dialog.stat.weight"), value: organ.weight, icon: "⚖️" },
+    organ.size && { label: tr("dialog.stat.size"), value: organ.size, icon: "📏" },
+    { label: tr("dialog.stat.system"), value: systemLabel, icon: "🏥" },
   ].filter(Boolean) as { label: string; value: string; icon: string }[];
 
   return (
@@ -129,49 +134,167 @@ export default function OrganDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        onClick={nonBlocking ? undefined : onClose}
         style={{
           position: "fixed",
           inset: 0,
           zIndex: 100,
-          background: "rgba(0,0,0,0.55)",
-          backdropFilter: "blur(8px)",
+          background: nonBlocking ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.55)",
+          backdropFilter: nonBlocking ? "none" : "blur(8px)",
+          pointerEvents: nonBlocking ? "none" : "auto",
         }}
       />
 
       {/* Side Panel */}
       <motion.div
         key="organ-panel"
-        variants={panelVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        dir="rtl"
+        initial={{ x: panelOffset, opacity: 0 }}
+        animate={{
+          x: 0,
+          opacity: 1,
+          transition: { type: "spring", stiffness: 260, damping: 30, mass: 0.9 },
+        }}
+        exit={{ x: panelOffset, opacity: 0, transition: { duration: 0.3, ease: [0.4, 0, 1, 1] } }}
+        dir={isRTL ? "rtl" : "ltr"}
         style={{
           position: "fixed",
-          top: isMobile ? "auto" : 0,
-          bottom: isMobile ? 0 : "auto",
-          right: 0,
-          left: isMobile ? 0 : "auto",
-          height: isMobile ? "92vh" : "100vh",
+          top: 0,
+          right: isRTL ? 0 : undefined,
+          left: isRTL ? undefined : 0,
+          bottom: 0,
           zIndex: 101,
-          width: isMobile ? "100vw" : "min(480px, 96vw)",
+          width: computedPanelWidth,
           background: t.bg,
-          borderLeft: isMobile ? "none" : `0.5px solid ${t.panelBorder}60`,
-          borderTop: isMobile ? `0.5px solid ${t.panelBorder}60` : "none",
-          borderRadius: isMobile ? "20px 20px 0 0" : 0,
-          boxShadow: `-8px 0 40px rgba(0,0,0,0.25)`,
+          borderLeft: isRTL ? `1px solid ${t.panelBorder}` : "none",
+          borderRight: isRTL ? "none" : `1px solid ${t.panelBorder}`,
+          boxShadow: isRTL
+            ? `-20px 0 80px rgba(0,0,0,0.4), 0 0 40px ${accent}08`
+            : `20px 0 80px rgba(0,0,0,0.4), 0 0 40px ${accent}08`,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
+          transition: "width 0.25s ease",
         }}
       >
+        <div
+          style={{
+            height: "54px",
+            flexShrink: 0,
+            borderBottom: `1px solid ${t.panelBorder}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 12px",
+            background: `${t.bg}f2`,
+            backdropFilter: "blur(8px)",
+            gap: "8px",
+          }}
+        >
+          <div style={{ fontSize: "12px", color: t.textSecondary, fontWeight: 700 }}>
+            {panelTitle}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <button
+              onClick={() => setNonBlocking((prev) => !prev)}
+              title={nonBlockingLabel}
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                border: `1px solid ${t.panelBorder}`,
+                background: nonBlocking ? `${accent}18` : "transparent",
+                color: t.textPrimary,
+                cursor: "pointer",
+                fontSize: "14px",
+              }}
+            >
+              {nonBlocking ? "🔓" : "🔒"}
+            </button>
+            <button
+              onClick={() => {
+                setExpandedPanel(false);
+                setPanelWidth((prev) => Math.max(360, prev - 80));
+              }}
+              title={lang === "en" ? "Narrow" : "הצר"}
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                border: `1px solid ${t.panelBorder}`,
+                background: "transparent",
+                color: t.textPrimary,
+                cursor: "pointer",
+                fontSize: "16px",
+              }}
+            >
+              －
+            </button>
+            <button
+              onClick={() => {
+                setExpandedPanel(false);
+                setPanelWidth((prev) => Math.min(920, prev + 80));
+              }}
+              title={lang === "en" ? "Expand" : "הרחב"}
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                border: `1px solid ${t.panelBorder}`,
+                background: "transparent",
+                color: t.textPrimary,
+                cursor: "pointer",
+                fontSize: "16px",
+              }}
+            >
+              ＋
+            </button>
+            <button
+              onClick={() => setExpandedPanel((prev) => !prev)}
+              title={lang === "en" ? "Toggle wide" : "מצב רחב"}
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                border: `1px solid ${t.panelBorder}`,
+                background: expandedPanel ? `${accent}18` : "transparent",
+                color: t.textPrimary,
+                cursor: "pointer",
+                fontSize: "14px",
+              }}
+            >
+              ⤢
+            </button>
+          </div>
+        </div>
+
+        <div
+          style={{
+            flexShrink: 0,
+            padding: "8px 16px 6px",
+            borderBottom: `1px solid ${t.panelBorder}`,
+            background: `${t.bg}`,
+          }}
+        >
+          <input
+            type="range"
+            min={360}
+            max={920}
+            step={20}
+            value={Math.max(360, panelWidth)}
+            onChange={(e) => {
+              setExpandedPanel(false);
+              setPanelWidth(Number(e.target.value));
+            }}
+            style={{ width: "100%", accentColor: accent }}
+          />
+        </div>
+
         {/* Hero Image Section */}
         <div
           style={{
             position: "relative",
             width: "100%",
-            height: isMobile ? "200px" : "280px",
+            height: expandedPanel ? "240px" : "280px",
             flexShrink: 0,
             overflow: "hidden",
             background: `linear-gradient(160deg, ${accent}15, ${t.bg})`,
@@ -232,11 +355,12 @@ export default function OrganDialog({
           ))}
 
           {/* Image */}
-          {organ.image ? (
+          {organ.image && !imgFailed ? (
             <motion.img
               src={organ.image}
-              alt={organ.name}
+              alt={organName}
               onLoad={() => setImgLoaded(true)}
+              onError={() => setImgFailed(true)}
               initial={{ opacity: 0, scale: 1.1 }}
               animate={{
                 opacity: imgLoaded ? 1 : 0,
@@ -340,21 +464,12 @@ export default function OrganDialog({
 
         {/* Scrollable Content */}
         <div
-          className="organ-dialog-scroll"
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: isMobile ? "28px 16px 24px" : "36px 24px 32px",
+            padding: "30px 20px 24px",
           }}
         >
-          {/* Custom thin scrollbar styles */}
-          <style>{`
-            .organ-dialog-scroll::-webkit-scrollbar { width: 4px; }
-            .organ-dialog-scroll::-webkit-scrollbar-track { background: transparent; }
-            .organ-dialog-scroll::-webkit-scrollbar-thumb { background: ${t.panelBorder}; border-radius: 4px; }
-            .organ-dialog-scroll::-webkit-scrollbar-thumb:hover { background: ${accent}80; }
-            .organ-dialog-scroll { scrollbar-width: thin; scrollbar-color: ${t.panelBorder} transparent; }
-          `}</style>
           <motion.div variants={staggerContainer} initial="hidden" animate="visible">
             {/* Age toggle */}
             <motion.div variants={fadeUp} style={{ marginBottom: "18px" }}>
@@ -368,8 +483,8 @@ export default function OrganDialog({
                 }}
               >
                 {([
-                  { key: "adult" as AgeMode, label: "🧑‍⚕️ מבוגרים" },
-                  { key: "kids" as AgeMode, label: "🧒 ילדים" },
+                  { key: "adult" as AgeMode, label: `🧑‍⚕️ ${tr("dialog.age.adult")}` },
+                  { key: "kids" as AgeMode, label: `🧒 ${tr("dialog.age.kids")}` },
                 ] as const).map((mode) => (
                   <motion.button
                     key={mode.key}
@@ -409,8 +524,17 @@ export default function OrganDialog({
                 letterSpacing: "-0.03em",
               }}
             >
-              {organ.name}
+              {organName}
             </motion.h2>
+
+            {latinName && (
+              <motion.div
+                variants={fadeUp}
+                style={{ marginTop: "-4px", marginBottom: "10px", color: t.textSecondary, fontStyle: "italic", fontSize: "0.95rem" }}
+              >
+                {latinName}
+              </motion.div>
+            )}
 
             <motion.div variants={fadeUp}>
               <motion.span
@@ -439,9 +563,46 @@ export default function OrganDialog({
                     animation: "pulse 2s infinite",
                   }}
                 />
-                {organ.system}
+                {systemLabel}
               </motion.span>
             </motion.div>
+
+            {(organ.detectedElementType || organ.detectedBy || organ.detectionScore !== undefined) && (
+              <motion.div
+                variants={fadeUp}
+                style={{
+                  marginTop: "-10px",
+                  marginBottom: "16px",
+                  padding: "10px 12px",
+                  borderRadius: "12px",
+                  border: `1px solid ${t.panelBorder}`,
+                  background: `${accent}08`,
+                  fontSize: "12px",
+                  color: t.textSecondary,
+                  display: "grid",
+                  gap: "4px",
+                }}
+              >
+                {organ.detectedElementType && (
+                  <div>
+                    <strong style={{ color: t.textPrimary }}>{lang === "en" ? "Element type" : "סוג אלמנט"}:</strong>{" "}
+                    {getElementTypeLabel(organ.detectedElementType, lang)}
+                  </div>
+                )}
+                {organ.detectedBy && (
+                  <div>
+                    <strong style={{ color: t.textPrimary }}>{lang === "en" ? "Matched by" : "זוהה לפי"}:</strong>{" "}
+                    {organ.detectedBy}
+                  </div>
+                )}
+                {organ.detectionScore !== undefined && (
+                  <div>
+                    <strong style={{ color: t.textPrimary }}>{lang === "en" ? "Confidence" : "רמת ביטחון"}:</strong>{" "}
+                    {Math.max(0, Math.min(100, organ.detectionScore))}%
+                  </div>
+                )}
+              </motion.div>
+            )}
 
             {/* Quick stats cards */}
             <motion.div
@@ -628,6 +789,45 @@ export default function OrganDialog({
                         </p>
                       </motion.div>
                     )}
+
+                    {organ.wonderNote && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ delay: 0.28, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                        style={{
+                          marginTop: "14px",
+                          padding: "18px 20px",
+                          background: `linear-gradient(135deg, ${accent}0f, transparent)`,
+                          borderRadius: "18px",
+                          border: `1px solid ${accent}30`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 800,
+                            color: accent,
+                            marginBottom: "8px",
+                            letterSpacing: "0.04em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          ✨ פלא הבריאה
+                        </div>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: isKids ? "0.95rem" : "0.9rem",
+                            color: t.textPrimary,
+                            lineHeight: 1.8,
+                            fontWeight: 500,
+                          }}
+                        >
+                          {organ.wonderNote}
+                        </p>
+                      </motion.div>
+                    )}
                   </div>
                 )}
 
@@ -707,7 +907,101 @@ export default function OrganDialog({
                           padding: "24px 0",
                         }}
                       >
-                        אין עובדות נוספות זמינות
+                        {lang === "en" ? "No additional facts available" : "אין עובדות נוספות זמינות"}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === "media" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {mediaItems.length > 0 ? (
+                      mediaItems.map((item, i) => (
+                        <motion.a
+                          key={`${item.url}-${i}`}
+                          href={item.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          custom={i}
+                          variants={factSlide}
+                          initial="hidden"
+                          animate="visible"
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "12px",
+                            padding: "14px 16px",
+                            borderRadius: "14px",
+                            background: `${accent}06`,
+                            border: `1px solid ${t.panelBorder}`,
+                            textDecoration: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            style={{
+                              minWidth: "34px",
+                              height: "34px",
+                              borderRadius: "10px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              background: `${accent}20`,
+                              color: accent,
+                              fontSize: "16px",
+                            }}
+                          >
+                            {item.type === "video" ? "🎥" : "🖼️"}
+                          </span>
+                          <span style={{ flex: 1 }}>
+                            <span
+                              style={{
+                                display: "block",
+                                fontSize: "0.9rem",
+                                color: t.textPrimary,
+                                lineHeight: 1.6,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {item.title}
+                            </span>
+                            {item.description && (
+                              <span
+                                style={{
+                                  display: "block",
+                                  marginTop: "4px",
+                                  fontSize: "0.82rem",
+                                  color: t.textSecondary,
+                                  lineHeight: 1.6,
+                                }}
+                              >
+                                {item.description}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                display: "block",
+                                marginTop: "6px",
+                                fontSize: "0.75rem",
+                                color: accent,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {lang === "en" ? "Open source ↗" : "פתח מקור ↗"}
+                            </span>
+                          </span>
+                        </motion.a>
+                      ))
+                    ) : (
+                      <p
+                        style={{
+                          color: t.textSecondary,
+                          fontSize: "0.85rem",
+                          textAlign: "center",
+                          padding: "24px 0",
+                        }}
+                      >
+                        {lang === "en" ? "No media is currently available for this organ" : "אין מדיה זמינה כרגע לאיבר זה"}
                       </p>
                     )}
                   </div>
@@ -833,123 +1127,6 @@ export default function OrganDialog({
                     )}
                   </div>
                 )}
-
-                {activeTab === "media" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                    {/* Video embed */}
-                    {videoUrl && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
-                      >
-                        <div style={{
-                          fontSize: "12px", fontWeight: 700, color: t.textSecondary,
-                          marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px",
-                          textTransform: "uppercase", letterSpacing: "0.04em",
-                        }}>
-                          🎬 {organ.videoTitle || "סרטון הסבר"}
-                        </div>
-                        <div style={{
-                          position: "relative", width: "100%", paddingBottom: "56.25%",
-                          borderRadius: "14px", overflow: "hidden",
-                          border: `0.5px solid ${t.panelBorder}60`,
-                        }}>
-                          <iframe
-                            src={videoUrl}
-                            title={organ.videoTitle || organ.name}
-                            style={{
-                              position: "absolute", top: 0, left: 0,
-                              width: "100%", height: "100%", border: "none",
-                            }}
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Image gallery */}
-                    {organ.images && organ.images.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2, duration: 0.5 }}
-                      >
-                        <div style={{
-                          fontSize: "12px", fontWeight: 700, color: t.textSecondary,
-                          marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.04em",
-                        }}>
-                          🖼️ תמונות נוספות
-                        </div>
-                        <div style={{
-                          display: "grid",
-                          gridTemplateColumns: organ.images.length > 1 ? "1fr 1fr" : "1fr",
-                          gap: "8px",
-                        }}>
-                          {organ.images.map((img, i) => (
-                            <motion.div
-                              key={i}
-                              whileHover={{ scale: 1.03 }}
-                              style={{
-                                borderRadius: "12px", overflow: "hidden",
-                                border: `0.5px solid ${t.panelBorder}60`,
-                                background: `${accent}06`,
-                                cursor: "pointer",
-                              }}
-                              onClick={() => window.open(img, "_blank")}
-                            >
-                              <img
-                                src={img}
-                                alt={`${organ.name} ${i + 1}`}
-                                style={{
-                                  width: "100%", height: "140px",
-                                  objectFit: "contain", padding: "8px",
-                                }}
-                              />
-                            </motion.div>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Main organ image */}
-                    {organ.image && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, duration: 0.5 }}
-                      >
-                        <div style={{
-                          fontSize: "12px", fontWeight: 700, color: t.textSecondary,
-                          marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.04em",
-                        }}>
-                          📐 דיאגרמה אנטומית
-                        </div>
-                        <div style={{
-                          borderRadius: "14px", overflow: "hidden",
-                          border: `0.5px solid ${t.panelBorder}60`,
-                          background: `${accent}04`,
-                        }}>
-                          <img
-                            src={organ.image}
-                            alt={organ.name}
-                            style={{
-                              width: "100%", maxHeight: "260px",
-                              objectFit: "contain", padding: "16px",
-                            }}
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {!videoUrl && !organ.images?.length && !organ.image && (
-                      <p style={{ color: t.textSecondary, fontSize: "0.85rem", textAlign: "center", padding: "24px 0" }}>
-                        אין מדיה זמינה עבור איבר זה
-                      </p>
-                    )}
-                  </div>
-                )}
               </motion.div>
             </AnimatePresence>
           </motion.div>
@@ -974,7 +1151,7 @@ export default function OrganDialog({
               fontWeight: 600,
             }}
           >
-            {organ.system} • {organ.name}
+            {systemLabel} • {organName}
           </span>
           <motion.button
             onClick={onClose}

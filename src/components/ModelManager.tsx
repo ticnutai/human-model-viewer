@@ -18,6 +18,49 @@ type ModelRecord = {
   created_at: string;
 };
 
+type LocalManifestAsset = {
+  path: string;
+  license?: string;
+  notes?: string;
+  downloads?: number;
+  likes?: number;
+  views?: number;
+  recommendedScore?: number;
+};
+
+type ListModel = {
+  id: string;
+  displayName: string;
+  fileSize: number | null;
+  createdAt: string;
+  url: string;
+  source: "cloud" | "local";
+  categoryId: string | null;
+  relevanceScore: number;
+  organClickable: boolean;
+  meshLevel: "high" | "medium" | "low";
+  downloads: number;
+  likes: number;
+  views: number;
+  recommendedScore: number;
+  record?: ModelRecord;
+  license?: string;
+};
+
+type SortMode = "all" | "detailed" | "name" | "downloads" | "recommended" | "date";
+
+type SketchfabSearchResult = {
+  uid: string;
+  name: string;
+  viewerUrl?: string;
+  downloadCount?: number;
+  likeCount?: number;
+  viewCount?: number;
+  license?: { label?: string };
+  user?: { displayName?: string; username?: string };
+  thumbnails?: { images?: { url: string; width: number; height: number }[] };
+};
+
 type Theme = {
   textPrimary: string;
   textSecondary: string;
@@ -32,6 +75,7 @@ type Theme = {
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+const SKETCHFAB_TOKEN_STORAGE_KEY = "sketchfab-api-token";
 
 export default function ModelManager({
   theme: t,
@@ -43,6 +87,7 @@ export default function ModelManager({
   currentModelUrl: string;
 }) {
   const [models, setModels] = useState<ModelRecord[]>([]);
+  const [localModels, setLocalModels] = useState<ListModel[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [showAddCategory, setShowAddCategory] = useState(false);
@@ -61,6 +106,215 @@ export default function ModelManager({
   const pausedRef = useRef(false);
   const resumeDataRef = useRef<{ file: File; fileName: string; offset: number } | null>(null);
   const [hoveredModel, setHoveredModel] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("all");
+  const [sketchfabQuery, setSketchfabQuery] = useState("human organ anatomy");
+  const [sketchfabSearching, setSketchfabSearching] = useState(false);
+  const [sketchfabResults, setSketchfabResults] = useState<SketchfabSearchResult[]>([]);
+  const [sketchfabError, setSketchfabError] = useState<string | null>(null);
+  const [previewUid, setPreviewUid] = useState<string | null>(null);
+  const [importingUid, setImportingUid] = useState<string | null>(null);
+
+  const getSavedSketchfabToken = () => localStorage.getItem(SKETCHFAB_TOKEN_STORAGE_KEY)?.trim() || "";
+
+  const pickBestThumb = (model: SketchfabSearchResult) => {
+    const images = model.thumbnails?.images ?? [];
+    if (images.length === 0) return "";
+    const sorted = [...images].sort((a, b) => (b.width * b.height) - (a.width * a.height));
+    return sorted[0]?.url ?? "";
+  };
+
+  const collectDownloadUrls = (node: unknown, bag: string[] = []): string[] => {
+    if (!node || typeof node !== "object") return bag;
+    const obj = node as Record<string, unknown>;
+    if (typeof obj.url === "string") {
+      bag.push(obj.url);
+    }
+    Object.values(obj).forEach((value) => {
+      if (value && typeof value === "object") {
+        collectDownloadUrls(value, bag);
+      }
+    });
+    return bag;
+  };
+
+  const pickGlbDownloadUrl = (downloadPayload: unknown) => {
+    const urls = collectDownloadUrls(downloadPayload).filter((url) => url.startsWith("http"));
+    return urls.find((url) => url.toLowerCase().includes(".glb")) || null;
+  };
+
+  const handleSketchfabSearch = async () => {
+    const token = getSavedSketchfabToken();
+    if (!token) {
+      setSketchfabError("לא נמצא API token. שמור טוקן בהגדרות (⚙️ → 🔑 API).");
+      return;
+    }
+
+    const q = sketchfabQuery.trim();
+    if (!q) return;
+
+    setSketchfabSearching(true);
+    setSketchfabError(null);
+
+    try {
+      const url = new URL("https://api.sketchfab.com/v3/search");
+      url.searchParams.set("type", "models");
+      url.searchParams.set("q", q);
+      url.searchParams.set("downloadable", "true");
+      url.searchParams.set("count", "24");
+
+      const res = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Token ${token}`,
+          Accept: "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Sketchfab API error ${res.status}`);
+      }
+
+      const payload = await res.json();
+      setSketchfabResults(Array.isArray(payload?.results) ? payload.results : []);
+    } catch {
+      setSketchfabError("שגיאה בחיפוש Sketchfab. בדוק טוקן וחיבור רשת.");
+      setSketchfabResults([]);
+    } finally {
+      setSketchfabSearching(false);
+    }
+  };
+
+  const handleImportSketchfab = async (model: SketchfabSearchResult) => {
+    const token = getSavedSketchfabToken();
+    if (!token) {
+      setSketchfabError("לא נמצא API token. שמור טוקן בהגדרות.");
+      return;
+    }
+
+    setImportingUid(model.uid);
+    setSketchfabError(null);
+
+    try {
+      const downloadRes = await fetch(`https://api.sketchfab.com/v3/models/${model.uid}/download`, {
+        headers: {
+          Authorization: `Token ${token}`,
+          Accept: "application/json",
+        },
+      });
+
+      if (!downloadRes.ok) {
+        throw new Error(`download endpoint failed ${downloadRes.status}`);
+      }
+
+      const downloadPayload = await downloadRes.json();
+      const glbUrl = pickGlbDownloadUrl(downloadPayload);
+      if (!glbUrl) {
+        throw new Error("GLB not available for selected model");
+      }
+
+      const fileRes = await fetch(glbUrl);
+      if (!fileRes.ok) {
+        throw new Error(`GLB download failed ${fileRes.status}`);
+      }
+
+      const glbBlob = await fileRes.blob();
+      const fileName = `${Date.now()}_sketchfab_${model.uid}.glb`;
+
+      const { error: uploadStorageError } = await supabase.storage
+        .from("models")
+        .upload(fileName, glbBlob, {
+          upsert: true,
+          contentType: "model/gltf-binary",
+        });
+
+      if (uploadStorageError) throw uploadStorageError;
+
+      const { error: insertError } = await supabase.from("models").insert({
+        file_name: fileName,
+        display_name: model.name,
+        category_id: activeCategory || categories[0]?.id || null,
+        file_size: glbBlob.size,
+      });
+
+      if (insertError) throw insertError;
+
+      const importedUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
+      onSelectModel(importedUrl);
+      await load();
+    } catch {
+      setSketchfabError(`ייבוא נכשל עבור ${model.name}.`);
+    } finally {
+      setImportingUid(null);
+    }
+  };
+
+  const buildRelevance = (name: string) => {
+    const lower = name.toLowerCase();
+    let score = 0;
+
+    if (/anatomy|organ|torso|muscular|skeleton|heart|lung|liver|kidney|brain/.test(lower)) score += 6;
+    if (/interactive|realistic|full|system/.test(lower)) score += 3;
+    if (/point\s*cloud|femur|ulna|radius|tibia|humerus|hand|skull/.test(lower)) score -= 3;
+
+    const organClickable = /organ|heart|lung|liver|kidney|brain|stomach|torso|anatomy/.test(lower);
+    const meshLevel: "high" | "medium" | "low" = score >= 7 ? "high" : score >= 3 ? "medium" : "low";
+
+    return { relevanceScore: score, organClickable, meshLevel };
+  };
+
+  const normalizeDisplayNameFromPath = (assetPath: string) => {
+    const parts = assetPath.split("/");
+    const folder = parts.length >= 2 ? parts[parts.length - 2] : assetPath;
+    const cleaned = folder.replace(/-[a-f0-9]{20,}$/i, "");
+    return cleaned.replace(/[-_]+/g, " ").replace(/\b\w/g, (s) => s.toUpperCase());
+  };
+
+  const loadLocalManifestModels = useCallback(async () => {
+    try {
+      const res = await fetch("/asset-license-manifest.json", { cache: "no-store" });
+      if (!res.ok) {
+        setLocalModels([]);
+        return;
+      }
+
+      const manifest = await res.json();
+      const assets: LocalManifestAsset[] = Array.isArray(manifest?.assets) ? manifest.assets : [];
+      const createdAt = typeof manifest?.lastUpdated === "string" ? manifest.lastUpdated : new Date().toISOString();
+
+      const local = assets
+        .filter((asset) => typeof asset.path === "string" && asset.path.toLowerCase().endsWith(".glb") && asset.path.startsWith("public/models/"))
+        .map((asset) => {
+          const displayName = normalizeDisplayNameFromPath(asset.path);
+          const relevance = buildRelevance(displayName);
+          const downloads = Number.isFinite(asset.downloads) ? Number(asset.downloads) : 0;
+          const likes = Number.isFinite(asset.likes) ? Number(asset.likes) : 0;
+          const views = Number.isFinite(asset.views) ? Number(asset.views) : 0;
+          const recommendedScore = Number.isFinite(asset.recommendedScore)
+            ? Number(asset.recommendedScore)
+            : relevance.relevanceScore + (likes * 0.25) + (downloads * 0.15);
+          return {
+            id: `local:${asset.path}`,
+            displayName,
+            fileSize: null,
+            createdAt,
+            url: `/${asset.path.replace(/^public\//, "")}`,
+            source: "local" as const,
+            categoryId: null,
+            relevanceScore: relevance.relevanceScore,
+            organClickable: relevance.organClickable,
+            meshLevel: relevance.meshLevel,
+            downloads,
+            likes,
+            views,
+            recommendedScore,
+            license: asset.license,
+          };
+        });
+
+      setLocalModels(local);
+    } catch {
+      setLocalModels([]);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     const [{ data: cats }, { data: mods }] = await Promise.all([
@@ -71,7 +325,10 @@ export default function ModelManager({
     if (mods) setModels(mods);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    loadLocalManifestModels();
+  }, [load, loadLocalManifestModels]);
 
   const uploadWithProgress = async (file: File, fileName: string, startOffset = 0) => {
     const totalSize = file.size;
@@ -258,6 +515,62 @@ export default function ModelManager({
     ? models.filter(m => m.category_id === activeCategory)
     : models;
 
+  const cloudListModels: ListModel[] = filteredModels.map((model) => {
+    const relevance = buildRelevance(model.display_name);
+    return {
+      id: model.id,
+      displayName: model.display_name,
+      fileSize: model.file_size,
+      createdAt: model.created_at,
+      url: `${SUPABASE_URL}/storage/v1/object/public/models/${model.file_name}`,
+      source: "cloud",
+      categoryId: model.category_id,
+      relevanceScore: relevance.relevanceScore,
+      organClickable: relevance.organClickable,
+      meshLevel: relevance.meshLevel,
+      downloads: 0,
+      likes: 0,
+      views: 0,
+      recommendedScore: relevance.relevanceScore,
+      record: model,
+    };
+  });
+
+  const combinedModelsBase: ListModel[] = [
+    ...cloudListModels,
+    ...(activeCategory ? [] : localModels),
+  ];
+
+  const combinedModels: ListModel[] = [...combinedModelsBase].sort((a, b) => {
+    if (sortMode === "all") {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+
+    if (sortMode === "name") {
+      return a.displayName.localeCompare(b.displayName, "he");
+    }
+
+    if (sortMode === "downloads") {
+      if (b.downloads !== a.downloads) return b.downloads - a.downloads;
+      if (b.likes !== a.likes) return b.likes - a.likes;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+
+    if (sortMode === "recommended") {
+      if (b.recommendedScore !== a.recommendedScore) return b.recommendedScore - a.recommendedScore;
+      if (b.likes !== a.likes) return b.likes - a.likes;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+
+    if (sortMode === "date") {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+
+    if (Number(b.organClickable) !== Number(a.organClickable)) return Number(b.organClickable) - Number(a.organClickable);
+    if (b.relevanceScore !== a.relevanceScore) return b.relevanceScore - a.relevanceScore;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
   const formatSize = (bytes: number | null) => {
     if (!bytes) return "—";
     if (bytes < 1024) return `${bytes} B`;
@@ -315,6 +628,29 @@ export default function ModelManager({
             fontSize: "12px", color: t.textSecondary, transition: "all 0.2s",
           }}
         >+ קטגוריה</button>
+
+        <select
+          value={sortMode}
+          onChange={(e) => setSortMode(e.target.value as SortMode)}
+          style={{
+            marginInlineStart: "auto",
+            background: t.bg,
+            border: `1px solid ${t.panelBorder}`,
+            borderRadius: "10px",
+            padding: "6px 10px",
+            color: t.textPrimary,
+            fontSize: "12px",
+            outline: "none",
+            minWidth: "180px",
+          }}
+        >
+          <option value="all">סיווג: הכול</option>
+          <option value="detailed">סיווג: מודלים מפורטים</option>
+          <option value="name">סיווג: לפי שם</option>
+          <option value="downloads">סיווג: לפי מספר הורדות</option>
+          <option value="recommended">סיווג: לפי המלצות</option>
+          <option value="date">סיווג: חדשים קודם</option>
+        </select>
       </div>
 
       {/* Add category form */}
@@ -357,6 +693,161 @@ export default function ModelManager({
           </button>
         </div>
       )}
+
+      <div style={{
+        border: `1px solid ${t.panelBorder}`,
+        borderRadius: "12px",
+        padding: "10px",
+        background: `${t.accent}08`,
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+      }}>
+        <div style={{ fontSize: "13px", fontWeight: 700, color: t.textPrimary }}>
+          🔎 חיפוש מודלים ב-Sketchfab
+        </div>
+        <div style={{ fontSize: "11px", color: t.textSecondary }}>
+          חפש, צפה בתצוגה מוקדמת וייבא GLB ישירות למערכת
+        </div>
+
+        <div style={{ display: "flex", gap: "6px" }}>
+          <input
+            value={sketchfabQuery}
+            onChange={(e) => setSketchfabQuery(e.target.value)}
+            placeholder="לדוגמה: human heart anatomy"
+            style={{
+              flex: 1,
+              background: t.bg,
+              border: `1px solid ${t.panelBorder}`,
+              borderRadius: "8px",
+              padding: "8px 10px",
+              color: t.textPrimary,
+              fontSize: "12px",
+              direction: "ltr",
+              textAlign: "left",
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleSketchfabSearch();
+              }
+            }}
+          />
+          <button
+            onClick={() => void handleSketchfabSearch()}
+            disabled={sketchfabSearching}
+            style={{
+              background: t.accent,
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              padding: "8px 12px",
+              cursor: "pointer",
+              fontSize: "12px",
+              fontWeight: 700,
+              opacity: sketchfabSearching ? 0.7 : 1,
+            }}
+          >
+            {sketchfabSearching ? "מחפש..." : "חפש"}
+          </button>
+        </div>
+
+        {sketchfabError && (
+          <div style={{ fontSize: "11px", color: t.accentAlt }}>{sketchfabError}</div>
+        )}
+
+        {sketchfabResults.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "300px", overflowY: "auto" }}>
+            {sketchfabResults.slice(0, 8).map((result) => {
+              const isPreview = previewUid === result.uid;
+              const thumb = pickBestThumb(result);
+              return (
+                <div key={result.uid} style={{ border: `1px solid ${t.panelBorder}`, borderRadius: "10px", padding: "8px" }}>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    {thumb ? (
+                      <img src={thumb} alt={result.name} style={{ width: "54px", height: "54px", borderRadius: "8px", objectFit: "cover", flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: "54px", height: "54px", borderRadius: "8px", background: t.panelBorder, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>🧬</div>
+                    )}
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: t.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {result.name}
+                      </div>
+                      <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "2px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        <span>⬇ {Number(result.downloadCount ?? 0).toLocaleString("en-US")}</span>
+                        <span>👍 {Number(result.likeCount ?? 0).toLocaleString("en-US")}</span>
+                        <span>👁 {Number(result.viewCount ?? 0).toLocaleString("en-US")}</span>
+                        {result.license?.label && <span>📄 {result.license.label}</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
+                    <button
+                      onClick={() => setPreviewUid((prev) => (prev === result.uid ? null : result.uid))}
+                      style={{
+                        background: "transparent",
+                        border: `1px solid ${t.panelBorder}`,
+                        borderRadius: "8px",
+                        padding: "6px 10px",
+                        color: t.textSecondary,
+                        cursor: "pointer",
+                        fontSize: "11px",
+                      }}
+                    >
+                      {isPreview ? "הסתר Preview" : "Preview"}
+                    </button>
+                    <button
+                      onClick={() => void handleImportSketchfab(result)}
+                      disabled={importingUid === result.uid}
+                      style={{
+                        background: t.accentBgHover,
+                        border: `1px solid ${t.accent}`,
+                        borderRadius: "8px",
+                        padding: "6px 10px",
+                        color: t.textPrimary,
+                        cursor: "pointer",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        opacity: importingUid === result.uid ? 0.7 : 1,
+                      }}
+                    >
+                      {importingUid === result.uid ? "מייבא..." : "ייבוא למערכת"}
+                    </button>
+                    <a
+                      href={result.viewerUrl || `https://sketchfab.com/models/${result.uid}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        fontSize: "11px",
+                        color: t.accent,
+                        textDecoration: "none",
+                        alignSelf: "center",
+                      }}
+                    >
+                      פתח באתר ↗
+                    </a>
+                  </div>
+
+                  {isPreview && (
+                    <div style={{ marginTop: "8px", border: `1px solid ${t.panelBorder}`, borderRadius: "8px", overflow: "hidden" }}>
+                      <iframe
+                        title={`preview-${result.uid}`}
+                        src={`https://sketchfab.com/models/${result.uid}/embed?autostart=0&ui_infos=1&ui_controls=1`}
+                        width="100%"
+                        height="220"
+                        style={{ border: "none" }}
+                        allow="autoplay; fullscreen; xr-spatial-tracking"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Upload area with progress */}
       {!uploading ? (
@@ -445,7 +936,7 @@ export default function ModelManager({
 
       {/* Model list */}
       <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "280px", overflowY: "auto" }}>
-        {filteredModels.length === 0 && (
+        {combinedModels.length === 0 && (
           <div style={{
             color: t.textSecondary, fontSize: "13px", textAlign: "center",
             padding: "24px 0", opacity: 0.7,
@@ -453,10 +944,10 @@ export default function ModelManager({
             📭 אין מודלים בקטגוריה זו
           </div>
         )}
-        {filteredModels.map(model => {
-          const url = `${SUPABASE_URL}/storage/v1/object/public/models/${model.file_name}`;
-          const isActive = currentModelUrl.includes(model.file_name);
+        {combinedModels.map(model => {
+          const isActive = currentModelUrl === model.url || currentModelUrl.includes(model.url.replace(`${SUPABASE_URL}/storage/v1/object/public/`, ""));
           const isHovered = hoveredModel === model.id;
+          const meshBadgeColor = model.meshLevel === "high" ? "#22c55e" : model.meshLevel === "medium" ? "#eab308" : t.textSecondary;
 
           return (
             <div
@@ -471,7 +962,7 @@ export default function ModelManager({
                 transition: "all 0.2s ease",
                 cursor: "pointer",
               }}
-              onClick={() => onSelectModel(url)}
+              onClick={() => onSelectModel(model.url)}
             >
               {/* Icon */}
               <div style={{
@@ -491,14 +982,61 @@ export default function ModelManager({
                   color: isActive ? t.accent : t.textPrimary,
                   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 }}>
-                  {model.display_name}
+                  {model.displayName}
                 </div>
-                <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "2px" }}>
-                  {formatSize(model.file_size)} • {new Date(model.created_at).toLocaleDateString("he-IL")}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "10px", color: t.textSecondary }}>
+                    {formatSize(model.fileSize)} • {new Date(model.createdAt).toLocaleDateString("he-IL")}
+                  </span>
+                  {model.downloads > 0 && (
+                    <span style={{ fontSize: "10px", color: t.textSecondary }}>
+                      ⬇ {model.downloads.toLocaleString("en-US")}
+                    </span>
+                  )}
+                  {model.likes > 0 && (
+                    <span style={{ fontSize: "10px", color: t.textSecondary }}>
+                      👍 {model.likes.toLocaleString("en-US")}
+                    </span>
+                  )}
+                  <span style={{
+                    fontSize: "9px", fontWeight: 700,
+                    color: meshBadgeColor,
+                    border: `1px solid ${meshBadgeColor}66`,
+                    borderRadius: "999px",
+                    padding: "1px 6px",
+                    background: `${meshBadgeColor}14`,
+                  }}>
+                    GLB • Mesh {model.meshLevel === "high" ? "גבוה" : model.meshLevel === "medium" ? "בינוני" : "נמוך"}
+                  </span>
+                  {model.organClickable && (
+                    <span style={{
+                      fontSize: "9px", fontWeight: 700,
+                      color: t.accent,
+                      border: `1px solid ${t.accent}66`,
+                      borderRadius: "999px",
+                      padding: "1px 6px",
+                      background: `${t.accent}12`,
+                    }}>
+                      מפורט ללחיצות איברים
+                    </span>
+                  )}
+                  {model.recommendedScore > 0 && (
+                    <span style={{
+                      fontSize: "9px", fontWeight: 700,
+                      color: "#f59e0b",
+                      border: "1px solid rgba(245,158,11,0.45)",
+                      borderRadius: "999px",
+                      padding: "1px 6px",
+                      background: "rgba(245,158,11,0.12)",
+                    }}>
+                      ⭐ {Math.round(model.recommendedScore)}
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Actions */}
+              {model.source === "cloud" && model.record && (
               <div style={{ display: "flex", gap: "2px", opacity: isHovered || isActive ? 1 : 0, transition: "opacity 0.2s" }}
                 onClick={e => e.stopPropagation()}
               >
@@ -523,13 +1061,13 @@ export default function ModelManager({
                       {categories.map(cat => (
                         <button
                           key={cat.id}
-                          onClick={() => handleMove(model.id, cat.id)}
+                          onClick={() => handleMove(model.record!.id, cat.id)}
                           style={{
                             width: "100%", padding: "7px 10px", border: "none",
                             borderRadius: "7px", fontSize: "12px", cursor: "pointer",
                             textAlign: "right", color: t.textPrimary,
-                            background: model.category_id === cat.id ? `${t.accent}15` : "transparent",
-                            fontWeight: model.category_id === cat.id ? 700 : 400,
+                            background: model.record!.category_id === cat.id ? `${t.accent}15` : "transparent",
+                            fontWeight: model.record!.category_id === cat.id ? 700 : 400,
                             transition: "background 0.15s",
                           }}
                         >
@@ -544,7 +1082,7 @@ export default function ModelManager({
                 {confirmDelete === model.id ? (
                   <div style={{ display: "flex", gap: "3px" }}>
                     <button
-                      onClick={() => handleDelete(model)}
+                      onClick={() => handleDelete(model.record!)}
                       style={{
                         background: t.accentAlt, color: "#fff", border: "none",
                         borderRadius: "6px", padding: "4px 10px", cursor: "pointer",
@@ -572,6 +1110,7 @@ export default function ModelManager({
                   >🗑️</button>
                 )}
               </div>
+              )}
             </div>
           );
         })}

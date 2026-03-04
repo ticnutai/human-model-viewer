@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-03-04",
+  "assets": [
+    {
+      "path": "public/models/human_organs_1.glb",
+      "source": "Internal project dataset",
+      "license": "Internal - rights verified by project owner",
+      "attribution": "Human Model Viewer Team",
+      "allowedUse": [
+        "web-education",
+        "demo"
+      ],
+      "notes": "Replace with external source metadata when migrating to curated open anatomy datasets"
+    },
+    {
+      "path": "public/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb",
+      "source": "Sketchfab model 252887e2e755427c90d9e3d0c6d3025f",
+      "license": "CC Attribution-NonCommercial-NoDerivs",
+      "attribution": "WitmerLab at Ohio University",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-252887e2e755427c90d9e3d0c6d3025f",
+      "downloads": 18741,
+      "likes": 1434,
+      "views": 284497,
+      "recommendedScore": 6014.62
+    },
+    {
+      "path": "public/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb",
+      "source": "Sketchfab model 5f28b52cab3e439490727e0aede55a6b",
+      "license": "CC Attribution",
+      "attribution": "Ruslan Gadzhiev",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-5f28b52cab3e439490727e0aede55a6b",
+      "downloads": 11135,
+      "likes": 936,
+      "views": 115142,
+      "recommendedScore": 3055.67
+    },
+    {
+      "path": "public/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb",
+      "source": "Sketchfab model 665890c542be433fb18ef235cf987cef",
+      "license": "CC Attribution",
+      "attribution": "Ruslan Gadzhiev",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-665890c542be433fb18ef235cf987cef",
+      "downloads": 7816,
+      "likes": 561,
+      "views": 58139,
+      "recommendedScore": 1894.04
+    },
+    {
+      "path": "public/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb",
+      "source": "Sketchfab model c51104a42e554cf5ae18c7e7f584fd70",
+      "license": "CC Attribution",
+      "attribution": "BraineyBites",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-c51104a42e554cf5ae18c7e7f584fd70",
+      "downloads": 2579,
+      "likes": 186,
+      "views": 15934,
+      "recommendedScore": 592.69
+    },
+    {
+      "path": "public/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb",
+      "source": "Sketchfab model 9a596b6c24b344bfbe6bb5246290df0e",
+      "license": "CC Attribution",
+      "attribution": "Ruslan Gadzhiev",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-9a596b6c24b344bfbe6bb5246290df0e",
+      "downloads": 3516,
+      "likes": 1218,
+      "views": 79563,
+      "recommendedScore": 1627.53
+    },
+    {
+      "path": "public/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb",
+      "source": "Sketchfab model 991eb96938be4d0d8fadee241a1063d3",
+      "license": "CC Attribution",
+      "attribution": "Ruslan Gadzhiev",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-991eb96938be4d0d8fadee241a1063d3",
+      "downloads": 2671,
+      "likes": 386,
+      "views": 39100,
+      "recommendedScore": 888.15
+    },
+    {
+      "path": "public/models/sketchfab/full-ct-head-point-cloud-visible-human-female-76115e69f3304172835cfce7cc6714a8/model.glb",
+      "source": "Sketchfab model 76115e69f3304172835cfce7cc6714a8",
+      "license": "CC Attribution",
+      "attribution": "Terrie Simmons-Ehrhardt",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-76115e69f3304172835cfce7cc6714a8",
+      "downloads": 2159,
+      "likes": 342,
+      "views": 12503,
+      "recommendedScore": 534.38
+    },
+    {
+      "path": "public/models/sketchfab/human-femur-a9c1f1a88b104c3fbfe975fa10b31b31/model.glb",
+      "source": "Sketchfab model a9c1f1a88b104c3fbfe975fa10b31b31",
+      "license": "CC Attribution",
+      "attribution": "Eric Bauer",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-a9c1f1a88b104c3fbfe975fa10b31b31",
+      "downloads": 5679,
+      "likes": 137,
+      "views": 132656,
+      "recommendedScore": 2212.66
+    },
+    {
+      "path": "public/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb",
+      "source": "Sketchfab model 3f8072336ce94d18b3d0d055a1ece089",
+      "license": "CC Attribution",
+      "attribution": "neshallads",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-3f8072336ce94d18b3d0d055a1ece089",
+      "downloads": 61088,
+      "likes": 1519,
+      "views": 544631,
+      "recommendedScore": 14989.26
+    },
+    {
+      "path": "public/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb",
+      "source": "Sketchfab model 15f7ed2eefb244dc94d32b6a7d989355",
+      "license": "CC Attribution",
+      "attribution": "CAPTAAINRO",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-15f7ed2eefb244dc94d32b6a7d989355",
+      "downloads": 1852,
+      "likes": 191,
+      "views": 11198,
+      "recommendedScore": 437.53
+    },
+    {
+      "path": "public/models/sketchfab/human-tibia-7c1979d6127749bc80a9d9276d24edcd/model.glb",
+      "source": "Sketchfab model 7c1979d6127749bc80a9d9276d24edcd",
+      "license": "CC Attribution",
+      "attribution": "Eric Bauer",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-7c1979d6127749bc80a9d9276d24edcd",
+      "downloads": 2684,
+      "likes": 79,
+      "views": 73338,
+      "recommendedScore": 1155.73
+    },
+    {
+      "path": "public/models/sketchfab/bodybuilder-anatomy-extreme-comic-version-bcb2ed1e05444e87a6da650e27ae3bc6/model.glb",
+      "source": "Sketchfab model bcb2ed1e05444e87a6da650e27ae3bc6",
+      "license": "CC Attribution",
+      "attribution": "kane_sk06",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-bcb2ed1e05444e87a6da650e27ae3bc6",
+      "downloads": 454,
+      "likes": 49,
+      "views": 2372,
+      "recommendedScore": 104.07
+    },
+    {
+      "path": "public/models/sketchfab/human-anatomy-faf0f3eaec554bcf854be2038993024f/model.glb",
+      "source": "Sketchfab model faf0f3eaec554bcf854be2038993024f",
+      "license": "CC Attribution",
+      "attribution": "mohamedhussien",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-faf0f3eaec554bcf854be2038993024f",
+      "downloads": 284,
+      "likes": 19,
+      "views": 3091,
+      "recommendedScore": 78.26
+    },
+    {
+      "path": "public/models/sketchfab/vhf-skull-point-cloud-47107f5d88f24cc9b051642501a64a9e/model.glb",
+      "source": "Sketchfab model 47107f5d88f24cc9b051642501a64a9e",
+      "license": "CC Attribution",
+      "attribution": "Terrie Simmons-Ehrhardt",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-47107f5d88f24cc9b051642501a64a9e",
+      "downloads": 4498,
+      "likes": 833,
+      "views": 25262,
+      "recommendedScore": 1135.57
+    },
+    {
+      "path": "public/models/sketchfab/human-radius-5859fa73306d45fe96049d60468ec996/model.glb",
+      "source": "Sketchfab model 5859fa73306d45fe96049d60468ec996",
+      "license": "CC Attribution",
+      "attribution": "Eric Bauer",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-5859fa73306d45fe96049d60468ec996",
+      "downloads": 1886,
+      "likes": 74,
+      "views": 58158,
+      "recommendedScore": 882.98
+    },
+    {
+      "path": "public/models/sketchfab/human-ulna-cd6a2f43969f4153ad395442daa86503/model.glb",
+      "source": "Sketchfab model cd6a2f43969f4153ad395442daa86503",
+      "license": "CC Attribution",
+      "attribution": "Eric Bauer",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-cd6a2f43969f4153ad395442daa86503",
+      "downloads": 1459,
+      "likes": 67,
+      "views": 48470,
+      "recommendedScore": 720.3
+    },
+    {
+      "path": "public/models/sketchfab/human-humerus-367fade2e5cb45fea2502faddff64f5f/model.glb",
+      "source": "Sketchfab model 367fade2e5cb45fea2502faddff64f5f",
+      "license": "CC Attribution",
+      "attribution": "Eric Bauer",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-367fade2e5cb45fea2502faddff64f5f",
+      "downloads": 1065,
+      "likes": 54,
+      "views": 14170,
+      "recommendedScore": 314.95
+    },
+    {
+      "path": "public/models/sketchfab/hand-anatomy-ada8498be9754e9f90b2eecc1b4ef8c5/model.glb",
+      "source": "Sketchfab model ada8498be9754e9f90b2eecc1b4ef8c5",
+      "license": "CC Attribution",
+      "attribution": "caterina.zamai",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-ada8498be9754e9f90b2eecc1b4ef8c5",
+      "downloads": 9996,
+      "likes": 990,
+      "views": 41346,
+      "recommendedScore": 2160.36
+    },
+    {
+      "path": "public/models/sketchfab/realistic-human-stomach-e0f1952de7204654ba469c3e887a029b/model.glb",
+      "source": "Sketchfab model e0f1952de7204654ba469c3e887a029b",
+      "license": "CC Attribution-NonCommercial",
+      "attribution": "neshallads",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-e0f1952de7204654ba469c3e887a029b",
+      "downloads": 5824,
+      "likes": 260,
+      "views": 30631,
+      "recommendedScore": 1244.91
+    },
+    {
+      "path": "public/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb",
+      "source": "Sketchfab model 22ebd4abce9440639563807e72e5f8d1",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "attribution": "E-learning UMCG",
+      "allowedUse": [
+        "web-education"
+      ],
+      "notes": "https://sketchfab.com/3d-models/none-22ebd4abce9440639563807e72e5f8d1",
+      "downloads": 1318,
+      "likes": 54,
+      "views": 10603,
+      "recommendedScore": 317.23
+    }
+  ]
+}

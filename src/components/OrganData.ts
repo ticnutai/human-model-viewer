@@ -1,5 +1,7 @@
 type OrganDetail = {
   name: string;
+  nameI18n?: Record<"he" | "en", string>;
+  latinName?: string;
   icon: string;
   meshName: string;
   image: string;
@@ -9,20 +11,148 @@ type OrganDetail = {
   weight?: string;
   size?: string;
   funFact?: string;
-  // Media
-  videoUrl?: string;
-  videoTitle?: string;
-  images?: string[];
   // Kids content
   kidsSummary: string;
   kidsFacts: string[];
   kidsFunFact?: string;
   kidsEmoji?: string;
-  kidsVideoUrl?: string;
-  // Camera position
+  // Camera position: where the camera moves to view this organ
   cameraPos?: [number, number, number];
+  // Look-at point: the anatomical position of the organ in the model
   lookAt?: [number, number, number];
+  media?: {
+    title: string;
+    type: "image" | "video";
+    url: string;
+    description?: string;
+  }[];
+  wonderNote?: string;
+  detectedElementType?: string;
+  detectedBy?: string;
+  detectionScore?: number;
 };
+
+type AppLanguage = "he" | "en";
+
+const ORGAN_NAME_I18N: Record<string, Record<AppLanguage, string>> = {
+  heart: { he: "הלב", en: "Heart" },
+  lung: { he: "הריאות", en: "Lungs" },
+  liver: { he: "הכבד", en: "Liver" },
+  kidney: { he: "הכליות", en: "Kidneys" },
+  stomach: { he: "הקיבה", en: "Stomach" },
+  brain: { he: "המוח", en: "Brain" },
+  intestine: { he: "המעי הדק", en: "Small Intestine" },
+  colon: { he: "המעי הגס", en: "Large Intestine" },
+  spleen: { he: "הטחול", en: "Spleen" },
+  pancreas: { he: "הלבלב", en: "Pancreas" },
+  bladder: { he: "שלפוחית השתן", en: "Bladder" },
+  bone: { he: "העצמות", en: "Bones" },
+  skull: { he: "הגולגולת", en: "Skull" },
+  muscle: { he: "השרירים", en: "Muscles" },
+  aorta: { he: "אבי העורקים", en: "Aorta" },
+  diaphragm: { he: "הסרעפת", en: "Diaphragm" },
+};
+
+const ORGAN_SYSTEM_I18N: Record<string, Record<AppLanguage, string>> = {
+  heart: { he: "מערכת הדם", en: "Circulatory System" },
+  lung: { he: "מערכת הנשימה", en: "Respiratory System" },
+  liver: { he: "מערכת העיכול", en: "Digestive System" },
+  kidney: { he: "מערכת השתן", en: "Urinary System" },
+  stomach: { he: "מערכת העיכול", en: "Digestive System" },
+  brain: { he: "מערכת העצבים", en: "Nervous System" },
+  intestine: { he: "מערכת העיכול", en: "Digestive System" },
+  colon: { he: "מערכת העיכול", en: "Digestive System" },
+  spleen: { he: "מערכת החיסון", en: "Immune System" },
+  pancreas: { he: "מערכת העיכול / אנדוקרינית", en: "Digestive / Endocrine System" },
+  bladder: { he: "מערכת השתן", en: "Urinary System" },
+  bone: { he: "מערכת השלד", en: "Skeletal System" },
+  skull: { he: "מערכת השלד", en: "Skeletal System" },
+  muscle: { he: "מערכת השרירים", en: "Muscular System" },
+  aorta: { he: "מערכת הדם", en: "Circulatory System" },
+  diaphragm: { he: "מערכת הנשימה", en: "Respiratory System" },
+};
+
+const ORGAN_LATIN_NAME: Record<string, string> = {
+  brain: "Encephalon",
+  heart: "Cor",
+  lung: "Pulmo",
+  stomach: "Gaster",
+  kidney: "Ren",
+  liver: "Hepar",
+  spleen: "Splen",
+  pancreas: "Pancreas",
+  bladder: "Vesica urinaria",
+  aorta: "Aorta",
+  diaphragm: "Diaphragma",
+  skull: "Cranium",
+  bone: "Ossa",
+  muscle: "Musculi",
+  intestine: "Intestinum tenue",
+  colon: "Colon",
+};
+
+const ORGAN_ALIASES: Record<string, string[]> = {
+  heart: ["heart", "cardiac", "cor"],
+  lung: ["lung", "lungs", "pulmo", "pulmonary"],
+  liver: ["liver", "hepar", "hepatic"],
+  kidney: ["kidney", "kidneys", "renal", "ren"],
+  stomach: ["stomach", "gaster", "gastric"],
+  brain: ["brain", "cerebr", "encephal", "neuro"],
+  intestine: ["intestine", "smallintestine", "small_intestine", "ileum", "jejunum", "duodenum"],
+  colon: ["colon", "largeintestine", "large_intestine", "bowel", "sigmoid", "rectum"],
+  spleen: ["spleen", "splen"],
+  pancreas: ["pancreas", "pancreatic"],
+  bladder: ["bladder", "vesica", "urinarybladder", "urinary_bladder"],
+  bone: ["bone", "bones", "rib", "ribs", "vertebra", "spine", "pelvis", "femur", "humerus", "clavicle", "ulna", "radius"],
+  skull: ["skull", "cranium", "mandible", "maxilla"],
+  muscle: ["muscle", "muscles", "bicep", "tricep", "deltoid", "pector", "abdominal"],
+  aorta: ["aorta", "artery", "arterial", "vein", "vena", "vessel", "vascular"],
+  diaphragm: ["diaphragm", "diaphragma"],
+};
+
+function normalizeMeshName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function inferElementType(meshName: string): string {
+  const normalized = normalizeMeshName(meshName);
+  if (/(artery|vein|vessel|aorta|vascular)/.test(normalized)) return "vessel";
+  if (/(bone|skull|rib|spine|vertebra|pelvis|femur|humerus)/.test(normalized)) return "skeleton";
+  if (/(muscle|bicep|tricep|deltoid|pector|abdominal)/.test(normalized)) return "muscle";
+  if (/(heart|lung|liver|kidney|stomach|brain|intestine|colon|pancreas|spleen|bladder|diaphragm)/.test(normalized)) return "organ";
+  return "unknown";
+}
+
+function detectOrganMatch(meshName: string): { key: string; by: string; score: number } | null {
+  const normalized = normalizeMeshName(meshName);
+  if (!normalized) return null;
+
+  let best: { key: string; by: string; score: number } | null = null;
+
+  for (const [key, aliases] of Object.entries(ORGAN_ALIASES)) {
+    const candidates = [key, ...aliases].map((alias) => normalizeMeshName(alias));
+    for (const alias of candidates) {
+      if (!alias) continue;
+      const exactWord = new RegExp(`(^|\\s)${escapeRegExp(alias)}(\\s|$)`).test(normalized);
+      const contains = normalized.includes(alias);
+      if (!exactWord && !contains) continue;
+      const score = exactWord ? 100 + alias.length : 60 + alias.length;
+      if (!best || score > best.score) {
+        best = { key, by: alias, score };
+      }
+    }
+  }
+
+  return best;
+}
 
 const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   heart: {
@@ -46,14 +176,22 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הלב שלכם חזק כל כך שהוא יכול להתיז מים עד הקומה השלישית!",
     kidsEmoji: "💖",
-    videoUrl: "https://www.youtube.com/embed/CWFyxn0qDEU",
-    videoTitle: "איך הלב עובד - אנימציה רפואית",
-    kidsVideoUrl: "https://www.youtube.com/embed/bEIoSkt8rKE",
-    images: [
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg/600px-Diagram_of_the_human_heart_%28cropped%29.svg.png",
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Heart_anterior_exterior_view.jpg/600px-Heart_anterior_exterior_view.jpg",
+    cameraPos: [0.8, 0.4, 2.2], lookAt: [0.15, 0.3, 0],
+    wonderNote: "דיוק תיאום החדרים, השסתומים ומערכת ההולכה החשמלית בלב מדגים מערכת ביולוגית מורכבת שפועלת ברציפות לכל אורך החיים.",
+    media: [
+      {
+        title: "איור אנטומי של הלב",
+        type: "image",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg/800px-Diagram_of_the_human_heart_%28cropped%29.svg.png",
+        description: "מבט סכמטי על חדרים, עליות וכלי הדם המרכזיים.",
+      },
+      {
+        title: "הדמיית פעימות לב (וידאו)",
+        type: "video",
+        url: "https://www.youtube.com/watch?v=f7Q6PA8GWxE",
+        description: "אנימציה המסבירה את מחזור פעימת הלב וזרימת הדם.",
+      },
     ],
-    cameraPos: [0.6, 0.7, 2.2], lookAt: [0.1, 0.6, 0],
   },
   lung: {
     name: "הריאות", icon: "🫁",
@@ -76,9 +214,22 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "אם נפרוש את כל הבועות הקטנטנות שבתוך הריאות, הן יכסו מגרש טניס שלם!",
     kidsEmoji: "🎈",
-    videoUrl: "https://www.youtube.com/embed/8NUxvJS-_0k",
-    videoTitle: "מערכת הנשימה - הסבר מפורט",
-    cameraPos: [0, 0.9, 2.5], lookAt: [0, 0.8, 0],
+    cameraPos: [0, 0.6, 2.5], lookAt: [0, 0.5, 0],
+    wonderNote: "מיליוני נאדיות זעירות בשתי הריאות פועלות בסנכרון מתמיד ומאפשרות חילוף גזים יעיל שמקיים כל תא בגוף.",
+    media: [
+      {
+        title: "איור מפורט של הריאות",
+        type: "image",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Lungs_diagram_detailed.svg/800px-Lungs_diagram_detailed.svg.png",
+        description: "מבנה הסמפונות וחלוקת הריאות.",
+      },
+      {
+        title: "המחשת חילוף גזים בריאות",
+        type: "video",
+        url: "https://www.youtube.com/watch?v=8NUxvJS-_0k",
+        description: "סרטון הסבר על מעבר חמצן ופחמן דו-חמצני.",
+      },
+    ],
   },
   liver: {
     name: "הכבד", icon: "🫀",
@@ -101,9 +252,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "אפילו אם חותכים ממנו חתיכה גדולה, הוא גדל מחדש כמו זנב של לטאה!",
     kidsEmoji: "🦸",
-    videoUrl: "https://www.youtube.com/embed/MvhGkExojyI",
-    videoTitle: "הכבד - האיבר המדהים",
-    cameraPos: [-0.6, 0.5, 2.2], lookAt: [-0.15, 0.4, 0],
+    cameraPos: [-0.8, 0.2, 2.2], lookAt: [-0.2, 0.1, 0],
   },
   kidney: {
     name: "הכליות", icon: "🫘",
@@ -126,9 +275,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הכליות שלכם מנקות כמעט 200 ליטר דם כל יום — זה כמו אמבטיה שלמה!",
     kidsEmoji: "🧽",
-    videoUrl: "https://www.youtube.com/embed/FE3zS_-eAjA",
-    videoTitle: "הכליות - מערכת הסינון של הגוף",
-    cameraPos: [0, 0.3, 2.0], lookAt: [0, 0.3, 0],
+    cameraPos: [0, -0.2, 2.0], lookAt: [0, -0.2, 0],
   },
   stomach: {
     name: "הקיבה", icon: "🟤",
@@ -151,9 +298,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הקיבה שלכם מייצרת ריר חדש כל כמה ימים כדי להגן על עצמה — כמו שריון קסום!",
     kidsEmoji: "🌀",
-    videoUrl: "https://www.youtube.com/embed/o18UycWRsaA",
-    videoTitle: "הקיבה - תהליך העיכול",
-    cameraPos: [0.3, 0.4, 2.2], lookAt: [0.1, 0.4, 0],
+    cameraPos: [0.3, -0.1, 2.2], lookAt: [0.1, -0.1, 0],
   },
   brain: {
     name: "המוח", icon: "🧠",
@@ -176,9 +321,22 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "המוח שלכם משתמש באותה כמות חשמל כמו נורה קטנה — אבל הוא חכם פי מיליון!",
     kidsEmoji: "🌟",
-    videoUrl: "https://www.youtube.com/embed/kMKc8nfPATI",
-    videoTitle: "המוח האנושי - הסבר מקיף",
-    cameraPos: [0, 1.7, 2.0], lookAt: [0, 1.5, 0],
+    cameraPos: [0, 1.8, 2.0], lookAt: [0, 1.5, 0],
+    wonderNote: "רשת עצבית עצומה של מיליארדי תאים מתזמנת חשיבה, רגש ותנועה בזמן אמת — מורכבות יוצאת דופן בגוף האדם.",
+    media: [
+      {
+        title: "תרשים אזורי מוח",
+        type: "image",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Gray728.svg/800px-Gray728.svg.png",
+        description: "מפת אזורים מרכזיים במוח האנושי.",
+      },
+      {
+        title: "איך המוח מעבד מידע",
+        type: "video",
+        url: "https://www.youtube.com/watch?v=5Qw2Q7fM1f4",
+        description: "הדמיה כללית של פעילות עצבית ועיבוד מידע.",
+      },
+    ],
   },
   intestine: {
     name: "המעי הדק", icon: "🔄",
@@ -201,7 +359,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "המעי הדק ארוך כל כך שהוא מתכופף בתוך הבטן כמו סליל ענק!",
     kidsEmoji: "🎢",
-    cameraPos: [0, 0.1, 2.5], lookAt: [0, 0.1, 0],
+    cameraPos: [0, -0.5, 2.5], lookAt: [0, -0.5, 0],
   },
   colon: {
     name: "המעי הגס", icon: "🔄",
@@ -224,7 +382,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "בתוך המעי הגס שלכם יש יותר חיידקים ממה שיש כוכבים בשביל החלב!",
     kidsEmoji: "🧺",
-    cameraPos: [0, 0.1, 2.5], lookAt: [0, 0.1, 0],
+    cameraPos: [0, -0.7, 2.5], lookAt: [0, -0.7, 0],
   },
   spleen: {
     name: "הטחול", icon: "🟣",
@@ -247,7 +405,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "אפשר לחיות בלי טחול — אבל הגוף יצטרך לעבוד קצת יותר קשה כדי להגן עליכם!",
     kidsEmoji: "🔍",
-    cameraPos: [-0.5, 0.4, 2.0], lookAt: [-0.2, 0.4, 0],
+    cameraPos: [-0.6, 0, 2.0], lookAt: [-0.3, 0, 0],
   },
   pancreas: {
     name: "הלבלב", icon: "🟡",
@@ -270,7 +428,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הלבלב הוא המנהל של הסוכר בגוף — הוא מחליט כמה סוכר ישאר בדם!",
     kidsEmoji: "👨‍🍳",
-    cameraPos: [-0.3, 0.35, 2.0], lookAt: [-0.1, 0.35, 0],
+    cameraPos: [-0.4, -0.1, 2.0], lookAt: [-0.15, -0.1, 0],
   },
   bladder: {
     name: "שלפוחית השתן", icon: "💧",
@@ -293,7 +451,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "כשאתם ישנים, השלפוחית מתרחבת יותר כדי שלא תצטרכו לקום בלילה!",
     kidsEmoji: "🎈",
-    cameraPos: [0, -0.2, 2.0], lookAt: [0, -0.2, 0],
+    cameraPos: [0, -1.0, 2.0], lookAt: [0, -1.0, 0],
   },
   bone: {
     name: "העצמות", icon: "🦴",
@@ -339,7 +497,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הגולגולת שלכם עשויה מ-22 חלקים שמחוברים כמו פאזל — אי אפשר לפרק אותה!",
     kidsEmoji: "⛑️",
-    cameraPos: [0, 1.8, 1.8], lookAt: [0, 1.6, 0],
+    cameraPos: [0, 2.0, 1.8], lookAt: [0, 1.7, 0],
   },
   muscle: {
     name: "השרירים", icon: "💪",
@@ -385,7 +543,7 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "הדם שזורם באבי העורקים עושה סיבוב שלם בגוף תוך דקה בלבד!",
     kidsEmoji: "🛣️",
-    cameraPos: [0, 0.5, 2.5], lookAt: [0, 0.4, 0],
+    cameraPos: [0, 0.2, 2.5], lookAt: [0, 0.1, 0],
   },
   diaphragm: {
     name: "הסרעפת", icon: "🌬️",
@@ -408,29 +566,105 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     ],
     kidsFunFact: "כשמשהו מצחיק אתכם, הסרעפת זזה מהר מאוד — ולכן צחוק גורם לכם לנשום מהר!",
     kidsEmoji: "🤸",
-    cameraPos: [0, 0.55, 2.5], lookAt: [0, 0.55, 0],
+    cameraPos: [0, -0.3, 2.5], lookAt: [0, -0.3, 0],
   },
 };
 
 function getOrganDetail(meshName: string): OrganDetail | null {
-  const lower = meshName.toLowerCase();
-  for (const [key, detail] of Object.entries(ORGAN_DETAILS)) {
-    if (lower.includes(key)) return { ...detail, meshName };
+  const match = detectOrganMatch(meshName);
+  if (!match) return null;
+
+  const detail = ORGAN_DETAILS[match.key];
+  if (!detail) return null;
+
+  return {
+    ...detail,
+    meshName,
+    nameI18n: ORGAN_NAME_I18N[match.key],
+    systemI18n: ORGAN_SYSTEM_I18N[match.key],
+    latinName: ORGAN_LATIN_NAME[match.key],
+    detectedElementType: inferElementType(meshName),
+    detectedBy: match.by,
+    detectionScore: match.score,
+  };
+}
+
+function getBestOrganDetail(meshNames: string[]): OrganDetail | null {
+  let best: OrganDetail | null = null;
+  for (const meshName of meshNames) {
+    const detail = getOrganDetail(meshName);
+    if (!detail) continue;
+    if (!best || (detail.detectionScore ?? 0) > (best.detectionScore ?? 0)) {
+      best = detail;
+    }
   }
-  return null;
+  return best;
+}
+
+function collectMeshLineage(meshName: string): string[] {
+  const normalized = normalizeMeshName(meshName);
+  if (!normalized) return [meshName];
+  const parts = normalized.split(" ").filter(Boolean);
+  return Array.from(new Set([meshName, normalized, ...parts]));
+}
+
+function getLocalizedOrganName(organKey: string, fallbackName: string, lang: AppLanguage): string {
+  return ORGAN_NAME_I18N[organKey]?.[lang] ?? fallbackName;
+}
+
+function getLocalizedOrganSystem(organKey: string, fallbackSystem: string, lang: AppLanguage): string {
+  return ORGAN_SYSTEM_I18N[organKey]?.[lang] ?? fallbackSystem;
+}
+
+function getLatinOrganName(organKey: string): string | undefined {
+  return ORGAN_LATIN_NAME[organKey];
+}
+
+function getElementTypeLabel(elementType: string, lang: AppLanguage): string {
+  const map: Record<string, Record<AppLanguage, string>> = {
+    organ: { he: "איבר", en: "Organ" },
+    vessel: { he: "כלי דם", en: "Blood Vessel" },
+    skeleton: { he: "שלד", en: "Skeleton" },
+    muscle: { he: "שריר", en: "Muscle" },
+    unknown: { he: "לא ידוע", en: "Unknown" },
+  };
+  return map[elementType]?.[lang] ?? map.unknown[lang];
 }
 
 function getFallbackDetail(meshName: string, basicName: string, basicDesc: string, basicIcon: string): OrganDetail {
+  const elementType = inferElementType(meshName);
   return {
     name: basicName, icon: basicIcon, meshName,
-    image: "",
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Anatomy_of_the_human_body.png/800px-Anatomy_of_the_human_body.png",
     summary: basicDesc,
-    facts: [],
+    facts: [
+      `Mesh: ${meshName}`,
+      `Detected element type: ${elementType}`,
+      "Tip: Use Organ Atlas for exact mapped organ details.",
+    ],
     system: "—",
     kidsSummary: basicDesc,
-    kidsFacts: [],
+    kidsFacts: [
+      `Mesh: ${meshName}`,
+      "Try the Organ Atlas to pick a known organ with full educational details.",
+    ],
+    media: [],
+    wonderNote: `Element type: ${elementType}`,
+    detectedElementType: elementType,
+    detectedBy: "fallback",
+    detectionScore: 0,
   };
 }
 
 export type { OrganDetail };
-export { getOrganDetail, getFallbackDetail, ORGAN_DETAILS };
+export {
+  getOrganDetail,
+  getBestOrganDetail,
+  collectMeshLineage,
+  getLocalizedOrganName,
+  getLocalizedOrganSystem,
+  getLatinOrganName,
+  getElementTypeLabel,
+  getFallbackDetail,
+  ORGAN_DETAILS,
+};
