@@ -160,6 +160,7 @@ export default function ModelManager({
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeMediaType, setActiveMediaType] = useState<string | null>(null);
+  const [catLoadError, setCatLoadError] = useState<string | null>(null);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [newCatIcon, setNewCatIcon] = useState("📁");
@@ -456,12 +457,22 @@ export default function ModelManager({
   }, []);
 
   const load = useCallback(async () => {
-    const [{ data: cats }, { data: mods }] = await Promise.all([
+    const [catResult, modResult] = await Promise.all([
       supabase.from("model_categories").select("*").order("sort_order"),
       supabase.from("models").select("*").order("created_at", { ascending: false }),
     ]);
-    if (cats) setCategories(cats);
-    if (mods) setModels(mods);
+    if (catResult.error) {
+      console.error("[ModelManager] model_categories load error:", catResult.error);
+      setCatLoadError(catResult.error.message);
+    } else if (catResult.data) {
+      setCatLoadError(null);
+      setCategories(catResult.data);
+    }
+    if (modResult.error) {
+      console.error("[ModelManager] models load error:", modResult.error);
+    } else if (modResult.data) {
+      setModels(modResult.data);
+    }
   }, []);
 
   useEffect(() => {
@@ -942,6 +953,19 @@ export default function ModelManager({
         </div>
       )}
 
+      {/* DB error notice */}
+      {catLoadError && (
+        <div style={{
+          fontSize: "11px", color: t.accentAlt,
+          background: `${t.accentAlt}12`,
+          border: `1px solid ${t.accentAlt}40`,
+          borderRadius: "8px", padding: "6px 10px",
+          marginTop: "8px",
+        }}>
+          ⚠️ שגיאה בטעינת קטגוריות: {catLoadError} — <button onClick={() => void load()} style={{ background: "none", border: "none", cursor: "pointer", color: t.accent, fontWeight: 700, fontSize: "11px", textDecoration: "underline", padding: 0 }}>נסה שוב</button>
+        </div>
+      )}
+
       <div style={{
         border: `1px solid ${t.panelBorder}`,
         borderRadius: "12px",
@@ -1279,21 +1303,21 @@ export default function ModelManager({
                       }}>✕</button>
                     </div>
                   ) : (
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
-                      onClick={() => onSelectModel(model.url)}
-                    >
-                      <span style={{
-                        fontSize: "14px", fontWeight: 700,
-                        color: isActive ? t.accent : hebrewName ? t.textPrimary : t.textSecondary,
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        fontStyle: hebrewName ? "normal" : "italic",
-                        flex: 1,
-                      }}>
-                        {hebrewName || "לחץ לעריכת שם בעברית..."}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      {/* Primary name: Hebrew if set, else English */}
+                      <span
+                        onClick={() => onSelectModel(model.url)}
+                        style={{
+                          fontSize: "13px", fontWeight: 700, cursor: "pointer",
+                          color: isActive ? t.accent : t.textPrimary,
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                          flex: 1,
+                        }}
+                      >
+                        {hebrewName || model.displayName}
                       </span>
-                      {/* Inline edit pencil — only for cloud models */}
-                      {model.source === "cloud" && rec && isHovered && !isInlineEditing && (
+                      {/* ✏️ always visible for cloud models, not just hover */}
+                      {model.source === "cloud" && rec && (
                         <button
                           onClick={e => {
                             e.stopPropagation();
@@ -1302,22 +1326,29 @@ export default function ModelManager({
                           }}
                           title="ערוך שם בעברית"
                           style={{
-                            background: "transparent", border: "none", cursor: "pointer",
-                            fontSize: "12px", padding: "2px 4px", color: t.accent,
+                            background: hebrewName ? "transparent" : `${t.accent}14`,
+                            border: hebrewName ? "none" : `1px dashed ${t.accent}50`,
+                            borderRadius: "6px", cursor: "pointer",
+                            fontSize: hebrewName ? "12px" : "10px",
+                            padding: "2px 6px",
+                            color: hebrewName ? t.textSecondary : t.accent,
                             flexShrink: 0,
+                            fontWeight: hebrewName ? 400 : 600,
                           }}
-                        >✏️</button>
+                        >{hebrewName ? "✏️" : "+ שם בעברית"}</button>
                       )}
                     </div>
                   )}
 
-                  {/* English filename — smaller */}
-                  <div
-                    style={{ fontSize: "11px", color: t.textSecondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}
-                    onClick={() => onSelectModel(model.url)}
-                  >
-                    {model.displayName}
-                  </div>
+                  {/* Second line: show English name only if Hebrew is set */}
+                  {hebrewName ? (
+                    <div
+                      onClick={() => onSelectModel(model.url)}
+                      style={{ fontSize: "10px", color: t.textSecondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer", direction: "ltr" }}
+                    >
+                      {model.displayName}
+                    </div>
+                  ) : null}
 
                   {/* Badges row */}
                   <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
