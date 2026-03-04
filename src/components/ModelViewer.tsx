@@ -1,6 +1,7 @@
 import { Canvas, useLoader, useThree, ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { Suspense, useRef, useCallback, useState, useEffect, useMemo } from "react";
+import { Suspense, useRef, useCallback, useState, useEffect, useMemo, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 import { getBestOrganDetail, getFallbackDetail, ORGAN_DETAILS, getLocalizedOrganName, getLocalizedOrganSystem } from "./OrganData";
@@ -198,6 +199,35 @@ const VIEW_PRESETS: { position: [number, number, number]; key: "view.front" | "v
   { position: [-4, 1, 0], key: "view.left", icon: "⬅️" },
   { position: [0, 5, 0.1], key: "view.top", icon: "⬆️" },
 ];
+
+// ErrorBoundary that catches GLTFLoader crashes (e.g. LFS pointer files served as text)
+class ModelErrorBoundary extends Component<{ children: ReactNode; onError?: (msg: string) => void }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode; onError?: (msg: string) => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    const msg = error?.message || "";
+    const isLfs = msg.includes("version ht") || msg.includes("not valid JSON") || msg.includes("Git LFS");
+    this.props.onError?.(
+      isLfs
+        ? "This model is a Git LFS pointer file, not a valid GLB binary. Please select a cloud model or upload a valid GLB."
+        : `Failed to load model: ${msg}`
+    );
+  }
+  componentDidUpdate(prevProps: { children: ReactNode }) {
+    if (prevProps.children !== this.props.children && this.state.hasError) {
+      this.setState({ hasError: false });
+    }
+  }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
 
 function CameraController({ targetPosition, targetLookAt }: { targetPosition: [number, number, number] | null; targetLookAt?: [number, number, number] | null }) {
   const { camera } = useThree();
@@ -1004,16 +1034,21 @@ const ModelViewer = () => {
         <directionalLight position={[-5, 3, -5]} intensity={0.4} color={t.accentAlt} />
         <pointLight position={[0, 3, 0]} intensity={0.5} color={t.accent} />
         <Suspense fallback={null}>
-          {useInteractive ? (
-            <InteractiveOrgans
-              onSelect={setSelectedOrgan}
-              selectedMesh={selectedOrgan?.meshName ?? null}
-              accent={t.accent}
-              visibleLayers={visibleLayers}
-            />
-          ) : (
-            <Model url={modelUrl} onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} />
-          )}
+          <ModelErrorBoundary
+            key={modelUrl}
+            onError={(msg) => setModelLoadWarning(msg)}
+          >
+            {useInteractive ? (
+              <InteractiveOrgans
+                onSelect={setSelectedOrgan}
+                selectedMesh={selectedOrgan?.meshName ?? null}
+                accent={t.accent}
+                visibleLayers={visibleLayers}
+              />
+            ) : (
+              <Model url={modelUrl} onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} />
+            )}
+          </ModelErrorBoundary>
         </Suspense>
         <CameraController key={renderKey} targetPosition={cameraTargetRef.current} targetLookAt={cameraLookAtRef.current} />
         <OrbitControls
