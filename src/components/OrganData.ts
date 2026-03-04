@@ -30,6 +30,7 @@ type OrganDetail = {
   detectedElementType?: string;
   detectedBy?: string;
   detectionScore?: number;
+  systemI18n?: Record<"he" | "en", string>;
 };
 
 type AppLanguage = "he" | "en";
