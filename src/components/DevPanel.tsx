@@ -225,22 +225,39 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
     setImporting(true);
     try {
       const text = await file.text();
-      const data = JSON.parse(text);
-      const items = data.migrations || data;
-      if (!Array.isArray(items)) throw new Error("Invalid format");
-      let imported = 0;
-      for (const m of items) {
+      const isSql = file.name.toLowerCase().endsWith(".sql");
+
+      if (isSql) {
+        // Import a single .sql file as one migration
+        const migrationName = file.name.replace(/\.sql$/i, "");
         await supabase.from("dev_migrations").insert({
-          name: m.name || "Imported migration",
-          description: m.description || null,
-          sql_content: m.sql_content || null,
-          status: m.status || "pending",
-          applied_at: m.applied_at || null,
+          name: migrationName,
+          description: `יובא מקובץ: ${file.name}`,
+          sql_content: text,
+          status: "pending",
+          applied_at: null,
         });
-        imported++;
+        await loadMigrations();
+        alert(`✅ קובץ SQL יובא בהצלחה כמיגרציה: ${migrationName}`);
+      } else {
+        // JSON import (existing logic)
+        const data = JSON.parse(text);
+        const items = data.migrations || data;
+        if (!Array.isArray(items)) throw new Error("פורמט JSON לא תקין — נדרש מערך migrations");
+        let imported = 0;
+        for (const m of items) {
+          await supabase.from("dev_migrations").insert({
+            name: m.name || "Imported migration",
+            description: m.description || null,
+            sql_content: m.sql_content || null,
+            status: m.status || "pending",
+            applied_at: m.applied_at || null,
+          });
+          imported++;
+        }
+        await loadMigrations();
+        alert(`✅ יובאו ${imported} מיגרציות בהצלחה!`);
       }
-      await loadMigrations();
-      alert(`✅ יובאו ${imported} מיגרציות בהצלחה!`);
     } catch (err) {
       alert(`❌ שגיאה בייבוא: ${err instanceof Error ? err.message : "קובץ לא תקין"}`);
     } finally {
@@ -651,11 +668,11 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
                 <button onClick={() => fileInputRef.current?.click()} style={{
                   ...btnStyle, opacity: importing ? 0.5 : 1,
                 }} disabled={importing}>
-                  {importing ? "⏳ מייבא..." : "📥 ייבוא JSON"}
+                  {importing ? "⏳ מייבא..." : "📥 ייבוא JSON / SQL"}
                 </button>
                 <input
                   ref={fileInputRef}
-                  type="file" accept=".json"
+                  type="file" accept=".json,.sql"
                   onChange={importMigrations}
                   style={{ display: "none" }}
                 />
