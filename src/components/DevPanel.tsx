@@ -66,7 +66,8 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
   const [editingEdge, setEditingEdge] = useState<string | null>(null);
 
   const loadMigrations = useCallback(async () => {
-    const { data } = await supabase.from("dev_migrations").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("dev_migrations").select("*").order("created_at", { ascending: false });
+    if (import.meta.env.DEV) console.log("[DevPanel] loadMigrations", { data, error });
     if (data) setMigrations(data);
   }, []);
 
@@ -175,12 +176,17 @@ export default function DevPanel({ theme: t, onClose }: { theme: Theme; onClose:
 
   const addMigration = async () => {
     if (!newName.trim()) return;
-    await supabase.from("dev_migrations").insert({
+    const { error } = await supabase.from("dev_migrations").insert({
       name: newName.trim(),
       description: newDesc.trim() || null,
       sql_content: newSql.trim() || null,
       status: "pending",
     });
+    if (error) {
+      console.error("[DevPanel] addMigration error:", error);
+      alert(`❌ שגיאה בהוספת מיגרציה: ${error.message}`);
+      return;
+    }
     setNewName(""); setNewDesc(""); setNewSql(""); setShowAdd(false);
     await loadMigrations();
   };
