@@ -83,6 +83,7 @@ type ModelRecord = {
   hebrew_name?: string | null;
   notes?: string | null;
   mesh_parts?: any | null;
+  media_type?: string | null;
 };
 
 type LocalManifestAsset = {
@@ -112,6 +113,7 @@ type ListModel = {
   recommendedScore: number;
   record?: ModelRecord;
   license?: string;
+  mediaType?: string;
 };
 
 type SortMode = "all" | "detailed" | "name" | "downloads" | "recommended" | "date";
@@ -157,6 +159,7 @@ export default function ModelManager({
   const [localModels, setLocalModels] = useState<ListModel[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeMediaType, setActiveMediaType] = useState<string | null>(null);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [newCatIcon, setNewCatIcon] = useState("📁");
@@ -164,7 +167,7 @@ export default function ModelManager({
   const [moveModel, setMoveModel] = useState<string | null>(null);
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
   const [editingModel, setEditingModel] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ display_name: string; hebrew_name: string; notes: string; category_id: string | null }>({ display_name: "", hebrew_name: "", notes: "", category_id: null });
+  const [editForm, setEditForm] = useState<{ display_name: string; hebrew_name: string; notes: string; category_id: string | null; media_type: string }>({ display_name: "", hebrew_name: "", notes: "", category_id: null, media_type: "glb" });
 
   // Upload state
   const [uploading, setUploading] = useState(false);
@@ -191,6 +194,7 @@ export default function ModelManager({
       hebrew_name: model.hebrew_name || "",
       notes: model.notes || "",
       category_id: model.category_id,
+      media_type: model.media_type || "glb",
     });
   };
 
@@ -200,6 +204,7 @@ export default function ModelManager({
       hebrew_name: editForm.hebrew_name,
       notes: editForm.notes,
       category_id: editForm.category_id,
+      media_type: editForm.media_type,
     }).eq("id", modelId);
     setEditingModel(null);
     await load();
@@ -333,6 +338,7 @@ export default function ModelManager({
           file_url: importedUrl,
           thumbnail_url: thumbUrl,
           mesh_parts: translatedMeshes,
+          media_type: "glb",
         });
         if (insertError) throw insertError;
 
@@ -553,13 +559,19 @@ export default function ModelManager({
       const meshNames = await analyzeGlbMeshes(file);
       const translatedMeshes = meshNames.map(translateMeshName);
 
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      const detectedType = ["glb"].includes(ext) ? "glb"
+        : ["png","jpg","jpeg","webp","gif"].includes(ext) ? "image"
+        : ["mp4","webm","mov"].includes(ext) ? "video"
+        : "glb";
       await supabase.from("models").insert({
         file_name: fileName,
-        display_name: file.name.replace(".glb", ""),
+        display_name: file.name.replace(/\.[^.]+$/, ""),
         category_id: activeCategory || categories[0]?.id || null,
         file_size: file.size,
         file_url: url,
         mesh_parts: translatedMeshes,
+        media_type: detectedType,
       });
       onSelectModel(url);
       await load();
@@ -589,13 +601,19 @@ export default function ModelManager({
       const meshNames = await analyzeGlbMeshes(data.file);
       const translatedMeshes = meshNames.map(translateMeshName);
 
+      const ext2 = data.file.name.split(".").pop()?.toLowerCase() || "";
+      const detectedType2 = ["glb"].includes(ext2) ? "glb"
+        : ["png","jpg","jpeg","webp","gif"].includes(ext2) ? "image"
+        : ["mp4","webm","mov"].includes(ext2) ? "video"
+        : "glb";
       await supabase.from("models").insert({
         file_name: data.fileName,
-        display_name: data.file.name.replace(".glb", ""),
+        display_name: data.file.name.replace(/\.[^.]+$/, ""),
         category_id: activeCategory || categories[0]?.id || null,
         file_size: data.file.size,
         file_url: url,
         mesh_parts: translatedMeshes,
+        media_type: detectedType2,
       });
       onSelectModel(url);
       await load();
@@ -648,9 +666,9 @@ export default function ModelManager({
     await load();
   };
 
-  const filteredModels = activeCategory
-    ? models.filter(m => m.category_id === activeCategory)
-    : models;
+  const filteredModels = models
+    .filter(m => !activeCategory || m.category_id === activeCategory)
+    .filter(m => !activeMediaType || (m.media_type || "glb") === activeMediaType);
 
   const cloudListModels: ListModel[] = filteredModels.map((model) => {
     const relevance = buildRelevance(model.display_name);
@@ -670,12 +688,13 @@ export default function ModelManager({
       views: 0,
       recommendedScore: relevance.relevanceScore,
       record: model,
+      mediaType: model.media_type || "glb",
     };
   });
 
   const combinedModelsBase: ListModel[] = [
     ...cloudListModels,
-    ...(activeCategory ? [] : localModels),
+    ...(activeCategory || activeMediaType ? [] : localModels),
   ];
 
   const combinedModels: ListModel[] = [...combinedModelsBase].sort((a, b) => {
@@ -715,57 +734,140 @@ export default function ModelManager({
     return `${(bytes / 1048576).toFixed(1)} MB`;
   };
 
+  const MEDIA_TYPES = [
+    { id: null,        label: "הכל",      icon: "🗂️" },
+    { id: "glb",       label: "3D / GLB", icon: "🧬" },
+    { id: "animation", label: "אנימציה",  icon: "🎬" },
+    { id: "image",     label: "תמונה",    icon: "🖼️" },
+    { id: "video",     label: "וידאו",    icon: "📹" },
+  ];
+
+  const countForMediaType = (mt: string | null) =>
+    models
+      .filter(m => !activeCategory || m.category_id === activeCategory)
+      .filter(m => !mt || (m.media_type || "glb") === mt)
+      .length;
+
+  const countForCategory = (catId: string | null) =>
+    models.filter(m => !catId || m.category_id === catId).length;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "14px", direction: "rtl" }}>
-      {/* Category tabs */}
-      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
-        <button
-          onClick={() => setActiveCategory(null)}
-          style={{
-            background: !activeCategory ? t.accent : "transparent",
-            color: !activeCategory ? "#fff" : t.textSecondary,
-            border: `1.5px solid ${!activeCategory ? t.accent : t.panelBorder}`,
-            borderRadius: "20px", padding: "5px 14px", cursor: "pointer",
-            fontSize: "12px", fontWeight: 600, transition: "all 0.2s",
-          }}
-        >🗂️ הכל</button>
-        {categories.map(cat => (
-          <div key={cat.id} style={{ position: "relative", display: "inline-flex" }}>
-            <button
-              onClick={() => setActiveCategory(cat.id)}
-              style={{
-                background: activeCategory === cat.id ? t.accent : "transparent",
-                color: activeCategory === cat.id ? "#fff" : t.textSecondary,
-                border: `1.5px solid ${activeCategory === cat.id ? t.accent : t.panelBorder}`,
-                borderRadius: "20px", padding: "5px 14px", cursor: "pointer",
-                fontSize: "12px", fontWeight: 600, transition: "all 0.2s",
-              }}
-            >
-              {cat.icon} {cat.name}
-            </button>
-            {categories.length > 1 && (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0", direction: "rtl" }}>
+
+      {/* ── Body-part tab bar ─────────────────────────────────────────── */}
+      <div style={{
+        display: "flex", overflowX: "auto", gap: "0",
+        borderBottom: `2px solid ${t.panelBorder}`,
+        marginBottom: "0",
+        scrollbarWidth: "none",
+      }}>
+        {/* "All" tab */}
+        {[{ id: null as string | null, name: "הכל", icon: "🗂️" }, ...categories].map(cat => {
+          const isActive = cat.id === null ? !activeCategory : activeCategory === cat.id;
+          const count = countForCategory(cat.id);
+          return (
+            <div key={cat.id ?? "all"} style={{ position: "relative", flexShrink: 0 }}>
               <button
-                onClick={() => deleteCategory(cat.id)}
+                onClick={() => { setActiveCategory(cat.id); setActiveMediaType(null); }}
                 style={{
-                  position: "absolute", top: "-5px", left: "-5px",
-                  width: "16px", height: "16px", borderRadius: "50%",
-                  background: t.accentAlt, border: "none", color: "#fff",
-                  fontSize: "9px", cursor: "pointer", display: "flex",
-                  alignItems: "center", justifyContent: "center",
+                  background: "transparent",
+                  color: isActive ? t.accent : t.textSecondary,
+                  border: "none",
+                  borderBottom: `2.5px solid ${isActive ? t.accent : "transparent"}`,
+                  padding: "10px 14px 9px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: isActive ? 700 : 500,
+                  whiteSpace: "nowrap",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px",
                 }}
-              >✕</button>
-            )}
-          </div>
-        ))}
+              >
+                <span style={{ fontSize: "15px" }}>{cat.icon}</span>
+                {cat.name}
+                {count > 0 && (
+                  <span style={{
+                    fontSize: "9px", fontWeight: 700,
+                    background: isActive ? t.accent : `${t.accent}22`,
+                    color: isActive ? "#fff" : t.accent,
+                    borderRadius: "999px", padding: "1px 6px",
+                  }}>{count}</span>
+                )}
+              </button>
+              {/* Delete button (only user-created, not "All") */}
+              {cat.id !== null && categories.length > 1 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteCategory(cat.id!); }}
+                  title="מחק קטגוריה"
+                  style={{
+                    position: "absolute", top: "3px", left: "2px",
+                    width: "14px", height: "14px", borderRadius: "50%",
+                    background: t.accentAlt, border: "none", color: "#fff",
+                    fontSize: "8px", cursor: "pointer", display: "flex",
+                    alignItems: "center", justifyContent: "center",
+                    opacity: 0.7,
+                  }}
+                >✕</button>
+              )}
+            </div>
+          );
+        })}
+        {/* Add category button */}
         <button
           onClick={() => setShowAddCategory(s => !s)}
+          title="הוסף קטגוריה"
           style={{
-            background: "transparent", border: `1.5px dashed ${t.panelBorder}`,
-            borderRadius: "20px", padding: "5px 12px", cursor: "pointer",
-            fontSize: "12px", color: t.textSecondary, transition: "all 0.2s",
+            background: "transparent", border: "none",
+            borderBottom: `2.5px solid transparent`,
+            padding: "10px 12px 9px",
+            cursor: "pointer", fontSize: "18px",
+            color: t.textSecondary, flexShrink: 0,
+            transition: "color 0.2s",
           }}
-        >+ קטגוריה</button>
+        >＋</button>
+      </div>
 
+      {/* ── Media-type sub-filter ──────────────────────────────────────── */}
+      <div style={{
+        display: "flex", gap: "6px", flexWrap: "wrap",
+        padding: "8px 2px",
+        alignItems: "center",
+        borderBottom: `1px solid ${t.panelBorder}`,
+        marginBottom: "10px",
+      }}>
+        {MEDIA_TYPES.map(mt => {
+          const isActive = activeMediaType === mt.id;
+          const cnt = countForMediaType(mt.id);
+          return (
+            <button
+              key={mt.id ?? "all"}
+              onClick={() => setActiveMediaType(mt.id)}
+              style={{
+                background: isActive ? t.accent : "transparent",
+                color: isActive ? "#fff" : t.textSecondary,
+                border: `1.5px solid ${isActive ? t.accent : t.panelBorder}`,
+                borderRadius: "20px", padding: "4px 12px",
+                cursor: "pointer", fontSize: "11px",
+                fontWeight: 600, transition: "all 0.2s",
+                display: "flex", alignItems: "center", gap: "4px",
+              }}
+            >
+              {mt.icon} {mt.label}
+              {cnt > 0 && (
+                <span style={{
+                  fontSize: "9px",
+                  background: isActive ? "rgba(255,255,255,0.25)" : `${t.accent}22`,
+                  color: isActive ? "#fff" : t.accent,
+                  borderRadius: "999px", padding: "0 5px",
+                }}>{cnt}</span>
+              )}
+            </button>
+          );
+        })}
+
+        {/* Sort select pushed to the end */}
         <select
           value={sortMode}
           onChange={(e) => setSortMode(e.target.value as SortMode)}
@@ -774,19 +876,18 @@ export default function ModelManager({
             background: t.bg,
             border: `1px solid ${t.panelBorder}`,
             borderRadius: "10px",
-            padding: "6px 10px",
+            padding: "5px 8px",
             color: t.textPrimary,
-            fontSize: "12px",
+            fontSize: "11px",
             outline: "none",
-            minWidth: "180px",
           }}
         >
-          <option value="all">סיווג: הכול</option>
-          <option value="detailed">סיווג: מודלים מפורטים</option>
-          <option value="name">סיווג: לפי שם</option>
-          <option value="downloads">סיווג: לפי מספר הורדות</option>
-          <option value="recommended">סיווג: לפי המלצות</option>
-          <option value="date">סיווג: חדשים קודם</option>
+          <option value="all">מיון: הכול</option>
+          <option value="detailed">מיון: מפורטים</option>
+          <option value="name">מיון: לפי שם</option>
+          <option value="downloads">מיון: הורדות</option>
+          <option value="recommended">מיון: המלצות</option>
+          <option value="date">מיון: חדשים</option>
         </select>
       </div>
 
@@ -796,6 +897,7 @@ export default function ModelManager({
           display: "flex", gap: "6px", alignItems: "center",
           padding: "10px", borderRadius: "12px",
           background: `${t.accent}08`, border: `1px solid ${t.panelBorder}`,
+          marginBottom: "8px",
         }}>
           <select
             value={newCatIcon}
@@ -839,6 +941,7 @@ export default function ModelManager({
         display: "flex",
         flexDirection: "column",
         gap: "8px",
+        marginTop: "10px",
       }}>
         <div style={{ fontSize: "13px", fontWeight: 700, color: t.textPrimary }}>
           🔎 חיפוש מודלים ב-Sketchfab
@@ -995,10 +1098,11 @@ export default function ModelManager({
           background: `${t.accent}06`, cursor: "pointer",
           fontSize: "13px", fontWeight: 600, color: t.accent,
           transition: "all 0.2s",
+          marginTop: "10px",
         }}>
-          <input type="file" accept=".glb" onChange={handleUpload} style={{ display: "none" }} />
+          <input type="file" accept=".glb,.png,.jpg,.jpeg,.mp4,.webm" onChange={handleUpload} style={{ display: "none" }} />
           <span style={{ fontSize: "20px" }}>⬆️</span>
-          העלאת קובץ GLB
+          העלאת קובץ (GLB / תמונה / וידאו)
         </label>
       ) : (
         <div style={{
@@ -1072,7 +1176,7 @@ export default function ModelManager({
       )}
 
       {/* Model list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px", overflowY: "auto" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px", overflowY: "auto", marginTop: "10px" }}>
         {combinedModels.length === 0 && (
           <div style={{
             color: t.textSecondary, fontSize: "13px", textAlign: "center",
@@ -1089,6 +1193,7 @@ export default function ModelManager({
           const meshBadgeColor = model.meshLevel === "high" ? "#22c55e" : model.meshLevel === "medium" ? "#eab308" : t.textSecondary;
           const rec = model.record;
           const catName = categories.find(c => c.id === model.categoryId);
+          const mediaIcon = model.mediaType === "animation" ? "🎬" : model.mediaType === "image" ? "🖼️" : model.mediaType === "video" ? "📹" : "🧬";
 
           return (
             <div
@@ -1117,7 +1222,7 @@ export default function ModelManager({
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: "16px", flexShrink: 0, color: isActive ? "#fff" : t.textPrimary,
                 }}>
-                  {isActive ? "✦" : "🧬"}
+                  {isActive ? "✦" : mediaIcon}
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -1247,6 +1352,23 @@ export default function ModelManager({
                           {categories.map(c => (
                             <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
                           ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "10px", color: t.textSecondary, fontWeight: 600 }}>🎬 סוג מדיה</label>
+                        <select
+                          value={editForm.media_type}
+                          onChange={e => setEditForm(f => ({ ...f, media_type: e.target.value }))}
+                          style={{
+                            width: "100%", background: t.bg, border: `1px solid ${t.panelBorder}`,
+                            borderRadius: "8px", padding: "7px 10px", color: t.textPrimary,
+                            fontSize: "12px", marginTop: "4px",
+                          }}
+                        >
+                          <option value="glb">🧬 3D / GLB</option>
+                          <option value="animation">🎬 אנימציה</option>
+                          <option value="image">🖼️ תמונה</option>
+                          <option value="video">📹 וידאו</option>
                         </select>
                       </div>
                       <div>
