@@ -15,6 +15,8 @@ type ModelRecord = {
   display_name: string;
   category_id: string | null;
   file_size: number | null;
+  file_url: string | null;
+  thumbnail_url: string | null;
   created_at: string;
 };
 
@@ -228,16 +230,17 @@ export default function ModelManager({
 
       if (uploadStorageError) throw uploadStorageError;
 
+      const importedUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
+
       const { error: insertError } = await supabase.from("models").insert({
         file_name: fileName,
         display_name: model.name,
         category_id: activeCategory || categories[0]?.id || null,
         file_size: glbBlob.size,
+        file_url: importedUrl,
       });
 
       if (insertError) throw insertError;
-
-      const importedUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
       onSelectModel(importedUrl);
       await load();
     } catch {
@@ -434,13 +437,14 @@ export default function ModelManager({
     const success = await uploadWithProgress(file, fileName);
 
     if (success) {
+      const url = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
       await supabase.from("models").insert({
         file_name: fileName,
         display_name: file.name.replace(".glb", ""),
         category_id: activeCategory || categories[0]?.id || null,
         file_size: file.size,
+        file_url: url,
       });
-      const url = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
       onSelectModel(url);
       await load();
       setTimeout(() => {
@@ -464,13 +468,14 @@ export default function ModelManager({
 
     const success = await uploadWithProgress(data.file, data.fileName, data.offset);
     if (success) {
+      const url = `${SUPABASE_URL}/storage/v1/object/public/models/${data.fileName}`;
       await supabase.from("models").insert({
         file_name: data.fileName,
         display_name: data.file.name.replace(".glb", ""),
         category_id: activeCategory || categories[0]?.id || null,
         file_size: data.file.size,
+        file_url: url,
       });
-      const url = `${SUPABASE_URL}/storage/v1/object/public/models/${data.fileName}`;
       onSelectModel(url);
       await load();
       setTimeout(() => {
@@ -533,7 +538,7 @@ export default function ModelManager({
       displayName: model.display_name,
       fileSize: model.file_size,
       createdAt: model.created_at,
-      url: `${SUPABASE_URL}/storage/v1/object/public/models/${model.file_name}`,
+      url: model.file_url || `${SUPABASE_URL}/storage/v1/object/public/models/${model.file_name}`,
       source: "cloud",
       categoryId: model.category_id,
       relevanceScore: relevance.relevanceScore,
