@@ -18,6 +18,9 @@ type ModelRecord = {
   file_url: string | null;
   thumbnail_url: string | null;
   created_at: string;
+  hebrew_name?: string | null;
+  notes?: string | null;
+  mesh_parts?: any | null;
 };
 
 type LocalManifestAsset = {

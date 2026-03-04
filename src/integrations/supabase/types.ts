@@ -101,6 +101,42 @@ export type Database = {
         }
         Relationships: []
       }
+      model_mesh_mappings: {
+        Row: {
+          created_at: string
+          facts: Json
+          icon: string
+          mesh_key: string
+          model_url: string
+          name: string
+          summary: string
+          system: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          facts?: Json
+          icon?: string
+          mesh_key: string
+          model_url: string
+          name: string
+          summary: string
+          system?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          facts?: Json
+          icon?: string
+          mesh_key?: string
+          model_url?: string
+          name?: string
+          summary?: string
+          system?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       models: {
         Row: {
           category_id: string | null
@@ -108,7 +144,12 @@ export type Database = {
           display_name: string
           file_name: string
           file_size: number | null
+          file_url: string | null
+          hebrew_name: string | null
           id: string
+          mesh_parts: Json | null
+          notes: string | null
+          thumbnail_url: string | null
         }
         Insert: {
           category_id?: string | null
@@ -116,7 +157,12 @@ export type Database = {
           display_name: string
           file_name: string
           file_size?: number | null
+          file_url?: string | null
+          hebrew_name?: string | null
           id?: string
+          mesh_parts?: Json | null
+          notes?: string | null
+          thumbnail_url?: string | null
         }
         Update: {
           category_id?: string | null
@@ -124,7 +170,12 @@ export type Database = {
           display_name?: string
           file_name?: string
           file_size?: number | null
+          file_url?: string | null
+          hebrew_name?: string | null
           id?: string
+          mesh_parts?: Json | null
+          notes?: string | null
+          thumbnail_url?: string | null
         }
         Relationships: [
           {
