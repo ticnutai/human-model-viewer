@@ -236,6 +236,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     name: "הכבד", icon: "🫀",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Surface_projections_of_the_organs_of_the_trunk.png/800px-Surface_projections_of_the_organs_of_the_trunk.png",
     summary: "הכבד הוא האיבר הפנימי הגדול ביותר בגוף. הוא מבצע מעל 500 תפקידים חיוניים, כולל סינון רעלים, ייצור מרה ואחסון ויטמינים.",
+    media: [
+      { title: "מבנה הכבד — ויקיפדיה",  type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Surface_projections_of_the_organs_of_the_trunk.png/800px-Surface_projections_of_the_organs_of_the_trunk.png", description: "הכבד ביחס לאיברי הבטן." },
+      { title: "פונקציות הכבד (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=9rFAEzBBXrY", description: "הסבר על תפקידי הכבד: מרה, גליקוגן, סינון רעלים." },
+    ],
     facts: [
       "הכבד יכול להתחדש — גם אם מסירים 75% ממנו",
       "הוא מייצר כליטר מרה ביום",
@@ -258,6 +262,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   kidney: {
     name: "הכליות", icon: "🫘",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Kidney_Cross_Section.png/800px-Kidney_Cross_Section.png",
+    media: [
+      { title: "חתך רוחב של כליה", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Kidney_Cross_Section.png/800px-Kidney_Cross_Section.png", description: "מבנה הכליה הפנימי: קורטקס, מדולה, אגן הכליה." },
+      { title: "כיצד הכליות מסננות דם?", type: "video", url: "https://www.youtube.com/watch?v=FN3MFhYjWWo", description: "אנימציה של מסנן הנפרון." },
+    ],
     summary: "הכליות מסננות את הדם, מסירות פסולת ומייצרות שתן. הן גם מווסתות לחץ דם ומאזנות אלקטרוליטים.",
     facts: [
       "הכליות מסננות כ-180 ליטר דם ביום",
@@ -281,6 +289,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   stomach: {
     name: "הקיבה", icon: "🟤",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Stomach_diagram_he.svg/800px-Stomach_diagram_he.svg.png",
+    media: [
+      { title: "דיאגרמת הקיבה", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Stomach_diagram_he.svg/800px-Stomach_diagram_he.svg.png", description: "אזורי הקיבה: קרדיה, פונדוס, גוף ופילורוס." },
+      { title: "עיכול מזון בקיבה (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=oHQzAUYEsEc", description: "תהליך העיכול הכימי והמכני." },
+    ],
     summary: "הקיבה מפרקת מזון באמצעות חומצות חזקות ואנזימים. היא יכולה להכיל עד 1.5 ליטר מזון.",
     facts: [
       "חומצת הקיבה (HCl) חזקה מספיק להמיס מתכת",
@@ -342,6 +354,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   intestine: {
     name: "המעי הדק", icon: "🔄",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Small_intestine_%28illustration%29.jpg/800px-Small_intestine_%28illustration%29.jpg",
+    media: [
+      { title: "המעי הדק — איור", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Small_intestine_%28illustration%29.jpg/800px-Small_intestine_%28illustration%29.jpg", description: "מבנה הסיסים לספיגת חומרי מזון." },
+      { title: "ספיגת חומרים במעי (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=Og5xAdC8EUI", description: "כיצד הסיסים הקטנים סופגים ויטמינים ומינרלים." },
+    ],
     summary: "המעי הדק הוא האיבר הארוך ביותר בגוף (כ-6 מטרים). כאן מתרחש עיקר ספיגת חומרי ההזנה מהמזון.",
     facts: [
       "שטח הפנים של המעי הדק: כ-250 מ\"ר",
@@ -365,6 +381,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   colon: {
     name: "המעי הגס", icon: "🔄",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Blausen_0604_LargeIntestine2.png/800px-Blausen_0604_LargeIntestine2.png",
+    media: [
+      { title: "המעי הגס — איור", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Blausen_0604_LargeIntestine2.png/800px-Blausen_0604_LargeIntestine2.png", description: "מבנה המעי הגס וסלילותיו." },
+      { title: "תפקוד המעי הגס (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=V_lHMPRMxhI", description: "ספיגת מים והכנת הצואה." },
+    ],
     summary: "המעי הגס סופג מים ומלחים מהפסולת, מייצר ויטמינים ומכין את הצואה להפרשה.",
     facts: [
       "אורכו כ-1.5 מטרים",
@@ -388,6 +408,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   spleen: {
     name: "הטחול", icon: "🟣",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Spleen_anatomy.jpg/800px-Spleen_anatomy.jpg",
+    media: [
+      { title: "מבנה הטחול", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Spleen_anatomy.jpg/800px-Spleen_anatomy.jpg", description: "אנטומיה של הטחול — לב לבן ולב אדום." },
+      { title: "תפקודי הטחול (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=9L3PVcKxOOs", description: "כיצד הטחול מסנן דם ומייצר תאים חיסוניים." },
+    ],
     summary: "הטחול מסנן תאי דם ישנים ופגומים, מאחסן טסיות דם ומשתתף בתגובה החיסונית של הגוף.",
     facts: [
       "מסנן כ-200 מ\"ל דם בכל דקה",
@@ -411,6 +435,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   pancreas: {
     name: "הלבלב", icon: "🟡",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Blausen_0699_PancreasAnatomy2.png/800px-Blausen_0699_PancreasAnatomy2.png",
+    media: [
+      { title: "מבנה הלבלב", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Blausen_0699_PancreasAnatomy2.png/800px-Blausen_0699_PancreasAnatomy2.png", description: "ראש, גוף וזנב הלבלב, ואיי לנגרהנס." },
+      { title: "אינסולין וסוכרת (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=X9ivISHBOAU", description: "כיצד הלבלב מייצר אינסולין ומה קורה בסוכרת." },
+    ],
     summary: "הלבלב מפריש אינסולין לוויסות רמת הסוכר בדם, וגם אנזימי עיכול לפירוק שומנים, חלבונים ופחמימות.",
     facts: [
       "מייצר כ-1.5 ליטר מיץ לבלב ביום",
@@ -433,6 +461,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   },
   bladder: {
     name: "שלפוחית השתן", icon: "💧",
+    media: [
+      { title: "מבנה שלפוחית השתן", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Urinary_bladder.svg/800px-Urinary_bladder.svg.png", description: "שרירי הגלאי ופתחי השופכים." },
+      { title: "מערכת השתן (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=AEkXl9UKRNo", description: "כליות → שופכנים → שלפוחית → שופכה." },
+    ],
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Urinary_bladder.svg/800px-Urinary_bladder.svg.png",
     summary: "שלפוחית השתן מאחסנת שתן שמגיע מהכליות עד לרגע ההשתנה. היא יכולה להכיל 400-600 מ\"ל.",
     facts: [
@@ -457,6 +489,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   bone: {
     name: "העצמות", icon: "🦴",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Illu_long_bone.jpg/800px-Illu_long_bone.jpg",
+    media: [
+      { title: "מבנה עצם ארוכה", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Illu_long_bone.jpg/800px-Illu_long_bone.jpg", description: "קורטקס, מח עצם, אפיפיזה ודיאפיזה." },
+      { title: "מבנה ותפקוד העצמות (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=t-DKoFVJjW0", description: "כיצד עצמות גדלות ומתחדשות." },
+    ],
     summary: "העצמות מספקות תמיכה מבנית, מגנות על איברים פנימיים ומייצרות תאי דם במח העצם.",
     facts: [
       "בגוף המבוגר יש 206 עצמות",
@@ -480,6 +516,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   skull: {
     name: "הגולגולת", icon: "💀",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Cranial_bones_en.svg/800px-Cranial_bones_en.svg.png",
+    media: [
+      { title: "עצמות הגולגולת", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Cranial_bones_en.svg/800px-Cranial_bones_en.svg.png", description: "8 עצמות גולגולת ו-14 עצמות פנים." },
+      { title: "אנטומיה של הגולגולת (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=bRF3ARhq1sI", description: "סיור בעצמות הגולגולת והפנים." },
+    ],
     summary: "הגולגולת מורכבת מ-22 עצמות ומגנה על המוח, העיניים ומערכת השמיעה.",
     facts: [
       "מורכבת מ-8 עצמות גולגולת ו-14 עצמות פנים",
@@ -503,6 +543,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   muscle: {
     name: "השרירים", icon: "💪",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Skeletal_muscles_homo_sapiens.JPG/800px-Skeletal_muscles_homo_sapiens.JPG",
+    media: [
+      { title: "מפת שרירי הגוף", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Skeletal_muscles_homo_sapiens.JPG/800px-Skeletal_muscles_homo_sapiens.JPG", description: "שרירים קדמיים ואחוריים של גוף אדם." },
+      { title: "כיצד שרירים מתכווצים (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=GRGFi4_bAco", description: "מנגנון המיוזין-אקטין ברמת הסרקומר." },
+    ],
     summary: "בגוף יש מעל 600 שרירים המאפשרים תנועה, יציבה, נשימה ופעולות חיוניות נוספות.",
     facts: [
       "השריר הגדול ביותר: הגלוטאוס מקסימוס (ישבן)",
@@ -526,6 +570,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   aorta: {
     name: "אבי העורקים", icon: "🔴",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Aorta_scheme_noTags.svg/800px-Aorta_scheme_noTags.svg.png",
+    media: [
+      { title: "תרשים האאורטה", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Aorta_scheme_noTags.svg/800px-Aorta_scheme_noTags.svg.png", description: "האאורטה העולה, הקשת והיורדת." },
+      { title: "זרימת הדם מהלב (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=M4tMQgToQsA", description: "כיצד הדם עובר מהחדר השמאלי לאאורטה." },
+    ],
     summary: "אבי העורקים (אאורטה) הוא העורק הגדול ביותר בגוף. הוא מוביל דם עשיר בחמצן מהלב לכל חלקי הגוף.",
     facts: [
       "קוטרו כ-2.5 ס\"מ",
@@ -549,6 +597,10 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
   diaphragm: {
     name: "הסרעפת", icon: "🌬️",
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Diaphragm_simple.svg/800px-Diaphragm_simple.svg.png",
+    media: [
+      { title: "מיקום הסרעפת", type: "image", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Diaphragm_simple.svg/800px-Diaphragm_simple.svg.png", description: "הסרעפת מפרידה בין חלל החזה לחלל הבטן." },
+      { title: "מנגנון הנשימה (וידאו)", type: "video", url: "https://www.youtube.com/watch?v=hp-gCvW8PRY", description: "כיצד הסרעפת יוצרת תנועת אוויר בריאות." },
+    ],
     summary: "הסרעפת היא שריר כיפתי שמפריד בין חלל החזה לבטן. זהו השריר הראשי האחראי על הנשימה.",
     facts: [
       "כשהיא מתכווצת — אנו שואפים אוויר",
@@ -570,6 +622,52 @@ const ORGAN_DETAILS: Record<string, Omit<OrganDetail, "meshName">> = {
     cameraPos: [0, -0.3, 2.5], lookAt: [0, -0.3, 0],
   },
 };
+
+// ── URL-based organ hint (maps local Sketchfab model paths → organ key) ──────
+const MODEL_URL_ORGAN_HINTS: Record<string, string> = {
+  "realistic-human-heart": "heart",
+  "human-anatomy-heart-in-thorax": "heart",
+  "realistic-human-stomach": "stomach",
+  "human-anatomy-male-torso": "muscle",
+  "front-body-anatomy": "muscle",
+  "bodybuilder-anatomy-extreme": "muscle",
+  "female-body-muscular-system": "muscle",
+  "male-body-muscular-system": "muscle",
+  "female-human-skeleton": "bone",
+  "male-human-skeleton": "bone",
+  "human-femur": "bone",
+  "human-humerus": "bone",
+  "human-tibia": "bone",
+  "human-ulna": "bone",
+  "human-radius": "bone",
+  "vhf-skull": "skull",
+  "visible-interactive-human-exploding-skull": "skull",
+  "full-ct-head-point-cloud": "skull",
+  "hand-anatomy": "bone",
+  "human-anatomy-faf0f3": "muscle",
+};
+
+function getOrganHintFromUrl(url: string): OrganDetail | null {
+  if (!url) return null;
+  const lower = url.toLowerCase();
+  for (const [fragment, key] of Object.entries(MODEL_URL_ORGAN_HINTS)) {
+    if (lower.includes(fragment)) {
+      const detail = ORGAN_DETAILS[key];
+      if (!detail) continue;
+      return {
+        ...detail,
+        meshName: key,
+        nameI18n: ORGAN_NAME_I18N[key],
+        systemI18n: ORGAN_SYSTEM_I18N[key],
+        latinName: ORGAN_LATIN_NAME[key],
+        detectedElementType: "organ",
+        detectedBy: "url-hint",
+        detectionScore: 50,
+      };
+    }
+  }
+  return null;
+}
 
 function getOrganDetail(meshName: string): OrganDetail | null {
   const match = detectOrganMatch(meshName);
@@ -667,5 +765,6 @@ export {
   getLatinOrganName,
   getElementTypeLabel,
   getFallbackDetail,
+  getOrganHintFromUrl,
   ORGAN_DETAILS,
 };

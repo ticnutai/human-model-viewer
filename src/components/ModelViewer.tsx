@@ -4,7 +4,7 @@ import { Suspense, useRef, useCallback, useState, useEffect, useMemo, Component 
 import type { ReactNode, ErrorInfo } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
-import { getBestOrganDetail, getFallbackDetail, ORGAN_DETAILS, getLocalizedOrganName, getLocalizedOrganSystem } from "./OrganData";
+import { getBestOrganDetail, getFallbackDetail, getOrganHintFromUrl, ORGAN_DETAILS, getLocalizedOrganName, getLocalizedOrganSystem } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
 import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager";
@@ -91,13 +91,16 @@ function Model({ url, onSelect, selectedMesh, accent }: { url: string; onSelect:
     let node: THREE.Object3D | null = mesh;
     while (node) { if (node.name) candidates.push(node.name); node = node.parent; }
     const detail = getBestOrganDetail(candidates);
-    if (detail) { onSelect({ ...detail, meshName: mesh.name || detail.meshName }); }
-    else {
-      onSelect(getFallbackDetail(mesh.name || "unknown-mesh",
-        lang === "en" ? "Internal Organs System" : "מערכת האיברים הפנימיים",
-        lang === "en" ? "This model displays the human internal organs system." : "המודל מציג את מערכת האיברים הפנימיים של גוף האדם.",
-        "🫀"));
-    }
+    if (detail) { onSelect({ ...detail, meshName: mesh.name || detail.meshName }); return; }
+
+    // Try URL-based hint (covers models from Sketchfab with generic mesh names)
+    const urlHint = getOrganHintFromUrl(url);
+    if (urlHint) { onSelect({ ...urlHint, meshName: mesh.name || urlHint.meshName }); return; }
+
+    onSelect(getFallbackDetail(mesh.name || "unknown-mesh",
+      lang === "en" ? "Internal Organs System" : "מערכת האיברים הפנימיים",
+      lang === "en" ? "This model displays the human internal organs system." : "המודל מציג את מערכת האיברים הפנימיים של גוף האדם.",
+      "🫀"));
   };
 
   return (

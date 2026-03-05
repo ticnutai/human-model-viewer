@@ -4,6 +4,20 @@ import type { OrganDetail } from "./OrganData";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getElementTypeLabel, getLocalizedOrganName, getLocalizedOrganSystem, getLatinOrganName } from "./OrganData";
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function getYouTubeEmbedUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    let id = u.searchParams.get("v");
+    if (!id && u.hostname === "youtu.be") id = u.pathname.replace("/", "");
+    if (!id) {
+      const m = u.pathname.match(/\/embed\/([^/?]+)/);
+      if (m) id = m[1];
+    }
+    return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1` : null;
+  } catch { return null; }
+}
+
 type Theme = {
   textPrimary: string;
   textSecondary: string;
@@ -17,6 +31,130 @@ type Theme = {
 
 type AgeMode = "adult" | "kids";
 type TabKey = "overview" | "facts" | "media" | "stats";
+
+// ── Inline media player ────────────────────────────────────────────────────────
+function MediaPlayer({ item, accent, animationsEnabled, index }: {
+  item: { title: string; type: "image" | "video"; url: string; description?: string };
+  accent: string; animationsEnabled: boolean; index: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const embedUrl = item.type === "video" ? getYouTubeEmbedUrl(item.url) : null;
+  const isYouTube = !!embedUrl;
+
+  return (
+    <motion.div
+      initial={animationsEnabled ? { opacity: 0, y: 10 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.07, duration: 0.3 }}
+      style={{
+        borderRadius: "12px", overflow: "hidden",
+        border: "1px solid #e2e6ec", background: "#fff",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+      }}
+    >
+      {/* ── Preview/Player ── */}
+      {item.type === "image" ? (
+        <div style={{ background: "#f4f6f9", maxHeight: "200px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <img
+            src={item.url}
+            alt={item.title}
+            style={{ maxWidth: "100%", maxHeight: "200px", objectFit: "contain", padding: "8px" }}
+          />
+        </div>
+      ) : isYouTube ? (
+        <div style={{ position: "relative", paddingBottom: expanded ? "56.25%" : "0", height: expanded ? "0" : "auto" }}>
+          {expanded ? (
+            <iframe
+              src={embedUrl!}
+              title={item.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              style={{
+                position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
+                border: "none",
+              }}
+            />
+          ) : (
+            /* YouTube thumbnail placeholder */
+            <button
+              onClick={() => setExpanded(true)}
+              style={{
+                width: "100%", height: "160px", background: "#0f0f0f",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                border: "none", cursor: "pointer", position: "relative", overflow: "hidden",
+              }}
+            >
+              <div style={{
+                width: "60px", height: "60px", borderRadius: "50%",
+                background: "rgba(255,0,0,0.9)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "24px", color: "#fff", boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+              }}>
+                ▶
+              </div>
+              <div style={{
+                position: "absolute", bottom: "10px", left: "10px", right: "10px",
+                fontSize: "0.75rem", color: "#ddd", textAlign: "center",
+                background: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: "6px",
+              }}>
+                {item.title}
+              </div>
+            </button>
+          )}
+        </div>
+      ) : (
+        /* Non-YouTube video link */
+        <a href={item.url} target="_blank" rel="noreferrer" style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          height: "100px", background: "#f4f6f9", textDecoration: "none",
+          fontSize: "2rem",
+        }}>
+          🎥
+        </a>
+      )}
+
+      {/* ── Caption ── */}
+      <div style={{ padding: "10px 14px", borderTop: "1px solid #f0f2f5", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+        <span style={{
+          minWidth: "28px", height: "28px", borderRadius: "8px", flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: `${accent}12`, fontSize: "13px",
+        }}>
+          {item.type === "video" ? "🎥" : "🖼️"}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: "0.83rem", fontWeight: 700, color: "#1a2332", lineHeight: 1.4 }}>
+            {item.title}
+          </div>
+          {item.description && (
+            <div style={{ fontSize: "0.74rem", color: "#8a95a5", marginTop: "2px", lineHeight: 1.5 }}>
+              {item.description}
+            </div>
+          )}
+          {!isYouTube && item.type === "video" && (
+            <a href={item.url} target="_blank" rel="noreferrer" style={{
+              display: "inline-block", marginTop: "4px", fontSize: "0.7rem",
+              color: accent, fontWeight: 700, textDecoration: "none",
+            }}>
+              פתח ↗
+            </a>
+          )}
+          {isYouTube && expanded && (
+            <button
+              onClick={() => setExpanded(false)}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: "0.7rem", color: "#999", marginTop: "4px", padding: 0,
+              }}
+            >
+              ▲ כווץ
+            </button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function OrganDialog({
   organ,
@@ -502,56 +640,15 @@ export default function OrganDialog({
 
                     {/* ── Media ── */}
                     {activeTab === "media" && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {mediaItems.length > 0 ? mediaItems.map((item, i) => (
-                          <motion.a
+                          <MediaPlayer
                             key={`${item.url}-${i}`}
-                            href={item.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            initial={animationsEnabled ? { opacity: 0, x: 16 } : false}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.05, duration: 0.3 }}
-                            style={{
-                              display: "flex", alignItems: "flex-start", gap: "10px",
-                              padding: "12px 14px", borderRadius: "10px",
-                              background: "#fff", border: "1px solid #eaecf0",
-                              textDecoration: "none", cursor: "pointer",
-                              transition: "border-color 0.2s",
-                            }}
-                            onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.borderColor = `${accent}50`; }}
-                            onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#eaecf0"; }}
-                          >
-                            <span style={{
-                              minWidth: "30px", height: "30px", borderRadius: "8px",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              background: `${accent}12`, color: accent, fontSize: "14px",
-                            }}>
-                              {item.type === "video" ? "🎥" : "🖼️"}
-                            </span>
-                            <span style={{ flex: 1 }}>
-                              <span style={{
-                                display: "block", fontSize: "0.85rem", color: "#1a2332",
-                                lineHeight: 1.5, fontWeight: 600,
-                              }}>
-                                {item.title}
-                              </span>
-                              {item.description && (
-                                <span style={{
-                                  display: "block", marginTop: "3px", fontSize: "0.78rem",
-                                  color: "#8a95a5", lineHeight: 1.5,
-                                }}>
-                                  {item.description}
-                                </span>
-                              )}
-                              <span style={{
-                                display: "block", marginTop: "4px", fontSize: "0.7rem",
-                                color: accent, fontWeight: 700,
-                              }}>
-                                {lang === "en" ? "Open ↗" : "פתח ↗"}
-                              </span>
-                            </span>
-                          </motion.a>
+                            item={item}
+                            accent={accent}
+                            animationsEnabled={animationsEnabled}
+                            index={i}
+                          />
                         )) : (
                           <p style={{ color: "#8a95a5", fontSize: "0.85rem", textAlign: "center", padding: "24px 0" }}>
                             {lang === "en" ? "No media available" : "אין מדיה זמינה"}
