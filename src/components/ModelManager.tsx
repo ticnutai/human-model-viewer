@@ -172,15 +172,18 @@ export default function ModelManager({
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineEditValue, setInlineEditValue] = useState("");
 
-  // Upload state
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadFileName, setUploadFileName] = useState("");
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploadPaused, setUploadPaused] = useState(false);
+  // Multi-upload state
+  type UploadItem = {
+    id: string;
+    file: File;
+    fileName: string;
+    progress: number;
+    status: "uploading" | "analyzing" | "done" | "error";
+    error?: string;
+  };
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
   const abortRef = useRef(false);
-  const pausedRef = useRef(false);
-  const resumeDataRef = useRef<{ file: File; fileName: string; offset: number } | null>(null);
+
   const [hoveredModel, setHoveredModel] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("all");
   const [sketchfabQuery, setSketchfabQuery] = useState("human organ anatomy");
@@ -189,6 +192,7 @@ export default function ModelManager({
   const [sketchfabError, setSketchfabError] = useState<string | null>(null);
   const [previewUid, setPreviewUid] = useState<string | null>(null);
   const [importingUid, setImportingUid] = useState<string | null>(null);
+  const [reanalyzingId, setReanalyzingId] = useState<string | null>(null);
 
   const startEditing = (model: ModelRecord) => {
     setEditingModel(model.id);
@@ -315,62 +319,14 @@ export default function ModelManager({
       if (!fileRes.ok) throw new Error(`GLB download failed ${fileRes.status}`);
       const glbBlob = await fileRes.blob();
 
-      // ── 3. Wrap as File so uploadWithProgress can track it ────────────
-      const fileName = `${Date.now()}_sketchfab_${model.uid}.glb`;
-      const glbFile = new File([glbBlob], fileName, { type: "model/gltf-binary" });
+      // ── 3. Use shared upload pipeline ────────────
+      const glbFile = new File([glbBlob], `sketchfab_${model.uid}.glb`, { type: "model/gltf-binary" });
 
-      // ── 4. Use the shared upload pipeline (progress bar + resume) ─────
-      abortRef.current = false;
-      pausedRef.current = false;
-      setUploading(true);
-      setUploadProgress(0);
-      setUploadError(null);
-      setUploadFileName(`📥 מייבא: ${model.name}`);
-      resumeDataRef.current = null;
-
-      const success = await uploadWithProgress(glbFile, fileName);
-
-      if (success) {
-        const importedUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
-        const thumbUrl = pickBestThumb(model) || null;
-
-        // ── 5. Mesh analysis (same as local upload) ──────────────────────
-        setUploadFileName(`${model.name} — מנתח חלקי Mesh...`);
-        const meshNames = await analyzeGlbMeshes(glbFile);
-        const translatedMeshes = meshNames.map(translateMeshName);
-
-        // ── 6. Save to DB with mesh_parts + thumbnail ────────────────────
-        const { error: insertError } = await supabase.from("models").insert({
-          file_name: fileName,
-          display_name: model.name,
-          category_id: activeCategory || categories[0]?.id || null,
-          file_size: glbBlob.size,
-          file_url: importedUrl,
-          thumbnail_url: thumbUrl,
-          mesh_parts: translatedMeshes,
-          media_type: "glb",
-        });
-        if (insertError) throw insertError;
-
-        onSelectModel(importedUrl);
-        await load();
-        setTimeout(() => {
-          setUploading(false);
-          setUploadProgress(0);
-          setUploadFileName("");
-        }, 1200);
-      } else {
-        // Upload errored/paused — keep the progress bar visible only if resume data was saved
-        if (!resumeDataRef.current) {
-          setUploading(false);
-        }
-      }
+      // Reuse the single-file upload which handles progress + mesh analysis
+      await uploadSingleFile(glbFile);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setSketchfabError(`ייבוא נכשל עבור ${model.name}: ${msg}`);
-      setUploading(false);
-      setUploadProgress(0);
-      setUploadFileName("");
     } finally {
       setImportingUid(null);
     }
@@ -481,102 +437,55 @@ export default function ModelManager({
     loadLocalManifestModels();
   }, [load, loadLocalManifestModels]);
 
-  const uploadWithProgress = async (file: File, fileName: string, startOffset = 0) => {
-    const totalSize = file.size;
+  const updateUploadItem = (id: string, patch: Partial<UploadItem>) => {
+    setUploads(prev => prev.map(u => u.id === id ? { ...u, ...patch } : u));
+  };
 
-    if (startOffset === 0) {
-      // Fresh upload using XMLHttpRequest for progress tracking
-      return new Promise<boolean>((resolve) => {
+  const uploadSingleFile = async (file: File) => {
+    const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const fileName = `${Date.now()}_${file.name}`;
+    const item: UploadItem = { id: uploadId, file, fileName, progress: 0, status: "uploading" };
+    setUploads(prev => [...prev, item]);
+
+    try {
+      // Upload with XHR for progress
+      const success = await new Promise<boolean>((resolve) => {
         const xhr = new XMLHttpRequest();
         const url = `${SUPABASE_URL}/storage/v1/object/models/${fileName}`;
 
         xhr.upload.addEventListener("progress", (e) => {
           if (e.lengthComputable) {
             const pct = Math.round((e.loaded / e.total) * 100);
-            setUploadProgress(pct);
+            updateUploadItem(uploadId, { progress: pct });
           }
         });
 
         xhr.addEventListener("load", () => {
           if (xhr.status >= 200 && xhr.status < 300) {
-            setUploadProgress(100);
+            updateUploadItem(uploadId, { progress: 100 });
             resolve(true);
           } else {
-            // Save resume data
-            resumeDataRef.current = { file, fileName, offset: 0 };
-            setUploadError("שגיאה בהעלאה — ניתן לנסות שוב");
+            updateUploadItem(uploadId, { status: "error", error: `שגיאה ${xhr.status}` });
             resolve(false);
           }
         });
 
         xhr.addEventListener("error", () => {
-          resumeDataRef.current = { file, fileName, offset: 0 };
-          setUploadError("החיבור נותק — לחץ להמשך");
-          resolve(false);
-        });
-
-        xhr.addEventListener("abort", () => {
-          resumeDataRef.current = { file, fileName, offset: 0 };
+          updateUploadItem(uploadId, { status: "error", error: "החיבור נותק" });
           resolve(false);
         });
 
         xhr.open("POST", url);
-        xhr.setRequestHeader("Authorization", `Bearer ${(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)}`);
+        xhr.setRequestHeader("Authorization", `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`);
         xhr.setRequestHeader("apikey", import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
         xhr.setRequestHeader("x-upsert", "true");
         xhr.send(file);
       });
-    }
 
-    // Chunked resume (fallback simulation)
-    let uploaded = startOffset;
-    while (uploaded < totalSize) {
-      if (abortRef.current) return false;
-      if (pausedRef.current) {
-        resumeDataRef.current = { file, fileName, offset: uploaded };
-        return false;
-      }
+      if (!success) return;
 
-      const end = Math.min(uploaded + CHUNK_SIZE, totalSize);
-      const chunk = file.slice(uploaded, end);
-      const isLast = end >= totalSize;
-
-      const { error } = await supabase.storage.from("models").upload(
-        fileName, chunk, { upsert: true }
-      );
-
-      if (error) {
-        resumeDataRef.current = { file, fileName, offset: uploaded };
-        setUploadError(`שגיאה ב-${Math.round((uploaded / totalSize) * 100)}% — לחץ להמשך`);
-        return false;
-      }
-
-      uploaded = end;
-      setUploadProgress(Math.round((uploaded / totalSize) * 100));
-    }
-    return true;
-  };
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.name.endsWith(".glb")) return;
-
-    abortRef.current = false;
-    pausedRef.current = false;
-    setUploading(true);
-    setUploadProgress(0);
-    setUploadError(null);
-    setUploadPaused(false);
-    setUploadFileName(file.name);
-    resumeDataRef.current = null;
-
-    const fileName = `${Date.now()}_${file.name}`;
-    const success = await uploadWithProgress(file, fileName);
-
-    if (success) {
-      const url = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
-      // Analyze meshes from the original file
-      setUploadFileName(`${file.name} — מנתח חלקי Mesh...`);
+      // Analyze meshes
+      updateUploadItem(uploadId, { status: "analyzing" });
       const meshNames = await analyzeGlbMeshes(file);
       const translatedMeshes = meshNames.map(translateMeshName);
 
@@ -585,75 +494,55 @@ export default function ModelManager({
         : ["png","jpg","jpeg","webp","gif"].includes(ext) ? "image"
         : ["mp4","webm","mov"].includes(ext) ? "video"
         : "glb";
+
+      const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
       await supabase.from("models").insert({
         file_name: fileName,
         display_name: file.name.replace(/\.[^.]+$/, ""),
         category_id: activeCategory || categories[0]?.id || null,
         file_size: file.size,
-        file_url: url,
+        file_url: fileUrl,
         mesh_parts: translatedMeshes,
         media_type: detectedType,
       });
-      onSelectModel(url);
+
+      updateUploadItem(uploadId, { status: "done" });
       await load();
+
+      // Remove from list after delay
       setTimeout(() => {
-        setUploading(false);
-        setUploadProgress(0);
-        setUploadFileName("");
-      }, 1200);
-    } else if (!pausedRef.current) {
-      // Keep upload UI visible for retry
+        setUploads(prev => prev.filter(u => u.id !== uploadId));
+      }, 3000);
+    } catch (err) {
+      updateUploadItem(uploadId, { status: "error", error: err instanceof Error ? err.message : "שגיאה" });
     }
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Upload all files in parallel
+    const validFiles = Array.from(files).filter(f => /\.(glb|png|jpg|jpeg|webp|gif|mp4|webm|mov)$/i.test(f.name));
+    validFiles.forEach(f => void uploadSingleFile(f));
+
     e.target.value = "";
   };
 
-  const handleResume = async () => {
-    const data = resumeDataRef.current;
-    if (!data) return;
-    pausedRef.current = false;
-    abortRef.current = false;
-    setUploadError(null);
-    setUploadPaused(false);
-
-    const success = await uploadWithProgress(data.file, data.fileName, data.offset);
-    if (success) {
-      const url = `${SUPABASE_URL}/storage/v1/object/public/models/${data.fileName}`;
-      setUploadFileName(`${data.file.name} — מנתח חלקי Mesh...`);
-      const meshNames = await analyzeGlbMeshes(data.file);
+  const handleReanalyze = async (model: ModelRecord) => {
+    if (!model.file_url) return;
+    setReanalyzingId(model.id);
+    try {
+      const meshNames = await analyzeGlbMeshes(model.file_url);
       const translatedMeshes = meshNames.map(translateMeshName);
-
-      const ext2 = data.file.name.split(".").pop()?.toLowerCase() || "";
-      const detectedType2 = ["glb"].includes(ext2) ? "glb"
-        : ["png","jpg","jpeg","webp","gif"].includes(ext2) ? "image"
-        : ["mp4","webm","mov"].includes(ext2) ? "video"
-        : "glb";
-      await supabase.from("models").insert({
-        file_name: data.fileName,
-        display_name: data.file.name.replace(/\.[^.]+$/, ""),
-        category_id: activeCategory || categories[0]?.id || null,
-        file_size: data.file.size,
-        file_url: url,
-        mesh_parts: translatedMeshes,
-        media_type: detectedType2,
-      });
-      onSelectModel(url);
+      await supabase.from("models").update({ mesh_parts: translatedMeshes }).eq("id", model.id);
       await load();
-      setTimeout(() => {
-        setUploading(false);
-        setUploadProgress(0);
-        setUploadFileName("");
-        resumeDataRef.current = null;
-      }, 1200);
-    }
+    } catch { /* ignore */ }
+    setReanalyzingId(null);
   };
 
-  const handleCancelUpload = () => {
-    abortRef.current = true;
-    setUploading(false);
-    setUploadProgress(0);
-    setUploadError(null);
-    setUploadFileName("");
-    resumeDataRef.current = null;
+  const handleCancelUpload = (uploadId: string) => {
+    setUploads(prev => prev.filter(u => u.id !== uploadId));
   };
 
   const handleDelete = async (model: ModelRecord) => {
@@ -1123,89 +1012,57 @@ export default function ModelManager({
         )}
       </div>
 
-      {/* Upload area with progress */}
-      {!uploading ? (
-        <label style={{
-          display: "flex", alignItems: "center", justifyContent: "center",
-          gap: "8px", padding: "14px",
-          border: `2px dashed ${t.accent}60`, borderRadius: "14px",
-          background: `${t.accent}06`, cursor: "pointer",
-          fontSize: "13px", fontWeight: 600, color: t.accent,
-          transition: "all 0.2s",
-          marginTop: "10px",
-        }}>
-          <input type="file" accept=".glb,.png,.jpg,.jpeg,.mp4,.webm" onChange={handleUpload} style={{ display: "none" }} />
-          <span style={{ fontSize: "20px" }}>⬆️</span>
-          העלאת קובץ (GLB / תמונה / וידאו)
-        </label>
-      ) : (
-        <div style={{
-          padding: "14px", borderRadius: "14px",
-          border: `1.5px solid ${uploadError ? t.accentAlt : t.accent}`,
-          background: `${uploadError ? t.accentAlt : t.accent}06`,
-        }}>
-          {/* File name */}
-          <div style={{
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            marginBottom: "10px",
-          }}>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: t.textPrimary }}>
-              📄 {uploadFileName}
-            </span>
-            <span style={{
-              fontSize: "18px", fontWeight: 800,
-              color: uploadError ? t.accentAlt : t.accent,
-            }}>
-              {uploadProgress}%
-            </span>
-          </div>
+      {/* Upload area — always visible */}
+      <label style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        gap: "8px", padding: "14px",
+        border: `2px dashed ${t.accent}60`, borderRadius: "14px",
+        background: `${t.accent}06`, cursor: "pointer",
+        fontSize: "13px", fontWeight: 600, color: t.accent,
+        transition: "all 0.2s",
+        marginTop: "10px",
+      }}>
+        <input type="file" accept=".glb,.png,.jpg,.jpeg,.mp4,.webm" multiple onChange={handleUpload} style={{ display: "none" }} />
+        <span style={{ fontSize: "20px" }}>⬆️</span>
+        העלאת קבצים (ניתן לבחור כמה בו-זמנית)
+      </label>
 
-          {/* Progress bar */}
-          <div style={{
-            height: "8px", borderRadius: "4px",
-            background: t.panelBorder, overflow: "hidden",
-            marginBottom: "10px",
-          }}>
-            <div style={{
-              height: "100%", borderRadius: "4px",
-              background: uploadError ? t.accentAlt : t.accent,
-              width: `${uploadProgress}%`,
-              transition: "width 0.3s ease-out",
-            }} />
-          </div>
-
-          {/* Status / error */}
-          {uploadError ? (
-            <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
-              <button onClick={handleResume} style={{
-                background: t.accent, color: "#fff", border: "none",
-                borderRadius: "8px", padding: "6px 16px", cursor: "pointer",
-                fontSize: "12px", fontWeight: 600,
-              }}>🔄 המשך העלאה</button>
-              <button onClick={handleCancelUpload} style={{
-                background: "transparent", color: t.textSecondary,
-                border: `1px solid ${t.panelBorder}`, borderRadius: "8px",
-                padding: "6px 12px", cursor: "pointer", fontSize: "12px",
-              }}>ביטול</button>
-            </div>
-          ) : uploadProgress === 100 ? (
-            <div style={{ textAlign: "center", fontSize: "13px", color: "#22c55e", fontWeight: 600 }}>
-              ✅ הועלה בהצלחה!
-            </div>
-          ) : (
-            <div style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
+      {/* Active uploads */}
+      {uploads.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }}>
+          {uploads.map(u => (
+            <div key={u.id} style={{
+              padding: "10px 12px", borderRadius: "12px",
+              border: `1.5px solid ${u.status === "error" ? t.accentAlt : u.status === "done" ? "#22c55e" : t.accent}`,
+              background: `${u.status === "error" ? t.accentAlt : u.status === "done" ? "#22c55e" : t.accent}08`,
             }}>
-              <span style={{ fontSize: "11px", color: t.textSecondary }}>
-                מעלה...
-              </span>
-              <button onClick={handleCancelUpload} style={{
-                background: "transparent", color: t.textSecondary,
-                border: `1px solid ${t.panelBorder}`, borderRadius: "6px",
-                padding: "3px 10px", cursor: "pointer", fontSize: "11px",
-              }}>ביטול</button>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 600, color: t.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                  {u.status === "analyzing" ? `🔬 מנתח Mesh: ${u.file.name}` : `📄 ${u.file.name}`}
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                  <span style={{ fontSize: "14px", fontWeight: 800, color: u.status === "error" ? t.accentAlt : u.status === "done" ? "#22c55e" : t.accent }}>
+                    {u.status === "done" ? "✅" : u.status === "error" ? "❌" : u.status === "analyzing" ? "🔬" : `${u.progress}%`}
+                  </span>
+                  {u.status !== "done" && (
+                    <button onClick={() => handleCancelUpload(u.id)} style={{
+                      background: "transparent", color: t.textSecondary,
+                      border: `1px solid ${t.panelBorder}`, borderRadius: "6px",
+                      padding: "2px 8px", cursor: "pointer", fontSize: "10px",
+                    }}>✕</button>
+                  )}
+                </div>
+              </div>
+              {u.status === "uploading" && (
+                <div style={{ height: "6px", borderRadius: "3px", background: t.panelBorder, overflow: "hidden" }}>
+                  <div style={{ height: "100%", borderRadius: "3px", background: t.accent, width: `${u.progress}%`, transition: "width 0.3s ease-out" }} />
+                </div>
+              )}
+              {u.status === "error" && u.error && (
+                <div style={{ fontSize: "10px", color: t.accentAlt, marginTop: "4px" }}>{u.error}</div>
+              )}
             </div>
-          )}
+          ))}
         </div>
       )}
 
@@ -1379,33 +1236,29 @@ export default function ModelManager({
                   {model.source === "cloud" && rec ? (
                     <>
                       <button
+                        onClick={() => { setInlineEditId(model.id); setInlineEditValue(hebrewName); }}
+                        title="ערוך שם"
+                        style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "14px", padding: "3px 5px", color: t.textSecondary, borderRadius: "6px" }}
+                      >✏️</button>
+                      <button
                         onClick={() => setExpandedModel(isExpanded ? null : model.id)}
                         title="פרטים"
-                        style={{
-                          background: isExpanded ? `${t.accent}18` : "transparent", border: "none",
-                          cursor: "pointer", fontSize: "15px", padding: "4px 6px",
-                          color: isExpanded ? t.accent : t.textSecondary, borderRadius: "6px",
-                        }}
+                        style={{ background: isExpanded ? `${t.accent}18` : "transparent", border: "none", cursor: "pointer", fontSize: "14px", padding: "3px 5px", color: isExpanded ? t.accent : t.textSecondary, borderRadius: "6px" }}
                       >📋</button>
+                      <button
+                        onClick={() => void handleReanalyze(rec)}
+                        title="ניתוח Mesh מחדש"
+                        disabled={reanalyzingId === rec.id}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "14px", padding: "3px 5px", color: reanalyzingId === rec.id ? t.accent : t.textSecondary, borderRadius: "6px", opacity: reanalyzingId === rec.id ? 0.5 : 1 }}
+                      >{reanalyzingId === rec.id ? "⏳" : "🔬"}</button>
                       {confirmDelete === model.id ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <button onClick={() => handleDelete(rec)} style={{
-                            background: t.accentAlt, color: "#fff", border: "none",
-                            borderRadius: "6px", padding: "3px 8px", cursor: "pointer",
-                            fontSize: "9px", fontWeight: 600,
-                          }}>מחק</button>
-                          <button onClick={() => setConfirmDelete(null)} style={{
-                            background: "transparent", color: t.textSecondary,
-                            border: `1px solid ${t.panelBorder}`, borderRadius: "6px",
-                            padding: "3px 6px", cursor: "pointer", fontSize: "9px",
-                          }}>בטל</button>
+                          <button onClick={() => handleDelete(rec)} style={{ background: t.accentAlt, color: "#fff", border: "none", borderRadius: "6px", padding: "3px 8px", cursor: "pointer", fontSize: "9px", fontWeight: 600 }}>מחק</button>
+                          <button onClick={() => setConfirmDelete(null)} style={{ background: "transparent", color: t.textSecondary, border: `1px solid ${t.panelBorder}`, borderRadius: "6px", padding: "3px 6px", cursor: "pointer", fontSize: "9px" }}>בטל</button>
                         </div>
                       ) : (
                         <button onClick={() => setConfirmDelete(model.id)} title="מחק"
-                          style={{
-                            background: "transparent", border: "none", cursor: "pointer",
-                            fontSize: "15px", padding: "4px 6px", color: t.textSecondary, borderRadius: "6px",
-                          }}>🗑️</button>
+                          style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "14px", padding: "3px 5px", color: "#ef4444", borderRadius: "6px" }}>🗑️</button>
                       )}
                     </>
                   ) : (
