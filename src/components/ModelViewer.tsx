@@ -257,13 +257,13 @@ const ModelViewer = () => {
   const [renderKey, setRenderKey] = useState(0);
   const [modelUrl, setModelUrl] = useState(DEFAULT_MODEL);
   const [modelKey, setModelKey] = useState(0);
-  const [showPanel, setShowPanel] = useState(false);
+  
   const [selectedOrgan, setSelectedOrgan] = useState<OrganDetail | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDevPanel, setShowDevPanel] = useState(false);
   const [themeIdx, setThemeIdx] = useState(0);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [showAtlas, setShowAtlas] = useState(false);
+  
   const [useInteractive, setUseInteractive] = useState(true);
   const [atlasQuery, setAtlasQuery] = useState("");
   const [selectedSystem, setSelectedSystem] = useState("all");
@@ -273,6 +273,10 @@ const ModelViewer = () => {
   const [apiTokenSaved, setApiTokenSaved] = useState(false);
   const [modelLoadWarning, setModelLoadWarning] = useState<string | null>(null);
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerType>>(new Set(["skeleton", "muscles", "organs", "vessels"]));
+  const [showViewPopup, setShowViewPopup] = useState(false);
+  const [showHintTooltip, setShowHintTooltip] = useState(false);
+  const [showOrganSidebar, setShowOrganSidebar] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "info">("organs");
   const t = THEMES[themeIdx];
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
   const lessonSequence = useMemo(() => Object.keys(ORGAN_DETAILS), []);
@@ -454,176 +458,243 @@ const ModelViewer = () => {
         </button>
       </div>
 
-      {/* Camera view buttons - right side */}
+      {/* Camera view popup - right side */}
       <div style={{
         position: "absolute", top: "50%", right: "16px", transform: "translateY(-50%)",
-        zIndex: 10, display: "flex", flexDirection: "column", gap: "8px"
+        zIndex: 10, display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end",
       }}>
-        {views.map((view) => (
-          <button
-            key={view.key}
-            onClick={() => handleViewChange(view.position)}
-            style={{ ...btnStyle, width: "auto", justifyContent: "flex-start" }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.background = t.accentBgHover; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.panelBorder; e.currentTarget.style.background = t.panelBg; }}
-          >
-            <span>{view.icon}</span>
-            <span>{view.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Model Manager panel - top left */}
-      <div style={{
-        position: "absolute", top: "64px", left: "16px", zIndex: 10,
-        display: "flex", flexDirection: "column", gap: "8px", maxWidth: "300px",
-      }}>
-        <button onClick={() => setShowPanel(p => !p)} style={{
-          ...btnStyle, justifyContent: "center",
-          background: showPanel ? t.accentBgHover : t.panelBg,
-          borderColor: showPanel ? t.accent : t.panelBorder,
-        }}>
-          📂 {tr("panel.models")}
-        </button>
-        {showPanel && (
+        <button
+          onClick={() => setShowViewPopup(v => !v)}
+          style={{
+            width: "44px", height: "44px", borderRadius: "50%",
+            background: showViewPopup ? t.accentBgHover : t.panelBg,
+            backdropFilter: "blur(8px)",
+            border: `1px solid ${showViewPopup ? t.accent : t.panelBorder}`,
+            color: t.textPrimary, cursor: "pointer", fontSize: "18px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.2s",
+          }}
+          title={tr("view.front")}
+        >🧭</button>
+        {showViewPopup && (
           <div style={{
             background: t.panelBg, backdropFilter: "blur(12px)",
             border: `1px solid ${t.panelBorder}`, borderRadius: "12px",
-            padding: "12px",
+            padding: "8px", display: "flex", flexDirection: "column", gap: "4px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
           }}>
-            <ModelManager
-              theme={t}
-              onSelectModel={handleSelectModel}
-              currentModelUrl={modelUrl}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Organ Atlas - bottom left */}
-      <div style={{
-        position: "absolute", bottom: "80px", left: "16px", zIndex: 10,
-        display: "flex", flexDirection: "column", gap: "8px",
-        maxWidth: "260px", maxHeight: showAtlas ? "400px" : "auto",
-      }}>
-        <button onClick={() => setShowAtlas(a => !a)} style={{
-          ...btnStyle, justifyContent: "center",
-          background: showAtlas ? t.accentBgHover : t.panelBg,
-          borderColor: showAtlas ? t.accent : t.panelBorder,
-          width: "auto",
-        }}>
-          🫀 {tr("panel.atlas")}
-        </button>
-        {showAtlas && (
-          <div style={{
-            background: t.panelBg, backdropFilter: "blur(12px)",
-            border: `1px solid ${t.panelBorder}`, borderRadius: "14px",
-            padding: "10px", overflowY: "auto", maxHeight: "320px",
-            display: "flex", flexDirection: "column", gap: "4px",
-          }}>
-            <input
-              value={atlasQuery}
-              onChange={(e) => setAtlasQuery(e.target.value)}
-              placeholder={tr("app.searchPlaceholder")}
-              style={{
-                borderRadius: "8px",
-                border: `1px solid ${t.panelBorder}`,
-                padding: "8px 10px",
-                fontSize: "12px",
-                marginBottom: "6px",
-                background: "transparent",
-                color: t.textPrimary,
-                direction: isRTL ? "rtl" : "ltr",
-                textAlign: isRTL ? "right" : "left",
-              }}
-            />
-            <select
-              value={selectedSystem}
-              onChange={(e) => setSelectedSystem(e.target.value)}
-              style={{
-                borderRadius: "8px",
-                border: `1px solid ${t.panelBorder}`,
-                padding: "8px 10px",
-                fontSize: "12px",
-                marginBottom: "6px",
-                background: "transparent",
-                color: t.textPrimary,
-                direction: isRTL ? "rtl" : "ltr",
-                textAlign: isRTL ? "right" : "left",
-              }}
-            >
-              <option value="all">{tr("atlas.allSystems")}</option>
-              {atlasSystems.map((system) => (
-                <option key={system} value={system}>
-                  {system}
-                </option>
-              ))}
-            </select>
-            {selectedOrgan?.meshName && (
-              <div style={{
-                fontSize: "11px",
-                color: t.textSecondary,
-                border: `1px solid ${t.panelBorder}`,
-                borderRadius: "8px",
-                padding: "6px 8px",
-                marginBottom: "6px",
-                direction: isRTL ? "rtl" : "ltr",
-                textAlign: isRTL ? "right" : "left",
-              }}>
-                <strong>{tr("atlas.path")}:</strong>{" "}
-                {getLocalizedOrganSystem(selectedOrgan.meshName, selectedOrgan.system, lang)}
-                {" → "}
-                {getLocalizedOrganName(selectedOrgan.meshName, selectedOrgan.name, lang)}
-              </div>
-            )}
-            {filteredAtlasEntries.length === 0 && (
-              <div style={{ fontSize: "11px", color: t.textSecondary, padding: "4px 2px" }}>
-                {tr("atlas.noResults")}
-              </div>
-            )}
-            {filteredAtlasEntries.map(([key, organ]) => (
+            {views.map((view) => (
               <button
-                key={key}
-                onClick={() => {
-                  setSelectedOrgan({ ...organ, meshName: key });
-                  setShowAtlas(false);
-                  // Zoom camera to organ's anatomical position
-                  if (organ.cameraPos) {
-                    handleViewChange(organ.cameraPos, organ.lookAt);
-                  }
-                }}
-                style={{
-                  background: "transparent", border: `1px solid ${t.panelBorder}`,
-                  borderRadius: "10px", padding: "10px 12px",
-                  color: t.textPrimary, cursor: "pointer",
-                  fontSize: "12px", textAlign: "right",
-                  display: "flex", alignItems: "center", gap: "10px",
-                  transition: "all 0.15s", direction: "rtl",
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = t.accent;
-                  e.currentTarget.style.background = t.accentBgHover;
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = t.panelBorder;
-                  e.currentTarget.style.background = "transparent";
-                }}
+                key={view.key}
+                onClick={() => { handleViewChange(view.position); setShowViewPopup(false); }}
+                style={{ ...btnStyle, width: "auto", justifyContent: "flex-start", padding: "8px 12px" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.background = t.accentBgHover; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.panelBorder; e.currentTarget.style.background = t.panelBg; }}
               >
-                <span style={{ fontSize: "20px" }}>{organ.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: "13px" }}>
-                    {getLocalizedOrganName(key, organ.name, lang)}
-                  </div>
-                  <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "1px" }}>
-                    {getLocalizedOrganSystem(key, organ.system, lang)}
-                  </div>
-                </div>
-                <span style={{ fontSize: "11px", color: t.textSecondary }}>←</span>
+                <span>{view.icon}</span>
+                <span style={{ fontSize: "12px" }}>{view.label}</span>
               </button>
             ))}
           </div>
         )}
       </div>
+
+      {/* Organ sidebar toggle - right side */}
+      <button
+        onClick={() => setShowOrganSidebar(s => !s)}
+        style={{
+          position: "absolute", top: "16px", right: "16px", zIndex: 12,
+          width: "44px", height: "44px", borderRadius: "50%",
+          background: showOrganSidebar ? t.accentBgHover : t.panelBg,
+          backdropFilter: "blur(8px)",
+          border: `1px solid ${showOrganSidebar ? t.accent : t.panelBorder}`,
+          color: t.textPrimary, cursor: "pointer", fontSize: "18px",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "all 0.2s",
+        }}
+        title="אטלס איברים"
+      >🫀</button>
+
+      {/* Organ sidebar */}
+      {showOrganSidebar && (
+        <div style={{
+          position: "absolute", top: 0, right: 0, bottom: 0, width: "320px",
+          zIndex: 15, background: t.panelBg, backdropFilter: "blur(16px)",
+          borderLeft: `1px solid ${t.panelBorder}`,
+          display: "flex", flexDirection: "column",
+          boxShadow: "-4px 0 24px rgba(0,0,0,0.1)",
+          direction: isRTL ? "rtl" : "ltr",
+        }}>
+          {/* Sidebar header */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "16px", borderBottom: `1px solid ${t.panelBorder}`,
+          }}>
+            <span style={{ fontSize: "15px", fontWeight: 700, color: t.textPrimary }}>🫀 {tr("panel.atlas")}</span>
+            <button onClick={() => setShowOrganSidebar(false)} style={{
+              background: "transparent", border: "none", color: t.textSecondary,
+              cursor: "pointer", fontSize: "18px",
+            }}>✕</button>
+          </div>
+
+          {/* Sidebar tabs */}
+          <div style={{
+            display: "flex", borderBottom: `1px solid ${t.panelBorder}`,
+          }}>
+            {([
+              { id: "organs" as const, label: "איברים", icon: "🫀" },
+              { id: "models" as const, label: "קבצים", icon: "📂" },
+              { id: "info" as const, label: "מידע", icon: "ℹ️" },
+            ]).map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setSidebarTab(tab.id)}
+                style={{
+                  flex: 1, padding: "10px 8px",
+                  background: "transparent", border: "none",
+                  borderBottom: `2.5px solid ${sidebarTab === tab.id ? t.accent : "transparent"}`,
+                  color: sidebarTab === tab.id ? t.accent : t.textSecondary,
+                  cursor: "pointer", fontSize: "12px", fontWeight: sidebarTab === tab.id ? 700 : 500,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "4px",
+                }}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sidebar content */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
+            {sidebarTab === "organs" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <input
+                  value={atlasQuery}
+                  onChange={(e) => setAtlasQuery(e.target.value)}
+                  placeholder={tr("app.searchPlaceholder")}
+                  style={{
+                    borderRadius: "8px", border: `1px solid ${t.panelBorder}`,
+                    padding: "8px 10px", fontSize: "12px", marginBottom: "6px",
+                    background: "transparent", color: t.textPrimary,
+                    direction: isRTL ? "rtl" : "ltr", textAlign: isRTL ? "right" : "left",
+                  }}
+                />
+                <select
+                  value={selectedSystem}
+                  onChange={(e) => setSelectedSystem(e.target.value)}
+                  style={{
+                    borderRadius: "8px", border: `1px solid ${t.panelBorder}`,
+                    padding: "8px 10px", fontSize: "12px", marginBottom: "6px",
+                    background: "transparent", color: t.textPrimary,
+                    direction: isRTL ? "rtl" : "ltr", textAlign: isRTL ? "right" : "left",
+                  }}
+                >
+                  <option value="all">{tr("atlas.allSystems")}</option>
+                  {atlasSystems.map((system) => (
+                    <option key={system} value={system}>{system}</option>
+                  ))}
+                </select>
+                {selectedOrgan?.meshName && (
+                  <div style={{
+                    fontSize: "11px", color: t.textSecondary,
+                    border: `1px solid ${t.panelBorder}`, borderRadius: "8px",
+                    padding: "6px 8px", marginBottom: "6px",
+                    direction: isRTL ? "rtl" : "ltr", textAlign: isRTL ? "right" : "left",
+                  }}>
+                    <strong>{tr("atlas.path")}:</strong>{" "}
+                    {getLocalizedOrganSystem(selectedOrgan.meshName, selectedOrgan.system, lang)}
+                    {" → "}
+                    {getLocalizedOrganName(selectedOrgan.meshName, selectedOrgan.name, lang)}
+                  </div>
+                )}
+                {filteredAtlasEntries.length === 0 && (
+                  <div style={{ fontSize: "11px", color: t.textSecondary, padding: "4px 2px" }}>
+                    {tr("atlas.noResults")}
+                  </div>
+                )}
+                {filteredAtlasEntries.map(([key, organ]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setSelectedOrgan({ ...organ, meshName: key });
+                      if (organ.cameraPos) handleViewChange(organ.cameraPos, organ.lookAt);
+                    }}
+                    style={{
+                      background: selectedOrgan?.meshName === key ? t.accentBgHover : "transparent",
+                      border: `1px solid ${selectedOrgan?.meshName === key ? t.accent : t.panelBorder}`,
+                      borderRadius: "10px", padding: "10px 12px",
+                      color: t.textPrimary, cursor: "pointer",
+                      fontSize: "12px", textAlign: "right",
+                      display: "flex", alignItems: "center", gap: "10px",
+                      transition: "all 0.15s", direction: "rtl",
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = t.accent;
+                      e.currentTarget.style.background = t.accentBgHover;
+                    }}
+                    onMouseLeave={e => {
+                      if (selectedOrgan?.meshName !== key) {
+                        e.currentTarget.style.borderColor = t.panelBorder;
+                        e.currentTarget.style.background = "transparent";
+                      }
+                    }}
+                  >
+                    <span style={{ fontSize: "20px" }}>{organ.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: "13px" }}>
+                        {getLocalizedOrganName(key, organ.name, lang)}
+                      </div>
+                      <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "1px" }}>
+                        {getLocalizedOrganSystem(key, organ.system, lang)}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: "11px", color: t.textSecondary }}>←</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {sidebarTab === "models" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <ModelManager
+                  theme={t}
+                  onSelectModel={handleSelectModel}
+                  currentModelUrl={modelUrl}
+                />
+              </div>
+            )}
+
+            {sidebarTab === "info" && (
+              <div style={{ fontSize: "12px", color: t.textSecondary, lineHeight: 1.8, direction: isRTL ? "rtl" : "ltr" }}>
+                {selectedOrgan ? (
+                  <div>
+                    <div style={{ fontSize: "20px", marginBottom: "8px" }}>{selectedOrgan.icon}</div>
+                    <div style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                      {getLocalizedOrganName(selectedOrgan.meshName || "", selectedOrgan.name, lang)}
+                    </div>
+                    <div style={{ fontSize: "12px", color: t.accent, marginBottom: "12px" }}>
+                      {getLocalizedOrganSystem(selectedOrgan.meshName || "", selectedOrgan.system, lang)}
+                    </div>
+                    <div style={{ marginBottom: "12px" }}>{selectedOrgan.summary}</div>
+                    {selectedOrgan.facts && selectedOrgan.facts.length > 0 && (
+                      <div>
+                        <div style={{ fontWeight: 700, color: t.textPrimary, marginBottom: "6px" }}>📌 עובדות</div>
+                        {selectedOrgan.facts.map((fact, i) => (
+                          <div key={i} style={{ padding: "4px 0", borderBottom: `1px solid ${t.panelBorder}` }}>• {fact}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "24px 0", opacity: 0.6 }}>
+                    בחר איבר מהרשימה כדי לראות מידע
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Model Manager moved to sidebar */}
 
       {/* Organ dialog */}
       {selectedOrgan && (
@@ -670,7 +741,7 @@ const ModelViewer = () => {
         </div>
       )}
 
-      {/* Controls hint */}
+      {/* Controls bottom bar */}
       <div style={{
         position: "absolute", bottom: "24px", left: "50%", transform: "translateX(-50%)",
         zIndex: 10, display: "flex", gap: "8px", alignItems: "center",
@@ -706,16 +777,38 @@ const ModelViewer = () => {
         >
           {useInteractive ? tr("control.interactive") : tr("control.glb")}
         </button>
-        <div style={{
-          display: "flex", gap: "16px", fontSize: "12px", color: t.textSecondary,
-          background: t.hintBg, backdropFilter: "blur(8px)",
-          borderRadius: "999px", padding: "10px 20px", border: `1px solid ${t.panelBorder}`,
-          direction: isRTL ? "rtl" : "ltr", pointerEvents: "none",
-        }}>
-          <span>{tr("hint.rotate")}</span>
-          <span>{tr("hint.zoom")}</span>
-          <span>{tr("hint.pan")}</span>
-          <span>{tr("hint.click")}</span>
+
+        {/* Hint icon with tooltip */}
+        <div style={{ position: "relative" }}>
+          <button
+            onClick={() => setShowHintTooltip(h => !h)}
+            style={{
+              width: "38px", height: "38px", borderRadius: "50%",
+              background: t.panelBg, backdropFilter: "blur(8px)",
+              border: `1px solid ${showHintTooltip ? t.accent : t.panelBorder}`,
+              color: t.textSecondary, cursor: "pointer", fontSize: "16px",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "all 0.2s",
+            }}
+            title="עזרה"
+          >❓</button>
+          {showHintTooltip && (
+            <div style={{
+              position: "absolute", bottom: "48px", left: "50%", transform: "translateX(-50%)",
+              background: t.panelBg, backdropFilter: "blur(12px)",
+              border: `1px solid ${t.panelBorder}`, borderRadius: "12px",
+              padding: "12px 16px", whiteSpace: "nowrap",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+              direction: isRTL ? "rtl" : "ltr",
+              display: "flex", flexDirection: "column", gap: "6px",
+              fontSize: "12px", color: t.textSecondary,
+            }}>
+              <span>{tr("hint.rotate")}</span>
+              <span>{tr("hint.zoom")}</span>
+              <span>{tr("hint.pan")}</span>
+              <span>{tr("hint.click")}</span>
+            </div>
+          )}
         </div>
       </div>
 
