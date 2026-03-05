@@ -147,6 +147,7 @@ export type Database = {
           file_url: string | null
           hebrew_name: string | null
           id: string
+          media_type: string
           mesh_parts: Json | null
           notes: string | null
           thumbnail_url: string | null
@@ -160,6 +161,7 @@ export type Database = {
           file_url?: string | null
           hebrew_name?: string | null
           id?: string
+          media_type?: string
           mesh_parts?: Json | null
           notes?: string | null
           thumbnail_url?: string | null
@@ -173,6 +175,7 @@ export type Database = {
           file_url?: string | null
           hebrew_name?: string | null
           id?: string
+          media_type?: string
           mesh_parts?: Json | null
           notes?: string | null
           thumbnail_url?: string | null

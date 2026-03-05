@@ -408,7 +408,8 @@ export default function ModelManager({
       const manifest = await res.json();
       const assets: LocalManifestAsset[] = Array.isArray(manifest?.assets) ? manifest.assets : [];
       const createdAt = typeof manifest?.lastUpdated === "string" ? manifest.lastUpdated : new Date().toISOString();
-      const isLovableHost = typeof window !== "undefined" && /(^|\.)lovableproject\.com$/i.test(window.location.hostname);
+      // Show all local models regardless of host
+      const isLovableHost = false;
 
       const local = assets
         .filter((asset) => {
