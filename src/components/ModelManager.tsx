@@ -1209,7 +1209,7 @@ export default function ModelManager({
       )}
 
       {/* Model list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px", overflowY: "auto", marginTop: "10px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "500px", overflowY: "auto", marginTop: "10px" }}>
         {combinedModels.length === 0 && (
           <div style={{
             color: t.textSecondary, fontSize: "13px", textAlign: "center",
@@ -1242,6 +1242,7 @@ export default function ModelManager({
                 border: `1.5px solid ${isActive ? t.accent : isHovered ? `${t.accent}40` : t.panelBorder}`,
                 transition: "all 0.2s ease",
                 overflow: "hidden",
+                flexShrink: 0,
               }}
             >
               {/* ── Main row ─────────────────────────────────────── */}
