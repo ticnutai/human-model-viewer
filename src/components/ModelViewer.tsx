@@ -4,7 +4,7 @@ import { Suspense, useRef, useCallback, useState, useEffect, useMemo, Component 
 import type { ReactNode, ErrorInfo } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
-import { getBestOrganDetail, getFallbackDetail, getOrganHintFromUrl, ORGAN_DETAILS, getLocalizedOrganName, getLocalizedOrganSystem } from "./OrganData";
+import { getBestOrganDetail, getFallbackDetail, getOrganHintFromUrl, ORGAN_DETAILS, getLocalizedOrganName, getLocalizedOrganSystem, searchOrgansByDisease } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
 import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager";
@@ -43,14 +43,31 @@ const THEMES: Theme[] = [
   { name: "בהיר רפואי", bg: "#f0f4f8", canvasBg: "#e8eef4", textPrimary: "#1a2332", textSecondary: "#5a6a7a", panelBg: "rgba(255,255,255,0.9)", panelBorder: "#c8d4e0", accent: "#0077b6", accentAlt: "#d62828", accentBgHover: "rgba(0,119,182,0.08)", gradient: "#0077b6", hintBg: "rgba(255,255,255,0.85)" },
   { name: "בהיר חמים", bg: "#fdf6ee", canvasBg: "#f8f0e3", textPrimary: "#2d1f0e", textSecondary: "#8a7560", panelBg: "rgba(255,252,245,0.92)", panelBorder: "#e0d0b8", accent: "#b45309", accentAlt: "#be123c", accentBgHover: "rgba(180,83,9,0.08)", gradient: "#b45309", hintBg: "rgba(255,252,245,0.88)" },
   { name: "בהיר מודרני", bg: "#f8fafc", canvasBg: "#eef2f7", textPrimary: "#0f172a", textSecondary: "#64748b", panelBg: "rgba(255,255,255,0.92)", panelBorder: "#cbd5e1", accent: "#6366f1", accentAlt: "#ec4899", accentBgHover: "rgba(99,102,241,0.08)", gradient: "#6366f1", hintBg: "rgba(255,255,255,0.85)" },
+  { name: "ניגודיות גבוהה", bg: "#000000", canvasBg: "#0a0a0a", textPrimary: "#ffffff", textSecondary: "#ffff00", panelBg: "rgba(0,0,0,0.97)", panelBorder: "#ffffff", accent: "#00ff88", accentAlt: "#ff4444", accentBgHover: "rgba(0,255,136,0.18)", gradient: "#00ff88", hintBg: "rgba(0,0,0,0.9)" },
 ];
 
 // ── 3D Model component ──
-function Model({ url, onSelect, selectedMesh, accent }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string }) {
+function Model({ url, onSelect, selectedMesh, accent, xRayOpacity }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string; xRayOpacity: number }) {
   const { lang } = useLanguage();
   const gltf = useLoader(GLTFLoader, url);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const originalMaterials = useRef<Map<string, THREE.Material | THREE.Material[]>>(new Map());
+  // X-ray effect — traverse all meshes and set opacity when xRayOpacity < 1
+  useEffect(() => {
+    sceneClone.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        mats.forEach(mat => {
+          if (mat && (mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
+            (mat as THREE.MeshStandardMaterial).transparent = xRayOpacity < 0.99;
+            (mat as THREE.MeshStandardMaterial).opacity = xRayOpacity;
+          }
+        });
+      }
+    });
+  }, [sceneClone, xRayOpacity]);
+
   const normalizedTransform = useMemo(() => {
     const box = new THREE.Box3().setFromObject(sceneClone);
     const size = new THREE.Vector3(); const center = new THREE.Vector3();
@@ -187,6 +204,14 @@ const ModelViewer = () => {
   const [showHintTooltip, setShowHintTooltip] = useState(false);
   const [showOrganSidebar, setShowOrganSidebar] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "info">("organs");
+  // ── New feature state ──
+  const [exploredOrgans, setExploredOrgans] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("anatomy-explored") || "[]")); } catch { return new Set(); }
+  });
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("anatomy-favorites") || "[]")); } catch { return new Set(); }
+  });
+  const [xRayOpacity, setXRayOpacity] = useState(1.0);
 
   const t = THEMES[themeIdx];
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
@@ -198,18 +223,23 @@ const ModelViewer = () => {
     return Array.from(systems).sort((a, b) => a.localeCompare(b));
   }, [lang]);
 
+  const diseaseMatchKeys = useMemo(() => {
+    const q = atlasQuery.trim();
+    return q.length >= 2 ? new Set(searchOrgansByDisease(q)) : new Set<string>();
+  }, [atlasQuery]);
+
   const filteredAtlasEntries = useMemo(() => {
     const query = atlasQuery.trim().toLowerCase();
     return Object.entries(ORGAN_DETAILS).filter(([key, organ]) => {
       const localizedName = getLocalizedOrganName(key, organ.name, lang).toLowerCase();
       const localizedSystem = getLocalizedOrganSystem(key, organ.system, lang);
-      const matchesQuery = query.length === 0 || localizedName.includes(query) || key.toLowerCase().includes(query) || localizedSystem.toLowerCase().includes(query);
+      const matchesQuery = query.length === 0 || localizedName.includes(query) || key.toLowerCase().includes(query) || localizedSystem.toLowerCase().includes(query) || diseaseMatchKeys.has(key);
       const matchesSystem = selectedSystem === "all" || localizedSystem === selectedSystem;
       return matchesQuery && matchesSystem;
     });
-  }, [atlasQuery, lang, selectedSystem]);
+  }, [atlasQuery, lang, selectedSystem, diseaseMatchKeys]);
 
-  const toggleLayer = (layer: LayerType) => setVisibleLayers(prev => { const next = new Set(prev); next.has(layer) ? next.delete(layer) : next.add(layer); return next; });
+  const toggleLayer = (layer: LayerType) => setVisibleLayers(prev => { const next = new Set(prev); if (next.has(layer)) { next.delete(layer); } else { next.add(layer); } return next; });
 
   const handleViewChange = useCallback((pos: [number, number, number], lookAt?: [number, number, number]) => {
     cameraTargetRef.current = pos; cameraLookAtRef.current = lookAt || null; setRenderKey(k => k + 1);
@@ -243,6 +273,33 @@ const ModelViewer = () => {
   useEffect(() => {
     const saved = localStorage.getItem(SKETCHFAB_TOKEN_STORAGE_KEY) ?? "";
     if (saved) { setApiTokenInput(saved); setApiTokenSaved(true); }
+  }, []);
+
+  const handleOrganSelect = useCallback((detail: OrganDetail) => {
+    setSelectedOrgan(detail);
+    setExploredOrgans(prev => {
+      const next = new Set(prev); next.add(detail.meshName || "");
+      localStorage.setItem("anatomy-explored", JSON.stringify(Array.from(next)));
+      return next;
+    });
+  }, []);
+
+  const handleFavoriteToggle = useCallback((meshName: string) => {
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (next.has(meshName)) { next.delete(meshName); } else { next.add(meshName); }
+      localStorage.setItem("anatomy-favorites", JSON.stringify(Array.from(next)));
+      return next;
+    });
+  }, []);
+
+  const handleScreenshot = useCallback(() => {
+    const canvas = document.querySelector("canvas");
+    if (!canvas) return;
+    const link = document.createElement("a");
+    link.download = `anatomy-${Date.now()}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
   }, []);
 
   const handleSaveApiToken = () => { const trimmed = apiTokenInput.trim(); if (!trimmed) return; localStorage.setItem(SKETCHFAB_TOKEN_STORAGE_KEY, trimmed); setApiTokenSaved(true); };
@@ -320,9 +377,20 @@ const ModelViewer = () => {
           boxShadow: isRTL ? "4px 0 24px rgba(0,0,0,0.1)" : "-4px 0 24px rgba(0,0,0,0.1)",
         }}>
           {/* Sidebar header */}
-          <div className="flex items-center justify-between shrink-0" style={{ padding: isMobile ? "12px 14px" : "14px 18px", borderBottom: `1px solid ${t.panelBorder}` }}>
-            <span style={{ fontSize: "14px", fontWeight: 700, color: t.textPrimary }}>🫀 {tr("panel.atlas")}</span>
-            <button onClick={() => setShowOrganSidebar(false)} style={{ background: "transparent", border: "none", color: t.textSecondary, cursor: "pointer", fontSize: "20px", padding: "4px" }}>✕</button>
+          <div className="flex flex-col shrink-0" style={{ padding: isMobile ? "12px 14px" : "14px 18px", borderBottom: `1px solid ${t.panelBorder}` }}>
+            <div className="flex items-center justify-between">
+              <span style={{ fontSize: "14px", fontWeight: 700, color: t.textPrimary }}>🫀 {tr("panel.atlas")}</span>
+              <button onClick={() => setShowOrganSidebar(false)} style={{ background: "transparent", border: "none", color: t.textSecondary, cursor: "pointer", fontSize: "20px", padding: "4px" }}>✕</button>
+            </div>
+            <div style={{ marginTop: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: t.textSecondary, marginBottom: "4px" }}>
+                <span>📊 {exploredOrgans.size}/{Object.keys(ORGAN_DETAILS).length} איברים נחקרו</span>
+                <span style={{ color: t.accent }}>⭐ {favorites.size}</span>
+              </div>
+              <div style={{ height: "4px", borderRadius: "4px", background: t.panelBorder, overflow: "hidden" }}>
+                <div style={{ height: "100%", borderRadius: "4px", background: t.accent, width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(ORGAN_DETAILS).length, 1) * 100)}%`, transition: "width 0.5s ease" }} />
+              </div>
+            </div>
           </div>
 
           {/* Tabs */}
@@ -390,7 +458,7 @@ const ModelViewer = () => {
 
                 {filteredAtlasEntries.map(([key, organ]) => (
                   <button key={key}
-                    onClick={() => { setSelectedOrgan({ ...organ, meshName: key }); if (organ.cameraPos) handleViewChange(organ.cameraPos, organ.lookAt); if (isMobile) setShowOrganSidebar(false); }}
+                    onClick={() => { handleOrganSelect({ ...organ, meshName: key }); if (organ.cameraPos) handleViewChange(organ.cameraPos, organ.lookAt); if (isMobile) setShowOrganSidebar(false); }}
                     className="w-full flex items-center gap-3 transition-all duration-150"
                     style={{
                       background: selectedOrgan?.meshName === key ? t.accentBgHover : "transparent",
@@ -405,6 +473,11 @@ const ModelViewer = () => {
                     <div className="flex-1 min-w-0">
                       <div style={{ fontWeight: 700, fontSize: "13px" }}>{getLocalizedOrganName(key, organ.name, lang)}</div>
                       <div style={{ fontSize: "11px", color: t.textSecondary, marginTop: "2px" }}>{getLocalizedOrganSystem(key, organ.system, lang)}</div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", fontSize: "11px" }}>
+                      {favorites.has(key) && <span title="מועדף">⭐</span>}
+                      {exploredOrgans.has(key) && <span title="נחקר" style={{ color: t.accent }}>✓</span>}
+                      {diseaseMatchKeys.has(key) && <span title="קשור לחיפוש" style={{ color: t.accentAlt }}>🔍</span>}
                     </div>
                   </button>
                 ))}
@@ -446,7 +519,7 @@ const ModelViewer = () => {
       )}
 
       {/* ═══ ORGAN DIALOG ═══ */}
-      {selectedOrgan && <OrganDialog organ={selectedOrgan} theme={t} onClose={() => setSelectedOrgan(null)} />}
+      {selectedOrgan && <OrganDialog organ={selectedOrgan} theme={t} onClose={() => setSelectedOrgan(null)} isFavorite={favorites.has(selectedOrgan.meshName || "")} onFavoriteToggle={handleFavoriteToggle} />}
 
       {/* ═══ WARNING BANNER ═══ */}
       {modelLoadWarning && (
@@ -486,6 +559,18 @@ const ModelViewer = () => {
             cursor: "pointer", fontSize: isMobile ? "11px" : "12px", fontWeight: 600,
           }}
         >{useInteractive ? "🧍" : "📦"} {!isMobile && (useInteractive ? tr("control.interactive") : tr("control.glb"))}</button>
+
+        {/* Screenshot */}
+        <button onClick={handleScreenshot}
+          className="transition-all duration-200 flex items-center gap-1 shrink-0"
+          style={{
+            background: t.panelBg, backdropFilter: "blur(8px)",
+            border: `1.5px solid ${t.panelBorder}`,
+            borderRadius: "999px", padding: isMobile ? "8px 12px" : "9px 16px",
+            color: t.textSecondary, cursor: "pointer", fontSize: isMobile ? "11px" : "12px", fontWeight: 600,
+          }}
+          title="צילום מסך"
+        >📸 {!isMobile && "צלם"}</button>
 
         {/* Help tooltip */}
         <div className="relative">
@@ -613,6 +698,18 @@ const ModelViewer = () => {
               </div>
               {apiTokenSaved && <div style={{ fontSize: "11px", color: t.accent, marginBottom: "8px" }}>✅ {tr("settings.apiSaved")}</div>}
 
+              {/* X-Ray Opacity */}
+              <div style={{ height: 1, background: t.panelBorder, margin: "4px 0 10px" }} />
+              <div style={{ fontSize: "12px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>🔬 שקיפות רנטגן</div>
+              <input type="range" min={15} max={100} value={Math.round(xRayOpacity * 100)}
+                onChange={e => setXRayOpacity(Number(e.target.value) / 100)}
+                className="w-full mb-1"
+                style={{ accentColor: t.accent }}
+              />
+              <div style={{ fontSize: "11px", color: t.textSecondary, marginBottom: "8px", textAlign: "center" }}>
+                {Math.round(xRayOpacity * 100)}% {xRayOpacity < 0.99 ? "— רנטגן פעיל 🔬" : "— נורמלי"}
+              </div>
+
               <AnatomySourcesPanel theme={t} />
               <div style={{ height: 1, background: t.panelBorder, margin: "4px 0 10px" }} />
 
@@ -640,9 +737,9 @@ const ModelViewer = () => {
         <Suspense fallback={null}>
           <ModelErrorBoundary key={modelUrl} onError={msg => setModelLoadWarning(msg)}>
             {useInteractive ? (
-              <InteractiveOrgans onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} />
+              <InteractiveOrgans onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} />
             ) : (
-              <Model url={modelUrl} onSelect={setSelectedOrgan} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} />
+              <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} />
             )}
           </ModelErrorBoundary>
         </Suspense>

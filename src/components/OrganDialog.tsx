@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { OrganDetail } from "./OrganData";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getElementTypeLabel, getLocalizedOrganName, getLocalizedOrganSystem, getLatinOrganName } from "./OrganData";
+import QuizPanel from "./QuizPanel";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function getYouTubeEmbedUrl(url: string): string | null {
@@ -30,7 +31,7 @@ type Theme = {
 };
 
 type AgeMode = "adult" | "kids";
-type TabKey = "overview" | "facts" | "media" | "stats";
+type TabKey = "overview" | "facts" | "media" | "stats" | "quiz";
 
 // ── Inline media player ────────────────────────────────────────────────────────
 function MediaPlayer({ item, accent, animationsEnabled, index }: {
@@ -160,10 +161,14 @@ export default function OrganDialog({
   organ,
   theme: t,
   onClose,
+  isFavorite,
+  onFavoriteToggle,
 }: {
   organ: OrganDetail;
   theme: Theme;
   onClose: () => void;
+  isFavorite?: boolean;
+  onFavoriteToggle?: (meshName: string) => void;
 }) {
   const { t: tr, lang, isRTL } = useLanguage();
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -202,6 +207,7 @@ export default function OrganDialog({
     { key: "facts", label: tr("dialog.tab.facts"), icon: "💡" },
     { key: "media", label: tr("dialog.tab.media"), icon: "🎬" },
     { key: "stats", label: tr("dialog.tab.stats"), icon: "📊" },
+    { key: "quiz", label: lang === "he" ? "חידון" : "Quiz", icon: "❓" },
   ];
 
   useEffect(() => {
@@ -365,6 +371,19 @@ export default function OrganDialog({
                     }}
                   >
                     {animationsEnabled ? "✨" : "⏸"}
+                  </button>
+                  <button
+                    onClick={() => onFavoriteToggle?.(organ.meshName)}
+                    title={isFavorite ? "הסר ממועדפים" : "הוסף למועדפים"}
+                    style={{
+                      width: "32px", height: "32px", borderRadius: "8px",
+                      border: `1px solid ${isFavorite ? "#ffc107" : "#e2e6ec"}`,
+                      background: isFavorite ? "#fff8e1" : "#fff",
+                      cursor: "pointer", fontSize: "16px",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    {isFavorite ? "⭐" : "☆"}
                   </button>
                   <button
                     onClick={() => setMinimized(true)}
@@ -718,6 +737,23 @@ export default function OrganDialog({
                           </div>
                         )}
                       </div>
+                    )}
+                    {/* ── Quiz ── */}
+                    {activeTab === "quiz" && (
+                      <QuizPanel
+                        organ={organ}
+                        theme={{
+                          textPrimary: "#1a2332",
+                          textSecondary: "#8a95a5",
+                          panelBg: "#fff",
+                          panelBorder: "#e2e6ec",
+                          accent,
+                          accentAlt: t.accentAlt,
+                          bg: t.bg,
+                        }}
+                        lang={lang as "he" | "en"}
+                        animationsEnabled={animationsEnabled}
+                      />
                     )}
                   </motion.div>
                 </AnimatePresence>
