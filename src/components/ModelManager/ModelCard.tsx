@@ -22,12 +22,14 @@ interface ModelCardProps {
   reanalyzingId: string | null;
   generatingThumbId: string | null;
   viewMode?: "list" | "grid";
+  isBackgroundProcessing?: boolean;
 }
 
 export default function ModelCard({
   model, isActive, categories, onSelect, onDelete, onHideLocal,
   onSaveEdit, onSaveInlineName, onSaveDisplayName, onEditLocalName, onReanalyze,
   onGenerateThumbnail, reanalyzingId, generatingThumbId, viewMode = "list",
+  isBackgroundProcessing = false,
 }: ModelCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
