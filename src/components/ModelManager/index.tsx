@@ -406,7 +406,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const modelsWithoutThumb = models.filter(m => !m.thumbnail_url && m.file_url && (m.media_type || "glb") === "glb").length;
 
   return (
-    <div className="flex flex-col gap-0" style={{ direction: "rtl" }}>
+    <div className="flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }}>
       {/* Header stats */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-accent/10">
         <div className="flex items-center gap-2">
