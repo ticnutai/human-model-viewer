@@ -55,40 +55,53 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [sketchfabLoadingMore, setSketchfabLoadingMore] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(true);
 
-  // ── Data loading (with retry to handle React StrictMode aborts) ──
+  // ── Data loading using direct fetch (bypasses supabase-js client hang) ──
   const load = useCallback(async (retryCount = 0) => {
     console.log("[ModelManager] load() called, retry:", retryCount);
     setModelsLoading(true);
 
-    const maxRetries = 3;
+    const baseUrl = SUPABASE_URL;
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const headers: Record<string, string> = {
+      apikey,
+      Authorization: `Bearer ${apikey}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    };
+
+    const maxRetries = 2;
     let catLoaded = false;
     let modLoaded = false;
 
     try {
-      console.log("[ModelManager] Fetching categories...");
-      const catResult = await supabase.from("model_categories").select("*").order("sort_order");
-      console.log("[ModelManager] catResult:", catResult.data?.length, "error:", catResult.error?.message);
-      if (catResult.error) {
-        setCatLoadError(catResult.error.message);
-      } else if (catResult.data) {
+      console.log("[ModelManager] Fetching categories via REST...");
+      const catRes = await fetch(`${baseUrl}/rest/v1/model_categories?select=*&order=sort_order`, { headers });
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        console.log("[ModelManager] catResult:", catData.length);
         setCatLoadError(null);
-        setCategories(catResult.data);
+        setCategories(catData);
         catLoaded = true;
+      } else {
+        const errText = await catRes.text();
+        console.error("[ModelManager] categories error:", catRes.status, errText);
+        setCatLoadError(errText);
       }
     } catch (err: any) {
       console.error("[ModelManager] categories load exception:", err?.message || err);
     }
 
     try {
-      console.log("[ModelManager] Fetching models...");
-      const modResult = await supabase.from("models").select("*").order("created_at", { ascending: false });
-      console.log("[ModelManager] modResult:", modResult.data?.length, "error:", modResult.error?.message);
-      if (modResult.error) {
-        console.error("[ModelManager] load error:", modResult.error);
-      } else if (modResult.data) {
-        setModels(modResult.data);
+      console.log("[ModelManager] Fetching models via REST...");
+      const modRes = await fetch(`${baseUrl}/rest/v1/models?select=*&order=created_at.desc`, { headers });
+      if (modRes.ok) {
+        const modData = await modRes.json();
+        console.log("[ModelManager] ✅ Loaded", modData.length, "models from cloud");
+        setModels(modData);
         modLoaded = true;
-        console.log("[ModelManager] ✅ Loaded", modResult.data.length, "models from cloud");
+      } else {
+        const errText = await modRes.text();
+        console.error("[ModelManager] models error:", modRes.status, errText);
       }
     } catch (err: any) {
       console.error("[ModelManager] models load exception:", err?.message || err);
@@ -96,10 +109,9 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
     setModelsLoading(false);
 
-    // Retry if either failed (common with React StrictMode abort)
     if ((!catLoaded || !modLoaded) && retryCount < maxRetries) {
-      console.log(`[ModelManager] Incomplete load (cat=${catLoaded}, mod=${modLoaded}), retrying in ${500 + retryCount * 500}ms...`);
-      setTimeout(() => load(retryCount + 1), 500 + retryCount * 500);
+      console.log(`[ModelManager] Incomplete load, retrying...`);
+      setTimeout(() => load(retryCount + 1), 800);
     }
   }, []);
 
