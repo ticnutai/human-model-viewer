@@ -543,19 +543,56 @@ const ModelViewer = () => {
     cameraTargetRef.current = pos; cameraLookAtRef.current = lookAt || null; setRenderKey(k => k + 1);
   }, []);
 
+  const tryResolveToCloud = useCallback((localUrl: string): string | null => {
+    // Extract Sketchfab UID from local path like /models/sketchfab/xxx-<uid>/model.glb
+    const uidMatch = localUrl.match(/([a-f0-9]{32})(?:\/|\.)/i);
+    if (!uidMatch) return null;
+    const uid = uidMatch[1];
+    // Check if we have this model in cloud
+    const cloudModel = cloudModels.find(m =>
+      m.file_url?.includes(uid) || m.display_name?.includes(uid)
+    );
+    if (cloudModel?.file_url) return cloudModel.file_url;
+    // Try constructing cloud URL directly
+    const slug = `sketchfab_${uid}.glb`;
+    return cloudUrl(slug) || null;
+  }, [cloudModels]);
+
   const handleSelectModel = useCallback(async (url: string) => {
     setModelLoadWarning(null); setGlbScanResult(null); setShowGlbReport(false); setGlbBadgeHidden(false);
     const isLocalGlb = url.startsWith("/models/") && url.toLowerCase().endsWith(".glb");
     if (isLocalGlb) {
       try {
         const prefix = await readAsciiPrefix(url, 96);
-        if (isLikelyGitLfsPointer(prefix)) { setModelLoadWarning("המודל הוא קובץ מצביע של Git LFS."); return; }
-        if (!isLikelyGlbMagic(prefix)) { setModelLoadWarning("קובץ המודל שנבחר אינו GLB בינארי תקין."); return; }
-      } catch { setModelLoadWarning("לא ניתן לאמת את קובץ המודל שנבחר."); return; }
+        if (isLikelyGitLfsPointer(prefix) || !isLikelyGlbMagic(prefix)) {
+          // Try to resolve to cloud version instead of showing error
+          const cloudVersion = tryResolveToCloud(url);
+          if (cloudVersion) {
+            console.log("[ModelViewer] LFS pointer detected, resolved to cloud:", cloudVersion);
+            setModelUrl(cloudVersion);
+            setUseInteractive(false);
+            return;
+          }
+          setModelLoadWarning(isLikelyGitLfsPointer(prefix)
+            ? "המודל הוא קובץ מצביע של Git LFS ולא נמצאה גרסת ענן."
+            : "קובץ המודל שנבחר אינו GLB בינארי תקין.");
+          return;
+        }
+      } catch {
+        // Network error reading local file - try cloud fallback
+        const cloudVersion = tryResolveToCloud(url);
+        if (cloudVersion) {
+          setModelUrl(cloudVersion);
+          setUseInteractive(false);
+          return;
+        }
+        setModelLoadWarning("לא ניתן לאמת את קובץ המודל שנבחר.");
+        return;
+      }
     }
     setModelUrl(url);
-    setUseInteractive(false); // Switch to GLB mode when selecting a model
-  }, []);
+    setUseInteractive(false);
+  }, [tryResolveToCloud]);
 
   const focusOrganByKey = useCallback((key: string) => {
     const organ = ORGAN_DETAILS[key]; if (!organ) return;
