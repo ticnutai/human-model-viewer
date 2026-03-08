@@ -251,19 +251,12 @@ function CameraController({ targetPosition, targetLookAt }: { targetPosition: [n
 }
 
 // ── Floating icon button ──
-const IconBtn = ({ onClick, active, icon, title, size = 40, t }: { onClick: () => void; active?: boolean; icon: string; title?: string; size?: number; t: Theme }) => (
+const IconBtn = ({ onClick, active, icon, title, size = 40, className: extraClass }: { onClick: () => void; active?: boolean; icon: string; title?: string; size?: number; t: Theme; className?: string }) => (
   <button
     onClick={onClick}
     title={title}
-    className="flex items-center justify-center shrink-0 transition-all duration-200"
-    style={{
-      width: size, height: size, borderRadius: "50%",
-      background: active ? "#f5ecd5" : "#ffffff",
-      backdropFilter: "blur(8px)",
-      border: `1.5px solid #c9a227`,
-      color: "#0b1f4d", cursor: "pointer", fontSize: size * 0.42,
-      boxShadow: active ? "0 0 8px rgba(201,162,39,0.35)" : "0 2px 8px rgba(0,0,0,0.12)",
-    }}
+    className={`tb-btn ${active ? "active" : ""} ${extraClass || ""}`}
+    style={{ width: size, height: size, fontSize: size * 0.42 }}
   >{icon}</button>
 );
 
