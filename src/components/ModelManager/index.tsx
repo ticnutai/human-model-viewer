@@ -649,36 +649,55 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
   const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false); };
 
-  const handleBatchAnalyze = async (targetIds: string[]) => {
-    const targets = models.filter(m => targetIds.includes(m.id) && m.file_url);
-    if (targets.length === 0) return;
+  const handleBatchAnalyze = async (targetIds: string[], skipAnalyzed = false) => {
+    const allTargets = models.filter(m => targetIds.includes(m.id) && m.file_url);
+    const targets = skipAnalyzed
+      ? allTargets.filter(m => !m.mesh_parts || (Array.isArray(m.mesh_parts) && (m.mesh_parts as any[]).length === 0))
+      : allTargets;
+    const skippedCount = allTargets.length - targets.length;
+    if (targets.length === 0) { 
+      if (skippedCount > 0) alert(`כל ${skippedCount} המודלים כבר נותחו ✅`);
+      return; 
+    }
+    batchAbortRef.current = false;
     setBatchAnalyzing(true);
-    setBatchAnalysisProgress({ done: 0, total: targets.length });
+    setBatchAnalysisProgress({ done: 0, total: targets.length, currentName: "", skipped: skippedCount, failed: 0, successNames: [] });
     let completed = 0;
+    let failed = 0;
+    const successNames: string[] = [];
     for (const m of targets) {
+      if (batchAbortRef.current) break;
+      const name = m.hebrew_name || m.display_name;
+      setBatchAnalysisProgress(prev => ({ ...prev, done: completed, currentName: name }));
       setReanalyzingId(m.id);
       try {
         const meshNames = await analyzeGlbMeshes(m.file_url!);
-        await supabase.from("models").update({ mesh_parts: meshNames.map(translateMeshName) }).eq("id", m.id);
-      } catch (e) { console.warn(`[BatchAnalysis] Failed for ${m.display_name}:`, e); }
+        const translated = meshNames.map(translateMeshName);
+        await supabase.from("models").update({ mesh_parts: translated }).eq("id", m.id);
+        successNames.push(`${name} (${translated.length})`);
+      } catch (e) {
+        console.warn(`[BatchAnalysis] Failed for ${name}:`, e);
+        failed++;
+      }
       completed++;
-      setBatchAnalysisProgress({ done: completed, total: targets.length });
+      setBatchAnalysisProgress(prev => ({ ...prev, done: completed, failed, successNames: [...successNames] }));
     }
     setReanalyzingId(null);
     setBatchAnalyzing(false);
-    setBatchAnalysisProgress({ done: 0, total: 0 });
     clearSelection();
     await load();
   };
 
   const handleAnalyzeAll = () => {
     const allCloudIds = models.filter(m => m.file_url).map(m => m.id);
-    handleBatchAnalyze(allCloudIds);
+    handleBatchAnalyze(allCloudIds, true); // skip already analyzed
   };
 
   const handleAnalyzeSelected = () => {
-    handleBatchAnalyze(Array.from(selectedIds));
+    handleBatchAnalyze(Array.from(selectedIds), false);
   };
+
+  const handleStopBatch = () => { batchAbortRef.current = true; };
 
   const handleAddCategory = async (name: string, icon: string) => {
     await supabase.from("model_categories").insert({ name, icon, sort_order: categories.length });
