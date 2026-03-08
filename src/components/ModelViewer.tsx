@@ -31,7 +31,7 @@ import { usePreferences } from "@/hooks/usePreferences";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const LOCAL_DEFAULT_MODEL = "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb";
 const DEFAULT_MODEL = SUPABASE_URL
-  ? `${SUPABASE_URL}/storage/v1/object/public/models/human_organs_1.glb`
+  ? `${SUPABASE_URL}/storage/v1/object/public/models/1772667686511_human_models_set_-_malefemale_rigged.glb`
   : LOCAL_DEFAULT_MODEL;
 const SKETCHFAB_TOKEN_STORAGE_KEY = "sketchfab-api-token";
 const EFFECTS_PREFS_KEY = "anatomy-effects-prefs-v1";
