@@ -5,13 +5,38 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const GLB_MAGIC = 0x46546C67; // "glTF"
+const JSON_CHUNK_TYPE = 0x4E4F534A; // "JSON"
+
+/** Parse GLB JSON chunk to extract mesh/node/material names */
+function parseGlbMeshNames(buffer: ArrayBuffer): { meshNames: string[]; nodeNames: string[]; materialNames: string[] } {
+  const empty = { meshNames: [], nodeNames: [], materialNames: [] };
+  if (buffer.byteLength < 20) return empty;
+  const view = new DataView(buffer);
+  if (view.getUint32(0, true) !== GLB_MAGIC) return empty;
+  const chunkLength = view.getUint32(12, true);
+  const chunkType = view.getUint32(16, true);
+  if (chunkType !== JSON_CHUNK_TYPE) return empty;
+  
+  const jsonBytes = new Uint8Array(buffer, 20, Math.min(chunkLength, buffer.byteLength - 20));
+  const jsonStr = new TextDecoder().decode(jsonBytes);
+  let gltfJson: any;
+  try { gltfJson = JSON.parse(jsonStr); } catch { return empty; }
+  
+  return {
+    meshNames: (gltfJson.meshes || []).map((m: any) => m.name).filter(Boolean),
+    nodeNames: (gltfJson.nodes || []).map((n: any) => n.name).filter(Boolean),
+    materialNames: (gltfJson.materials || []).map((m: any) => m.name).filter(Boolean),
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const { uid, name, sketchfabToken } = await req.json();
+    const { uid, name, sketchfabToken, category_id } = await req.json();
     if (!uid || !sketchfabToken) {
       return new Response(JSON.stringify({ error: "Missing uid or sketchfabToken" }), {
         status: 400,
@@ -73,7 +98,13 @@ Deno.serve(async (req) => {
     const fileSize = arrayBuffer.byteLength;
     console.log(`[import] Downloaded ${(fileSize / 1048576).toFixed(1)} MB`);
 
-    // 3. Upload to Supabase Storage
+    // 3. Parse GLB to extract mesh names (server-side analysis)
+    console.log(`[import] Parsing GLB for mesh names...`);
+    const { meshNames, nodeNames, materialNames } = parseGlbMeshNames(arrayBuffer);
+    const allNames = meshNames.length > 0 ? meshNames : nodeNames;
+    console.log(`[import] Found ${meshNames.length} meshes, ${nodeNames.length} nodes, ${materialNames.length} materials`);
+
+    // 4. Upload to Supabase Storage
     const fileName = `sketchfab_${uid}.glb`;
     const { error: uploadError } = await supabase.storage
       .from("models")
@@ -91,9 +122,17 @@ Deno.serve(async (req) => {
 
     const fileUrl = `${supabaseUrl}/storage/v1/object/public/models/${fileName}`;
 
-    // 4. Insert into models table
+    // 5. Insert into models table (with mesh_parts and category_id)
     const displayName = name || `Sketchfab ${uid}`;
     let modelId: string | null = null;
+    const modelData = {
+      display_name: displayName,
+      file_url: fileUrl,
+      file_size: fileSize,
+      media_type: "glb",
+      mesh_parts: allNames,
+      category_id: category_id || null,
+    };
 
     // Check if already exists
     const { data: existing } = await supabase
@@ -103,20 +142,18 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existing) {
-      // Update existing
       const { data: updated } = await supabase
         .from("models")
-        .update({ display_name: displayName, file_url: fileUrl, file_size: fileSize, media_type: "glb" })
+        .update(modelData)
         .eq("id", existing.id)
         .select("id")
         .single();
       modelId = updated?.id || existing.id;
       console.log(`[import] Updated existing model: ${modelId}`);
     } else {
-      // Insert new
       const { data: inserted, error: insertErr } = await supabase
         .from("models")
-        .insert({ file_name: fileName, display_name: displayName, file_url: fileUrl, file_size: fileSize, media_type: "glb" })
+        .insert({ file_name: fileName, ...modelData })
         .select("id")
         .single();
       if (insertErr) {
@@ -127,7 +164,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[import] ✅ Imported ${displayName} (${(fileSize / 1048576).toFixed(1)} MB)`);
+    console.log(`[import] ✅ Imported ${displayName} (${(fileSize / 1048576).toFixed(1)} MB, ${allNames.length} mesh parts)`);
 
     return new Response(
       JSON.stringify({
@@ -137,6 +174,9 @@ Deno.serve(async (req) => {
         fileSize,
         displayName,
         modelId,
+        meshParts: allNames,
+        meshCount: meshNames.length,
+        nodeCount: nodeNames.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
