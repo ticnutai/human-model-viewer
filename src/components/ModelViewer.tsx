@@ -1247,7 +1247,7 @@ const ModelViewer = () => {
               {pathologyKeys.size > 0 ? (
                 <div className="flex flex-col gap-1">
                   {Array.from(pathologyKeys).map(key => {
-                    const organ = ORGAN_DETAILS[key]; if (!organ) return null;
+                    const organ = enrichedOrganDetails[key]; if (!organ) return null;
                     return (
                       <button key={key} onClick={() => { focusOrganByKey(key); setShowSymptomSearch(false); }} className="organ-card text-left" style={{ textAlign: isRTL ? "right" : "left" }}>
                         <span className="text-lg">{organ.icon}</span>
