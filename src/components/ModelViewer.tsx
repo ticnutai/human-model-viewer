@@ -550,7 +550,7 @@ const ModelViewer = () => {
     const uid = uidMatch[1];
     // Check if we have this model in cloud
     const cloudModel = cloudModels.find(m =>
-      m.file_url?.includes(uid) || m.file_name?.includes(uid)
+      m.file_url?.includes(uid) || m.display_name?.includes(uid)
     );
     if (cloudModel?.file_url) return cloudModel.file_url;
     // Try constructing cloud URL directly
