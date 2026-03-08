@@ -886,29 +886,32 @@ const ModelViewer = () => {
         title={showLayerPanel ? "סגור שכבות" : "שכבות"}
       >🧩</button>
 
-      {/* ═══ ORGAN SIDEBAR ═══ */}
+      {/* ═══ ORGAN SIDEBAR — White/Navy/Gold ═══ */}
       {showOrganSidebar && (
-        <aside className="absolute top-0 bottom-0 z-[15] flex flex-col bg-card/95 backdrop-blur-xl border-border shadow-2xl"
+        <aside className="sidebar-panel absolute top-0 bottom-0 z-[15] flex flex-col shadow-2xl"
           style={{
             [isRTL ? "left" : "right"]: 0, width: sidebarWidth,
-            borderLeft: isRTL ? "none" : "1px solid hsl(var(--border))",
-            borderRight: isRTL ? "1px solid hsl(var(--border))" : "none",
+            background: "hsl(0 0% 100%)",
+            borderLeft: isRTL ? "none" : "1.5px solid hsl(43 60% 55% / 0.4)",
+            borderRight: isRTL ? "1.5px solid hsl(43 60% 55% / 0.4)" : "none",
           }}>
-          <div className="shrink-0 px-4 pt-4 pb-3 border-b border-border">
+          {/* Header */}
+          <div className="shrink-0 px-4 pt-4 pb-3" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold text-foreground">🫀 {tr("panel.atlas")}</span>
-              <button onClick={() => setShowOrganSidebar(false)} className="text-muted-foreground hover:text-foreground text-lg transition-colors bg-transparent border-none cursor-pointer p-1">✕</button>
+              <span className="text-sm font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>🫀 {tr("panel.atlas")}</span>
+              <button onClick={() => setShowOrganSidebar(false)} className="text-lg transition-colors bg-transparent border-none cursor-pointer p-1 rounded-lg hover:bg-gray-100" style={{ color: "hsl(220 15% 60%)" }}>✕</button>
             </div>
-            <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5">
+            <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>
               <span>📊 {exploredOrgans.size}/{Object.keys(ORGAN_DETAILS).length} נחקרו</span>
-              <span className="text-primary">⭐ {favorites.size}</span>
+              <span style={{ color: "hsl(43 78% 42%)" }}>⭐ {favorites.size}</span>
             </div>
-            <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-              <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(ORGAN_DETAILS).length, 1) * 100)}%` }} />
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(220 20% 93%)" }}>
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(ORGAN_DETAILS).length, 1) * 100)}%`, background: "linear-gradient(90deg, hsl(43 78% 47%), hsl(43 78% 55%))" }} />
             </div>
           </div>
 
-          <div className="flex shrink-0 border-b border-border">
+          {/* Tabs */}
+          <div className="flex shrink-0" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
             {([
               { id: "organs" as const, label: "איברים", icon: "🫀" },
               { id: "models" as const, label: "קבצים", icon: "📂" },
@@ -920,16 +923,19 @@ const ModelViewer = () => {
             ))}
           </div>
 
+          {/* Content */}
           <div className="flex-1 overflow-y-auto sidebar-scroll p-3">
             {sidebarTab === "organs" && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2.5">
                 <input value={atlasQuery} onChange={e => setAtlasQuery(e.target.value)}
                   placeholder={tr("app.searchPlaceholder")}
-                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-xs text-foreground outline-none focus:border-primary transition-colors"
+                  className="w-full rounded-xl px-3 py-2.5 text-xs outline-none transition-all"
+                  style={{ background: "hsl(0 0% 98%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 60% 55% / 0.35)" }}
                 />
                 {atlasSystems.length > 0 && (
                   <select value={selectedSystem} onChange={e => setSelectedSystem(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-card text-foreground px-3 py-2 text-xs outline-none focus:border-primary"
+                    className="w-full rounded-xl px-3 py-2.5 text-xs outline-none transition-colors"
+                    style={{ background: "hsl(0 0% 98%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 60% 55% / 0.35)" }}
                   >
                     <option value="all">{lang === "en" ? "All Systems" : "כל המערכות"}</option>
                     {atlasSystems.map(s => <option key={s} value={s}>{SYSTEM_ICONS[s] || "🔬"} {s}</option>)}
@@ -937,16 +943,16 @@ const ModelViewer = () => {
                 )}
 
                 {/* Grouped organ list */}
-                <div className="flex flex-col gap-3 mt-1">
+                <div className="flex flex-col gap-4 mt-1">
                   {Object.entries(groupedAtlasEntries).map(([system, entries]) => (
                     <div key={system}>
-                      <div className="flex items-center gap-2 mb-1.5 px-1">
-                        <span className="text-sm">{SYSTEM_ICONS[system] || "🔬"}</span>
-                        <span className="text-[11px] font-bold text-primary">{system}</span>
-                        <span className="text-[9px] text-muted-foreground">({entries.length})</span>
-                        <div className="flex-1 h-px bg-border" />
+                      <div className="flex items-center gap-2 mb-2 px-1">
+                        <span className="text-base">{SYSTEM_ICONS[system] || "🔬"}</span>
+                        <span className="text-[11px] font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>{system}</span>
+                        <span className="text-[9px] rounded-full px-1.5 py-0.5 font-bold" style={{ background: "hsl(43 78% 47% / 0.15)", color: "hsl(43 78% 40%)" }}>({entries.length})</span>
+                        <div className="flex-1 h-px" style={{ background: "hsl(43 60% 55% / 0.25)" }} />
                       </div>
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1.5">
                         {entries.map(([key, organ]) => {
                           const localName = getLocalizedOrganName(key, organ.name, lang);
                           const isFav = favorites.has(key);
@@ -954,18 +960,18 @@ const ModelViewer = () => {
                           const isSelected = selectedOrgan?.meshName === key;
                           return (
                             <div key={key}
-                              className={`organ-card group ${isSelected ? "!border-primary !bg-primary/10" : ""}`}
+                              className={`organ-card group ${isSelected ? "selected" : ""}`}
                               onClick={() => focusOrganByKey(key)}
                             >
                               <span className="text-xl shrink-0">{organ.icon}</span>
                               <div className="flex-1 min-w-0">
-                                <div className={`text-xs font-bold truncate ${isSelected ? "text-primary" : "text-foreground"}`}>{localName}</div>
-                                {organ.latinName && <div className="text-[9px] text-muted-foreground italic truncate">{organ.latinName}</div>}
+                                <div className="text-xs font-bold truncate" style={{ color: isSelected ? "hsl(43 78% 40%)" : "hsl(220 40% 13%)" }}>{localName}</div>
+                                {organ.latinName && <div className="text-[9px] italic truncate" style={{ color: "hsl(220 15% 55%)" }}>{organ.latinName}</div>}
                               </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                {isExplored && <span className="text-[10px] text-primary" title="נחקר">✓</span>}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {isExplored && <span className="text-[10px] font-bold" style={{ color: "hsl(43 78% 42%)" }} title="נחקר">✓</span>}
                                 <button onClick={e => { e.stopPropagation(); handleFavoriteToggle(key); }}
-                                  className="text-sm bg-transparent border-none cursor-pointer p-0 transition-transform hover:scale-110"
+                                  className="text-sm bg-transparent border-none cursor-pointer p-0 transition-transform hover:scale-125"
                                 >{isFav ? "⭐" : "☆"}</button>
                               </div>
                             </div>
@@ -975,7 +981,7 @@ const ModelViewer = () => {
                     </div>
                   ))}
                   {filteredAtlasEntries.length === 0 && (
-                    <div className="text-center text-muted-foreground text-xs py-8">לא נמצאו תוצאות</div>
+                    <div className="text-center text-xs py-8" style={{ color: "hsl(220 15% 55%)" }}>לא נמצאו תוצאות</div>
                   )}
                 </div>
               </div>
@@ -987,44 +993,44 @@ const ModelViewer = () => {
               <div className="flex flex-col gap-3">
                 <div className="text-center">
                   <span className="text-5xl block mb-3">{selectedOrgan.icon}</span>
-                  <h3 className="text-lg font-bold text-foreground">{selectedOrgan.name}</h3>
-                  {selectedOrgan.latinName && <div className="text-xs text-muted-foreground italic mt-0.5">{selectedOrgan.latinName}</div>}
-                  <div className="text-xs text-primary mt-1 font-semibold">{selectedOrgan.system}</div>
+                  <h3 className="text-lg font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>{selectedOrgan.name}</h3>
+                  {selectedOrgan.latinName && <div className="text-xs italic mt-0.5" style={{ color: "hsl(220 15% 55%)" }}>{selectedOrgan.latinName}</div>}
+                  <div className="text-xs mt-1 font-bold" style={{ color: "hsl(43 78% 42%)" }}>{selectedOrgan.system}</div>
                 </div>
-                <div className="h-px bg-border" />
-                <p className="text-xs text-secondary-foreground leading-relaxed">{selectedOrgan.summary}</p>
+                <div className="h-px" style={{ background: "hsl(43 60% 55% / 0.25)" }} />
+                <p className="text-xs leading-relaxed" style={{ color: "hsl(220 30% 25%)" }}>{selectedOrgan.summary}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {selectedOrgan.weight && (
-                    <div className="bg-accent/20 rounded-lg p-2.5 text-center">
-                      <div className="text-[10px] text-muted-foreground">⚖️ משקל</div>
-                      <div className="text-xs font-bold text-foreground mt-0.5">{selectedOrgan.weight}</div>
+                    <div className="rounded-xl p-3 text-center" style={{ background: "hsl(43 78% 47% / 0.08)", border: "1px solid hsl(43 60% 55% / 0.25)" }}>
+                      <div className="text-[10px]" style={{ color: "hsl(220 15% 55%)" }}>⚖️ משקל</div>
+                      <div className="text-xs font-bold mt-0.5" style={{ color: "hsl(220 40% 13%)" }}>{selectedOrgan.weight}</div>
                     </div>
                   )}
                   {selectedOrgan.size && (
-                    <div className="bg-accent/20 rounded-lg p-2.5 text-center">
-                      <div className="text-[10px] text-muted-foreground">📏 גודל</div>
-                      <div className="text-xs font-bold text-foreground mt-0.5">{selectedOrgan.size}</div>
+                    <div className="rounded-xl p-3 text-center" style={{ background: "hsl(43 78% 47% / 0.08)", border: "1px solid hsl(43 60% 55% / 0.25)" }}>
+                      <div className="text-[10px]" style={{ color: "hsl(220 15% 55%)" }}>📏 גודל</div>
+                      <div className="text-xs font-bold mt-0.5" style={{ color: "hsl(220 40% 13%)" }}>{selectedOrgan.size}</div>
                     </div>
                   )}
                 </div>
                 {selectedOrgan.facts.length > 0 && (
                   <div className="flex flex-col gap-1.5">
-                    <div className="text-xs font-bold text-foreground">📋 עובדות</div>
+                    <div className="text-xs font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>📋 עובדות</div>
                     {selectedOrgan.facts.map((f, i) => (
-                      <div key={i} className="text-[11px] text-secondary-foreground bg-secondary/50 rounded-lg px-3 py-2">• {f}</div>
+                      <div key={i} className="text-[11px] rounded-xl px-3 py-2.5" style={{ background: "hsl(220 20% 97%)", color: "hsl(220 30% 25%)", border: "1px solid hsl(43 60% 55% / 0.15)" }}>• {f}</div>
                     ))}
                   </div>
                 )}
                 {selectedOrgan.funFact && (
-                  <div className="text-[11px] text-accent-foreground bg-accent/30 rounded-lg p-3">💡 {selectedOrgan.funFact}</div>
+                  <div className="text-[11px] rounded-xl p-3" style={{ background: "hsl(43 78% 47% / 0.1)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>💡 {selectedOrgan.funFact}</div>
                 )}
               </div>
             )}
             {sidebarTab === "info" && !selectedOrgan && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <span className="text-4xl mb-3">👆</span>
-                <p className="text-sm text-muted-foreground font-semibold">{lang === "en" ? "Click on an organ to see details" : "לחץ על איבר לצפייה במידע"}</p>
-                <p className="text-[11px] text-muted-foreground/60 mt-1">{lang === "en" ? "Or select from the atlas" : "או בחר מרשימת האיברים"}</p>
+                <p className="text-sm font-bold" style={{ color: "hsl(220 40% 13%)" }}>{lang === "en" ? "Click on an organ to see details" : "לחץ על איבר לצפייה במידע"}</p>
+                <p className="text-[11px] mt-1" style={{ color: "hsl(220 15% 55%)" }}>{lang === "en" ? "Or select from the atlas" : "או בחר מרשימת האיברים"}</p>
               </div>
             )}
           </div>
