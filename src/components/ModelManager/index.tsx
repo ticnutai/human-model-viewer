@@ -395,7 +395,17 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
             {localModels.length} מקומיים
           </Badge>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          {/* Auto Hebrew names */}
+          {models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "").length > 0 && (
+            <button
+              onClick={handleAutoNameAll}
+              disabled={autoNaming}
+              className="text-[10px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 rounded-lg px-2 py-1 font-semibold cursor-pointer hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+            >
+              {autoNaming ? "⏳ מתרגם..." : `🇮🇱 שמות עברית (${models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "").length})`}
+            </button>
+          )}
           {modelsWithoutThumb > 0 && (
             <button
               onClick={handleBatchGenerateThumbnails}
@@ -405,6 +415,17 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               {batchGenerating ? `⏳ יוצר תמונות...` : `📸 צור תמונות (${modelsWithoutThumb})`}
             </button>
           )}
+          {/* View mode toggle */}
+          <div className="flex border border-border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`text-[10px] px-2 py-1 cursor-pointer border-none transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"}`}
+            >☰</button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`text-[10px] px-2 py-1 cursor-pointer border-none transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"}`}
+            >⊞</button>
+          </div>
           <button
             onClick={() => setShowSketchfab(s => !s)}
             className={`text-[10px] border rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors ${
