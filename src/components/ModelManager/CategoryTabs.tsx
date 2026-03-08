@@ -31,7 +31,7 @@ export default function CategoryTabs({ categories, activeCategory, onSelect, onA
   return (
     <div className="flex flex-col">
       <ScrollArea className="w-full">
-        <div className="flex border-b border-border">
+        <div className="flex" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
           {allTabs.map(cat => {
             const isActive = cat.id === null ? !activeCategory : activeCategory === cat.id;
             const count = countForCategory(cat.id);
@@ -44,15 +44,19 @@ export default function CategoryTabs({ categories, activeCategory, onSelect, onA
                   <span className="text-sm">{cat.icon}</span>
                   <span>{cat.name}</span>
                   {count > 0 && (
-                    <Badge variant={isActive ? "default" : "secondary"} className="text-[9px] px-1.5 py-0 h-4 min-w-[18px] justify-center">
+                    <span className="text-[9px] px-1.5 py-0 h-4 min-w-[18px] rounded-full font-bold inline-flex items-center justify-center" style={{
+                      background: isActive ? "hsl(43 78% 47% / 0.2)" : "hsl(220 20% 93%)",
+                      color: isActive ? "hsl(43 78% 40%)" : "hsl(220 15% 55%)",
+                    }}>
                       {count}
-                    </Badge>
+                    </span>
                   )}
                 </button>
                 {cat.id !== null && categories.length > 1 && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onDelete(cat.id!); }}
-                    className="absolute top-1 left-0.5 w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity"
+                    className="absolute top-1 left-0.5 w-3.5 h-3.5 rounded-full text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity border-none cursor-pointer"
+                    style={{ background: "hsl(0 70% 55%)", color: "white" }}
                   >✕</button>
                 )}
               </div>
@@ -60,7 +64,8 @@ export default function CategoryTabs({ categories, activeCategory, onSelect, onA
           })}
           <button
             onClick={() => setShowAdd(s => !s)}
-            className="shrink-0 px-3 text-lg text-muted-foreground hover:text-primary transition-colors bg-transparent border-none cursor-pointer"
+            className="shrink-0 px-3 text-lg transition-colors bg-transparent border-none cursor-pointer"
+            style={{ color: "hsl(220 15% 55%)" }}
           >＋</button>
         </div>
         <ScrollBar orientation="horizontal" />

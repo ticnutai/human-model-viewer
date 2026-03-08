@@ -439,23 +439,23 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }}>
       {/* Header stats */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-accent/10">
+      <div className="flex items-center justify-between px-3 py-2.5" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)", background: "hsl(43 78% 47% / 0.05)" }}>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-foreground">📦 מאגר מודלים</span>
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+          <span className="text-sm font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>📦 מאגר מודלים</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "hsl(43 78% 47% / 0.15)", color: "hsl(43 78% 40%)" }}>
             {models.length} בענן
-          </Badge>
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+          </span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "hsl(220 20% 93%)", color: "hsl(220 30% 25%)" }}>
             {localModels.length} מקומיים
-          </Badge>
+          </span>
         </div>
         <div className="flex items-center gap-1 flex-wrap">
-          {/* Auto Hebrew names */}
           {models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "").length > 0 && (
             <button
               onClick={handleAutoNameAll}
               disabled={autoNaming}
-              className="text-[10px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 rounded-lg px-2 py-1 font-semibold cursor-pointer hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+              className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors disabled:opacity-50"
+              style={{ background: "hsl(145 50% 45% / 0.1)", color: "hsl(145 50% 35%)", border: "1px solid hsl(145 50% 45% / 0.3)" }}
             >
               {autoNaming ? "⏳ מתרגם..." : `🇮🇱 שמות עברית (${models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "").length})`}
             </button>
@@ -464,27 +464,33 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
             <button
               onClick={handleBatchGenerateThumbnails}
               disabled={batchGenerating}
-              className="text-[10px] bg-primary/10 text-primary border border-primary/30 rounded-lg px-2 py-1 font-semibold cursor-pointer hover:bg-primary/20 transition-colors disabled:opacity-50"
+              className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors disabled:opacity-50"
+              style={{ background: "hsl(43 78% 47% / 0.1)", color: "hsl(43 78% 40%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}
             >
               {batchGenerating ? `⏳ יוצר תמונות...` : `📸 צור תמונות (${modelsWithoutThumb})`}
             </button>
           )}
           {/* View mode toggle */}
-          <div className="flex border border-border rounded-lg overflow-hidden">
+          <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid hsl(43 60% 55% / 0.3)" }}>
             <button
               onClick={() => setViewMode("list")}
-              className={`text-[10px] px-2 py-1 cursor-pointer border-none transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"}`}
+              className="text-[10px] px-2 py-1 cursor-pointer border-none transition-colors"
+              style={{ background: viewMode === "list" ? "hsl(43 78% 47%)" : "transparent", color: viewMode === "list" ? "hsl(220 40% 13%)" : "hsl(220 15% 55%)" }}
             >☰</button>
             <button
               onClick={() => setViewMode("grid")}
-              className={`text-[10px] px-2 py-1 cursor-pointer border-none transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"}`}
+              className="text-[10px] px-2 py-1 cursor-pointer border-none transition-colors"
+              style={{ background: viewMode === "grid" ? "hsl(43 78% 47%)" : "transparent", color: viewMode === "grid" ? "hsl(220 40% 13%)" : "hsl(220 15% 55%)" }}
             >⊞</button>
           </div>
           <button
             onClick={() => setShowSketchfab(s => !s)}
-            className={`text-[10px] border rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors ${
-              showSketchfab ? "bg-primary/10 border-primary text-primary" : "bg-transparent border-border text-muted-foreground hover:text-foreground"
-            }`}
+            className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors"
+            style={{
+              background: showSketchfab ? "hsl(43 78% 47% / 0.1)" : "transparent",
+              border: `1px solid ${showSketchfab ? "hsl(43 78% 47%)" : "hsl(43 60% 55% / 0.3)"}`,
+              color: showSketchfab ? "hsl(43 78% 40%)" : "hsl(220 15% 55%)",
+            }}
           >🔎 Sketchfab</button>
         </div>
       </div>
@@ -517,19 +523,19 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           placeholder="🔍 חפש מודל לפי שם, תיאור..."
-          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs text-foreground outline-none focus:border-primary transition-colors"
-          style={{ direction: "rtl" }}
+          className="w-full rounded-xl px-3 py-2.5 text-xs outline-none transition-all"
+          style={{ direction: "rtl", background: "hsl(0 0% 98%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 60% 55% / 0.35)" }}
         />
       </div>
 
       {/* DB error */}
       {catLoadError && (
-        <div className="text-[11px] text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-2.5 py-1.5 mx-2 mt-2">
-          ⚠️ שגיאה: {catLoadError} — <button onClick={() => void load()} className="text-primary font-bold underline bg-transparent border-none cursor-pointer text-[11px] p-0">נסה שוב</button>
+        <div className="text-[11px] rounded-xl px-2.5 py-1.5 mx-2 mt-2" style={{ color: "hsl(0 70% 45%)", background: "hsl(0 80% 95%)", border: "1px solid hsl(0 70% 80%)" }}>
+          ⚠️ שגיאה: {catLoadError} — <button onClick={() => void load()} className="font-bold underline bg-transparent border-none cursor-pointer text-[11px] p-0" style={{ color: "hsl(43 78% 42%)" }}>נסה שוב</button>
         </div>
       )}
 
-      {/* Sketchfab search - collapsible */}
+      {/* Sketchfab search */}
       {showSketchfab && (
         <div className="px-2 pt-2">
           <SketchfabSearch
@@ -559,7 +565,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           : "flex flex-col gap-2 pb-2"
         }>
           {combinedModels.length === 0 && (
-            <div className={`text-center text-muted-foreground text-sm py-8 opacity-70 ${viewMode === "grid" ? "col-span-2" : ""}`}>
+            <div className={`text-center text-sm py-8 opacity-70 ${viewMode === "grid" ? "col-span-2" : ""}`} style={{ color: "hsl(220 15% 55%)" }}>
               <span className="text-2xl block mb-2">📭</span>
               {searchQuery ? "לא נמצאו תוצאות" : "אין מודלים בקטגוריה זו"}
             </div>

@@ -64,14 +64,18 @@ export default function ModelCard({
   if (viewMode === "grid") {
     return (
       <div
-        className={`rounded-xl border transition-all overflow-hidden flex flex-col ${
-          isActive ? "border-primary bg-primary/10 shadow-lg shadow-primary/10 ring-2 ring-primary/30" : "border-border hover:border-primary/40 hover:bg-accent/30"
-        }`}
+        className="rounded-xl transition-all overflow-hidden flex flex-col"
+        style={{
+          border: isActive ? "1.5px solid hsl(43 78% 47%)" : "1px solid hsl(43 60% 55% / 0.3)",
+          background: isActive ? "hsl(43 78% 47% / 0.08)" : "hsl(0 0% 100%)",
+          boxShadow: isActive ? "0 2px 12px hsl(43 78% 47% / 0.15)" : "0 1px 3px rgba(0,0,0,0.04)",
+        }}
       >
         {/* Thumbnail area */}
         <div
           onClick={() => onSelect(model.url)}
-          className={`aspect-square w-full relative flex items-center justify-center overflow-hidden cursor-pointer ${isActive ? "bg-primary/5" : "bg-muted"}`}
+          className="aspect-square w-full relative flex items-center justify-center overflow-hidden cursor-pointer"
+          style={{ background: isActive ? "hsl(43 78% 47% / 0.05)" : "hsl(220 20% 96%)" }}
         >
           {thumb ? (
             <img src={thumb} alt={cleanDisplayName} className="w-full h-full object-cover" />
@@ -81,88 +85,86 @@ export default function ModelCard({
               {model.source === "cloud" && rec && !isGenerating && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onGenerateThumbnail(rec); }}
-                  className="bg-primary/80 text-primary-foreground text-[8px] px-1.5 py-0.5 rounded-md font-semibold hover:bg-primary transition-colors whitespace-nowrap"
+                  className="text-[8px] px-1.5 py-0.5 rounded-md font-semibold transition-colors whitespace-nowrap cursor-pointer border-none"
+                  style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}
                 >📸 צור תמונה</button>
               )}
               {isGenerating && (
-                <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "hsl(0 0% 100% / 0.7)" }}>
+                  <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: "hsl(43 78% 47%)", borderTopColor: "transparent" }} />
                 </div>
               )}
             </div>
           )}
-          {/* Active model indicator - click to toggle */}
           {isActive && (
-            <div className="absolute bottom-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold bg-primary text-primary-foreground backdrop-blur-sm animate-pulse">
+            <div className="absolute bottom-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold animate-pulse" style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}>
               ▶ פעיל
             </div>
           )}
-          {/* Source badge */}
-          <div className={`absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold backdrop-blur-sm ${
-            model.source === "cloud" ? "bg-blue-500/80 text-white" : "bg-amber-500/80 text-white"
-          }`}>
+          <div className="absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold" style={{
+            background: model.source === "cloud" ? "hsl(210 70% 50% / 0.85)" : "hsl(43 78% 47% / 0.85)",
+            color: "white",
+          }}>
             {model.source === "cloud" ? "☁️" : "📂"}
           </div>
           {hasMash && (
-            <div className="absolute top-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold bg-primary/80 text-primary-foreground backdrop-blur-sm">
+            <div className="absolute top-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold" style={{ background: "hsl(43 78% 47% / 0.85)", color: "hsl(220 40% 13%)" }}>
               🧬
             </div>
           )}
         </div>
         {/* Info + actions */}
-        <div className="p-2 flex flex-col gap-1 min-h-[56px]">
-          <div className="text-[11px] font-bold text-foreground truncate leading-tight cursor-pointer" dir="rtl" onClick={() => onSelect(model.url)}>
+        <div className="p-2.5 flex flex-col gap-1 min-h-[56px]">
+          <div className="text-[11px] font-bold truncate leading-tight cursor-pointer" dir="rtl" onClick={() => onSelect(model.url)} style={{ color: "hsl(220 40% 13%)" }}>
             {hebrewName || cleanDisplayName}
           </div>
           {hebrewName && (
-            <div className="text-[9px] text-muted-foreground truncate" dir="ltr">
+            <div className="text-[9px] truncate" dir="ltr" style={{ color: "hsl(220 15% 55%)" }}>
               {cleanDisplayName}
             </div>
           )}
           <div className="flex items-center justify-between mt-auto">
-            <span className="text-[9px] text-muted-foreground">
+            <span className="text-[9px]" style={{ color: "hsl(220 15% 55%)" }}>
               {formatSize(model.fileSize)}
             </span>
             <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-              {/* Edit button - for cloud models */}
               {model.source === "cloud" && rec && (
                 <button
                   onClick={() => { setInlineEdit(true); setInlineValue(hebrewName); }}
                   title="ערוך שם"
-                  className="text-[11px] p-0.5 rounded bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer border-none"
+                  className="text-[11px] p-0.5 rounded bg-transparent transition-colors cursor-pointer border-none"
+                  style={{ color: "hsl(220 15% 55%)" }}
                 >✏️</button>
               )}
-              {/* Delete button - for cloud models */}
               {model.source === "cloud" && rec && (
                 <>
                   {confirmDel ? (
                     <div className="flex gap-0.5">
-                      <button onClick={() => onDelete(rec)} className="bg-destructive text-destructive-foreground rounded px-1.5 py-0.5 text-[8px] font-semibold cursor-pointer border-none">מחק</button>
-                      <button onClick={() => setConfirmDel(false)} className="bg-transparent text-muted-foreground border border-border rounded px-1 py-0.5 text-[8px] cursor-pointer">✕</button>
+                      <button onClick={() => onDelete(rec)} className="rounded px-1.5 py-0.5 text-[8px] font-semibold cursor-pointer border-none" style={{ background: "hsl(0 70% 55%)", color: "white" }}>מחק</button>
+                      <button onClick={() => setConfirmDel(false)} className="rounded px-1 py-0.5 text-[8px] cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>✕</button>
                     </div>
                   ) : (
                     <button
                       onClick={() => setConfirmDel(true)}
                       title="מחק"
-                      className="text-[11px] p-0.5 rounded bg-transparent text-destructive hover:bg-destructive/10 transition-colors cursor-pointer border-none"
+                      className="text-[11px] p-0.5 rounded bg-transparent transition-colors cursor-pointer border-none"
+                      style={{ color: "hsl(0 60% 50%)" }}
                     >🗑️</button>
                   )}
                 </>
               )}
-              {/* Play/Active toggle */}
               <button
                 onClick={() => onSelect(model.url)}
                 title={isActive ? "מודל פעיל" : "הפעל מודל"}
-                className={`text-[11px] p-0.5 rounded transition-colors cursor-pointer border-none ${
-                  isActive ? "bg-primary/20 text-primary" : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent"
-                }`}
+                className="text-[11px] p-0.5 rounded transition-colors cursor-pointer border-none"
+                style={{ background: isActive ? "hsl(43 78% 47% / 0.2)" : "transparent", color: isActive ? "hsl(43 78% 40%)" : "hsl(220 15% 55%)" }}
               >{isActive ? "⏸️" : "▶️"}</button>
             </div>
           </div>
         </div>
         {/* Inline edit overlay for grid */}
         {inlineEdit && model.source === "cloud" && rec && (
-          <div className="border-t border-border bg-card p-2" onClick={e => e.stopPropagation()}>
+          <div className="p-2" onClick={e => e.stopPropagation()} style={{ borderTop: "1px solid hsl(43 60% 55% / 0.25)", background: "hsl(0 0% 99%)" }}>
             <div className="flex gap-1 items-center">
               <input
                 autoFocus
@@ -173,11 +175,11 @@ export default function ModelCard({
                   if (e.key === "Escape") setInlineEdit(false);
                 }}
                 placeholder="שם בעברית..."
-                className="flex-1 bg-card border border-primary rounded-md px-2 py-1 text-[10px] font-bold text-foreground outline-none"
-                style={{ direction: "rtl" }}
+                className="flex-1 rounded-md px-2 py-1 text-[10px] font-bold outline-none"
+                style={{ direction: "rtl", background: "hsl(0 0% 100%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 78% 47%)" }}
               />
-              <button onClick={() => { onSaveInlineName(model.id, inlineValue); setInlineEdit(false); }} className="bg-primary text-primary-foreground rounded-md px-1.5 py-1 text-[10px] font-bold cursor-pointer border-none">✓</button>
-              <button onClick={() => setInlineEdit(false)} className="text-muted-foreground border border-border rounded-md px-1.5 py-1 text-[10px] bg-transparent cursor-pointer">✕</button>
+              <button onClick={() => { onSaveInlineName(model.id, inlineValue); setInlineEdit(false); }} className="rounded-md px-1.5 py-1 text-[10px] font-bold cursor-pointer border-none" style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}>✓</button>
+              <button onClick={() => setInlineEdit(false)} className="rounded-md px-1.5 py-1 text-[10px] cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>✕</button>
             </div>
           </div>
         )}

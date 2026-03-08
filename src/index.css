@@ -34,21 +34,23 @@
 
     --radius: 0.75rem;
 
-    --sidebar-background: 222 22% 7%;
-    --sidebar-foreground: 45 20% 80%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 40% 13%;
     --sidebar-primary: 43 78% 47%;
-    --sidebar-primary-foreground: 222 40% 10%;
-    --sidebar-accent: 222 18% 14%;
-    --sidebar-accent-foreground: 45 20% 80%;
-    --sidebar-border: 222 18% 18%;
+    --sidebar-primary-foreground: 220 40% 13%;
+    --sidebar-accent: 43 78% 47%;
+    --sidebar-accent-foreground: 220 40% 13%;
+    --sidebar-border: 43 60% 55%;
     --sidebar-ring: 43 78% 47%;
+    --sidebar-muted: 220 15% 60%;
 
     /* Custom anatomy viewer tokens */
     --gold: 43 78% 47%;
     --gold-dim: 43 50% 35%;
     --gold-glow: 43 78% 47% / 0.25;
-    --navy: 222 55% 18%;
+    --navy: 220 40% 13%;
     --navy-deep: 222 40% 10%;
+    --navy-light: 220 30% 25%;
     --glass: 222 20% 9% / 0.85;
     --glass-border: 43 78% 47% / 0.2;
   }
@@ -74,12 +76,12 @@
 }
 .organ-scroll::-webkit-scrollbar-track,
 .sidebar-scroll::-webkit-scrollbar-track {
-  background: hsl(var(--secondary));
+  background: hsl(220 20% 93%);
   border-radius: 3px;
 }
 .organ-scroll::-webkit-scrollbar-thumb,
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary));
+  background: hsl(var(--gold));
   border-radius: 3px;
 }
 .organ-scroll::-webkit-scrollbar-thumb:hover,
@@ -112,29 +114,44 @@
   box-shadow: 0 0 10px hsl(var(--gold-glow));
 }
 
+/* ═══ SIDEBAR — White/Navy/Gold theme ═══ */
+
 /* Sidebar tab */
 .sidebar-tab {
-  @apply flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all duration-200 cursor-pointer;
+  @apply flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-all duration-200 cursor-pointer;
   background: transparent;
   border: none;
   border-bottom: 2.5px solid transparent;
-  color: hsl(var(--muted-foreground));
+  color: hsl(var(--sidebar-muted));
+}
+.sidebar-tab:hover {
+  color: hsl(var(--navy));
+  background: hsl(43 78% 47% / 0.06);
 }
 .sidebar-tab.active {
-  border-bottom-color: hsl(var(--primary));
-  color: hsl(var(--primary));
-  font-weight: 700;
+  border-bottom-color: hsl(var(--gold));
+  color: hsl(var(--navy));
+  font-weight: 800;
+  background: hsl(43 78% 47% / 0.08);
 }
 
 /* Organ card in atlas */
 .organ-card {
-  @apply flex items-center gap-3 rounded-lg p-2.5 cursor-pointer transition-all duration-150;
-  border: 1px solid hsl(var(--border));
-  background: transparent;
+  @apply flex items-center gap-3 rounded-xl p-3 cursor-pointer transition-all duration-200;
+  border: 1px solid hsl(43 60% 55% / 0.3);
+  background: hsl(0 0% 100%);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .organ-card:hover {
-  background: hsl(var(--accent));
-  border-color: hsl(var(--primary));
+  background: hsl(43 78% 47% / 0.08);
+  border-color: hsl(var(--gold));
+  box-shadow: 0 2px 8px hsl(43 78% 47% / 0.12);
+  transform: translateY(-1px);
+}
+.organ-card.selected, .organ-card.\!border-primary {
+  background: hsl(43 78% 47% / 0.1) !important;
+  border-color: hsl(var(--gold)) !important;
+  box-shadow: 0 2px 12px hsl(43 78% 47% / 0.18);
 }
 
 /* Settings item button */
@@ -147,4 +164,20 @@
 .settings-item:hover, .settings-item.active {
   background: hsl(var(--accent));
   border-color: hsl(var(--primary));
+}
+
+/* Sidebar-specific overrides for inputs & selects */
+.sidebar-panel input,
+.sidebar-panel select {
+  background: hsl(0 0% 100%) !important;
+  color: hsl(var(--navy)) !important;
+  border-color: hsl(43 60% 55% / 0.35) !important;
+}
+.sidebar-panel input::placeholder {
+  color: hsl(220 15% 60%) !important;
+}
+.sidebar-panel input:focus,
+.sidebar-panel select:focus {
+  border-color: hsl(var(--gold)) !important;
+  box-shadow: 0 0 0 2px hsl(43 78% 47% / 0.15);
 }
