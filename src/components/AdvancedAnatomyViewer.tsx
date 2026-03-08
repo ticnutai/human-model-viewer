@@ -272,7 +272,7 @@ const MODEL_META: Record<ModelId, {
     },
   },
   thorax: {
-    path: "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb",
+    path: resolveModelPath("/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb"),
     titleHe: "לב בבית החזה", titleEn: "Heart in Thorax", icon: "❤️",
     hasAnimation: false, description: "הלב, ריאות, קנה נשימה וכלוב הצלעות",
     layers: [
