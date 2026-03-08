@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const debugLogsEnabled = import.meta.env.DEV && import.meta.env.VITE_DEBUG_LOGS === "true";
 
   const checkAdmin = async (userId: string) => {
     const { data } = await supabase
@@ -37,19 +38,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    let settled = false;
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const resolveLoading = () => {
+      settled = true;
+      if (safetyTimer) {
+        clearTimeout(safetyTimer);
+        safetyTimer = null;
+      }
+      setLoading(false);
+    };
+
     // Safety timeout: ensure loading completes even if auth check hangs
-    const safetyTimer = setTimeout(() => {
+    safetyTimer = setTimeout(() => {
       setLoading((prev) => {
-        if (prev) {
-          if (import.meta.env.DEV) console.warn("[AUTH_DEBUG] safety timeout — forcing loading=false");
-        }
         return false;
       });
     }, 3000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        if (import.meta.env.DEV) {
+        if (debugLogsEnabled) {
           console.info("[AUTH_DEBUG] onAuthStateChange", {
             event: _event,
             hasSession: !!session,
@@ -63,12 +73,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setIsAdmin(false);
         }
-        setLoading(false);
+        resolveLoading();
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (import.meta.env.DEV) {
+      if (debugLogsEnabled) {
         console.info("[AUTH_DEBUG] getSession", {
           hasSession: !!session,
           userId: session?.user?.id ?? null,
@@ -79,11 +89,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         checkAdmin(session.user.id);
       }
-      setLoading(false);
+      resolveLoading();
     });
 
     return () => {
-      clearTimeout(safetyTimer);
+      if (safetyTimer) clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, []);

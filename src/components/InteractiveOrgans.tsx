@@ -293,13 +293,24 @@ function OrganMesh({
   shape,
   isSelected,
   accent,
+  explodeAmount,
+  focusSelected,
+  hasSelection,
   onSelect,
+  animationSpeed = 1,
+  pathologyKeys,
 }: {
   shape: OrganShape;
   isSelected: boolean;
   accent: string;
+  explodeAmount: number;
+  focusSelected: boolean;
+  hasSelection: boolean;
   onSelect: (detail: OrganDetail) => void;
+  animationSpeed?: number;
+  pathologyKeys?: Set<string>;
 }) {
+  const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const { lang } = useLanguage();
   const [hovered, setHovered] = useState(false);
@@ -318,7 +329,16 @@ function OrganMesh({
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     const t = clock.getElapsedTime();
+    const at = t * animationSpeed; // animation-speed–scaled time
     const key = shape.key;
+    const isPathology = pathologyKeys?.has(key) ?? false;
+
+    if (groupRef.current) {
+      const explodeDir = new THREE.Vector3(shape.position[0], shape.position[1] - 0.35, shape.position[2]);
+      if (explodeDir.lengthSq() < 0.0001) explodeDir.set(0, 1, 0);
+      explodeDir.normalize().multiplyScalar(explodeAmount * 0.45);
+      groupRef.current.position.lerp(explodeDir, 0.12);
+    }
 
     const factor = isSelected ? 1.15 : hovered ? 1.08 : 1.0;
     targetScale.current = [
@@ -331,14 +351,14 @@ function OrganMesh({
       currentScale.current[i] += (targetScale.current[i] - currentScale.current[i]) * 0.12;
     }
 
-    const pulse = isSelected ? Math.sin(t * 3) * 0.01 : 0;
+    const pulse = isSelected ? Math.sin(at * 3) * 0.01 : 0;
     let sx = currentScale.current[0] + pulse;
     let sy = currentScale.current[1] + pulse;
     let sz = currentScale.current[2] + pulse;
 
     // ── Organ-specific animations ──
     if (key === "heart") {
-      const phase = (t * 4.5) % (Math.PI * 2);
+      const phase = (at * 4.5) % (Math.PI * 2);
       const beat1 = Math.max(0, Math.sin(phase * 2)) * 0.06;
       const beat2 = Math.max(0, Math.sin(phase * 2 + 1.2)) * 0.03;
       const heartbeat = beat1 + beat2;
@@ -346,91 +366,104 @@ function OrganMesh({
       sy *= 1 + heartbeat * 0.8;
       sz *= 1 + heartbeat;
     } else if (key === "lung") {
-      const breathe = Math.sin(t * 1.2) * 0.04;
+      const breathe = Math.sin(at * 1.2) * 0.04;
       sx *= 1 + breathe;
       sz *= 1 + breathe * 0.7;
       sy *= 1 + breathe * 0.3;
     } else if (key === "brain") {
-      const wave = Math.sin(t * 2.5) * 0.015 + Math.sin(t * 4.1) * 0.008;
+      const wave = Math.sin(at * 2.5) * 0.015 + Math.sin(at * 4.1) * 0.008;
       sx *= 1 + wave;
       sy *= 1 - wave * 0.5;
-      sz *= 1 + Math.sin(t * 3.3) * 0.01;
+      sz *= 1 + Math.sin(at * 3.3) * 0.01;
     } else if (key === "stomach") {
-      const churn = Math.sin(t * 1.8) * 0.03;
+      const churn = Math.sin(at * 1.8) * 0.03;
       sx *= 1 + churn;
       sy *= 1 - churn * 0.5;
-      meshRef.current.rotation.z = (shape.rotation?.[2] || 0) + Math.sin(t * 1.5) * 0.04;
+      meshRef.current.rotation.z = (shape.rotation?.[2] || 0) + Math.sin(at * 1.5) * 0.04;
     } else if (key === "intestine") {
-      const wave = Math.sin(t * 2.0) * 0.02;
+      const wave = Math.sin(at * 2.0) * 0.02;
       sx *= 1 + wave;
       sy *= 1 - wave * 0.4;
-      sz *= 1 + Math.sin(t * 2.5 + 0.5) * 0.015;
+      sz *= 1 + Math.sin(at * 2.5 + 0.5) * 0.015;
     } else if (key === "kidney") {
-      const filter = Math.sin(t * 3.0) * 0.025;
+      const filter = Math.sin(at * 3.0) * 0.025;
       sx *= 1 + filter;
       sz *= 1 - filter * 0.5;
     } else if (key === "liver") {
-      const throb = Math.sin(t * 0.8) * 0.02;
+      const throb = Math.sin(at * 0.8) * 0.02;
       sx *= 1 + throb;
       sy *= 1 + throb * 0.5;
     } else if (key === "bladder") {
-      const fill = (Math.sin(t * 0.6) + 1) * 0.5 * 0.04;
+      const fill = (Math.sin(at * 0.6) + 1) * 0.5 * 0.04;
       sx *= 1 + fill;
       sy *= 1 + fill;
       sz *= 1 + fill;
     } else if (key === "diaphragm") {
-      meshRef.current.position.y = shape.position[1] + Math.sin(t * 1.2) * 0.03;
-      sy *= 1 + Math.sin(t * 1.2 + Math.PI) * 0.15;
+      meshRef.current.position.y = shape.position[1] + Math.sin(at * 1.2) * 0.03;
+      sy *= 1 + Math.sin(at * 1.2 + Math.PI) * 0.15;
     } else if (key === "aorta") {
-      const pulseWave = Math.sin(t * 5) * 0.04;
+      const pulseWave = Math.sin(at * 5) * 0.04;
       sx *= 1 + pulseWave;
       sz *= 1 + pulseWave;
     } else if (key === "spleen") {
-      const contract = Math.sin(t * 2.2) * 0.03;
+      const contract = Math.sin(at * 2.2) * 0.03;
       sx *= 1 - contract;
       sy *= 1 - contract * 0.5;
     } else if (key === "pancreas") {
-      const secrete = Math.sin(t * 1.5) * 0.02;
+      const secrete = Math.sin(at * 1.5) * 0.02;
       sx *= 1 + secrete;
-      sz *= 1 + Math.sin(t * 2.0 + 1) * 0.015;
+      sz *= 1 + Math.sin(at * 2.0 + 1) * 0.015;
     } else if (key === "muscle") {
-      const flex = Math.sin(t * 2.0) * 0.04;
+      const flex = Math.sin(at * 2.0) * 0.04;
       sx *= 1 + flex;
       sy *= 1 - flex * 0.3;
     } else if (key === "colon") {
-      const wave = Math.sin(t * 0.9) * 0.02;
+      const wave = Math.sin(at * 0.9) * 0.02;
       sx *= 1 + wave;
       sz *= 1 - wave * 0.3;
     } else if (key === "skull" || key === "bone") {
-      const shimmer = Math.sin(t * 6) * 0.003;
+      const shimmer = Math.sin(at * 6) * 0.003;
       sx *= 1 + shimmer;
       sy *= 1 + shimmer;
+    }
+
+    // ── Pathology extra pulse ──
+    if (isPathology) {
+      const pathPulse = Math.sin(at * 6) * 0.04;
+      sx *= 1 + pathPulse;
+      sy *= 1 + pathPulse;
+      sz *= 1 + pathPulse;
     }
 
     meshRef.current.scale.set(sx, sy, sz);
 
     const mat = meshRef.current.material as THREE.MeshStandardMaterial;
-    const targetEmissive = isSelected ? 0.6 : hovered ? 0.3 : 0.08;
+    const isGhosted = focusSelected && hasSelection && !isSelected && !isPathology;
+    const targetEmissive = isPathology ? 0.55 + Math.sin(at * 6) * 0.2
+      : isGhosted ? 0.02 : isSelected ? 0.6 : hovered ? 0.3 : 0.08;
     mat.emissiveIntensity += (targetEmissive - mat.emissiveIntensity) * 0.1;
 
-    if (key === "heart") {
-      mat.emissiveIntensity += Math.sin(t * 4.5) * 0.05;
-    }
-    if (key === "brain" && (isSelected || hovered)) {
-      mat.emissiveIntensity += Math.sin(t * 5) * 0.08;
+    if (isPathology) {
+      mat.emissive.set("#ff6600");
+    } else if (key === "heart") {
+      mat.emissiveIntensity += Math.sin(at * 4.5) * 0.05;
+    } else if (key === "brain" && (isSelected || hovered)) {
+      mat.emissiveIntensity += Math.sin(at * 5) * 0.08;
     }
 
-    const targetOpacity = isSelected ? 0.95 : hovered ? 0.88 : 0.75;
+    const targetOpacity = isGhosted ? 0.14 : isSelected || isPathology ? 0.95 : hovered ? 0.88 : 0.75;
     mat.opacity += (targetOpacity - mat.opacity) * 0.1;
   });
 
-  const color = isSelected ? accent : hovered ? shape.hoverColor : shape.color;
+  const isPathologyOrgan = pathologyKeys?.has(shape.key) ?? false;
+  const color = isPathologyOrgan ? "#ff6600" : isSelected ? accent : hovered ? shape.hoverColor : shape.color;
   const localizedName = getLocalizedOrganName(shape.key, organData.name, lang);
 
   return (
-    <group>
+    <group ref={groupRef}>
       <mesh
         ref={meshRef}
+        name={shape.key}
         position={shape.position}
         scale={shape.scale}
         rotation={shape.rotation || [0, 0, 0]}
@@ -454,6 +487,19 @@ function OrganMesh({
           metalness={0.15}
         />
       </mesh>
+
+      {/* Pathology warning badge */}
+      {isPathologyOrgan && !isSelected && (
+        <Html position={[shape.position[0] + Math.max(...shape.scale) * 0.8, shape.position[1] + Math.max(...shape.scale) * 0.8, shape.position[2]]} center>
+          <div style={{
+            background: "rgba(200,40,0,0.92)", color: "#fff",
+            borderRadius: "50%", width: 20, height: 20,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 12, fontWeight: 900, pointerEvents: "none",
+            boxShadow: "0 0 8px #ff4400",
+          }}>⚠</div>
+        </Html>
+      )}
 
       {/* Floating label on hover */}
       {hovered && !isSelected && (
@@ -501,11 +547,19 @@ export default function InteractiveOrgans({
   selectedMesh,
   accent,
   visibleLayers,
+  explodeAmount = 0,
+  focusSelected = false,
+  animationSpeed = 1,
+  pathologyKeys,
 }: {
   onSelect: (detail: OrganDetail) => void;
   selectedMesh: string | null;
   accent: string;
   visibleLayers?: Set<LayerType>;
+  explodeAmount?: number;
+  focusSelected?: boolean;
+  animationSpeed?: number;
+  pathologyKeys?: Set<string>;
 }) {
   const layers = visibleLayers ?? new Set<LayerType>(["skeleton", "muscles", "organs", "vessels"]);
 
@@ -525,7 +579,12 @@ export default function InteractiveOrgans({
             shape={shape}
             isSelected={selectedMesh === shape.key}
             accent={accent}
+            explodeAmount={explodeAmount}
+            focusSelected={focusSelected}
+            hasSelection={Boolean(selectedMesh)}
             onSelect={onSelect}
+            animationSpeed={animationSpeed}
+            pathologyKeys={pathologyKeys}
           />
         </Float>
       ))}

@@ -4,11 +4,15 @@ import { useAuth } from "./useAuth";
 
 export type LayerType = "skeleton" | "muscles" | "organs" | "vessels";
 
+const SKETCHFAB_DEFAULT_TOKEN = "20ced38e2e1d4e7f91c01bf016b6d4b9";
+const SKETCHFAB_LS_KEY = "sketchfab-api-token";
+
 export interface UserPreferences {
   themeIndex: number;
   autoRotate: boolean;
   useInteractive: boolean;
   visibleLayers: LayerType[];
+  sketchfabApiToken: string;
 }
 
 const DEFAULT_PREFS: UserPreferences = {
@@ -16,7 +20,13 @@ const DEFAULT_PREFS: UserPreferences = {
   autoRotate: true,
   useInteractive: true,
   visibleLayers: ["skeleton", "muscles", "organs", "vessels"],
+  sketchfabApiToken: SKETCHFAB_DEFAULT_TOKEN,
 };
+
+// Seed the default token into localStorage on first run so ModelManager picks it up immediately
+if (!localStorage.getItem(SKETCHFAB_LS_KEY)) {
+  localStorage.setItem(SKETCHFAB_LS_KEY, SKETCHFAB_DEFAULT_TOKEN);
+}
 
 export function usePreferences() {
   const { user } = useAuth();
@@ -42,11 +52,17 @@ export function usePreferences() {
         .maybeSingle();
 
       if (data) {
+        const cloudToken = (data as any).sketchfab_api_token as string | null;
+        const lsToken = localStorage.getItem(SKETCHFAB_LS_KEY) || "";
+        // Cloud wins over an empty localStorage (cross-device sync)
+        const resolvedToken = cloudToken || lsToken || SKETCHFAB_DEFAULT_TOKEN;
+        if (resolvedToken) localStorage.setItem(SKETCHFAB_LS_KEY, resolvedToken);
         setPrefs({
           themeIndex: data.theme_index,
           autoRotate: data.auto_rotate,
           useInteractive: data.use_interactive,
           visibleLayers: (data.visible_layers || DEFAULT_PREFS.visibleLayers) as LayerType[],
+          sketchfabApiToken: resolvedToken,
         });
       }
       setLoaded(true);
@@ -70,7 +86,8 @@ export function usePreferences() {
             auto_rotate: newPrefs.autoRotate,
             use_interactive: newPrefs.useInteractive,
             visible_layers: newPrefs.visibleLayers,
-          },
+            sketchfab_api_token: newPrefs.sketchfabApiToken || null,
+          } as any,
           { onConflict: "user_id,device_type" }
         );
       }, 1000);

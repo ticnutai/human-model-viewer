@@ -1,0 +1,15 @@
+{
+  "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+  "sourceUrl": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ",
+  "apiUrl": "https://ccf-api.hubmapconsortium.org/v1/reference-organs",
+  "label": "Lung",
+  "sex": "Male",
+  "creator": "Kristin Browne",
+  "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+  "glbUrl": "https://ccf-ontology.hubmapconsortium.org/objects/v1.4/3d-vh-m-lung.glb",
+  "fileSubpath": "VH_M_respiratory_system",
+  "uberonId": "UBERON:0001004",
+  "downloadedAt": "2026-03-08T13:39:04.960Z"
+}

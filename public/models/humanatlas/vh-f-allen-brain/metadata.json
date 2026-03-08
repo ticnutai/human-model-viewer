@@ -1,0 +1,15 @@
+{
+  "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+  "sourceUrl": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ",
+  "apiUrl": "https://ccf-api.hubmapconsortium.org/v1/reference-organs",
+  "label": "Brain",
+  "sex": "Female",
+  "creator": "Kristin Browne",
+  "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+  "glbUrl": "https://ccf-ontology.hubmapconsortium.org/objects/v2.0/3d-vh-f-allen-brain.glb",
+  "fileSubpath": "Allen_brain",
+  "uberonId": "UBERON:0000955",
+  "downloadedAt": "2026-03-08T13:39:03.040Z"
+}

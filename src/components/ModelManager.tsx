@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
+import { getOrganHintFromUrl, getBestOrganDetail } from "./OrganData";
 
 const MESH_HEBREW: Record<string, string> = {
   heart: "לב", liver: "כבד", lung: "ריאה", lungs: "ריאות", kidney: "כליה",
@@ -160,6 +161,7 @@ export default function ModelManager({
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeMediaType, setActiveMediaType] = useState<string | null>(null);
+  const [filterMash, setFilterMash] = useState(false);
   const [catLoadError, setCatLoadError] = useState<string | null>(null);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -224,7 +226,10 @@ export default function ModelManager({
     await load();
   };
 
-  const getSavedSketchfabToken = () => localStorage.getItem(SKETCHFAB_TOKEN_STORAGE_KEY)?.trim() || "";
+  const getSavedSketchfabToken = () =>
+    localStorage.getItem(SKETCHFAB_TOKEN_STORAGE_KEY)?.trim() ||
+    (import.meta.env.VITE_SKETCHFAB_TOKEN as string | undefined)?.trim() ||
+    "";
 
   const pickBestThumb = (model: SketchfabSearchResult) => {
     const images = model.thumbnails?.images ?? [];
@@ -349,6 +354,15 @@ export default function ModelManager({
   const normalizeDisplayNameFromPath = (assetPath: string) => {
     const parts = assetPath.split("/");
     const folder = parts.length >= 2 ? parts[parts.length - 2] : assetPath;
+    // HumanAtlas CCF reference organs — friendly display names
+    const humanAtlasNames: Record<string, string> = {
+      "vh-m-heart": "🫀 Heart (Male) — HumanAtlas",
+      "vh-f-allen-brain": "🧠 Brain (Female) — HumanAtlas",
+      "vh-m-lung": "🫁 Lung (Male) — HumanAtlas",
+      "vh-m-kidney-left": "🫘 Left Kidney (Male) — HumanAtlas",
+      "vh-m-liver": "🫁 Liver (Male) — HumanAtlas",
+    };
+    if (humanAtlasNames[folder]) return humanAtlasNames[folder];
     const cleaned = folder.replace(/-[a-f0-9]{20,}$/i, "");
     return cleaned.replace(/[-_]+/g, " ").replace(/\b\w/g, (s) => s.toUpperCase());
   };
@@ -414,11 +428,19 @@ export default function ModelManager({
   }, []);
 
   const load = useCallback(async () => {
+    const isAbortError = (e: { message?: string } | null) =>
+      e?.message?.includes('AbortError') || e?.message?.includes('steal');
+
     const [catResult, modResult] = await Promise.all([
       supabase.from("model_categories").select("*").order("sort_order"),
       supabase.from("models").select("*").order("created_at", { ascending: false }),
     ]);
     if (catResult.error) {
+      if (isAbortError(catResult.error)) {
+        // Supabase auth lock contention during HMR — recovers automatically, retry shortly
+        setTimeout(() => load(), 1500);
+        return;
+      }
       console.error("[ModelManager] model_categories load error:", catResult.error);
       setCatLoadError(catResult.error.message);
     } else if (catResult.data) {
@@ -426,9 +448,18 @@ export default function ModelManager({
       setCategories(catResult.data);
     }
     if (modResult.error) {
-      console.error("[ModelManager] models load error:", modResult.error);
+      if (!isAbortError(modResult.error))
+        console.error("[ModelManager] models load error:", modResult.error);
     } else if (modResult.data) {
       setModels(modResult.data);
+    }
+  }, []);
+
+  // Auto-seed Sketchfab token from env if not yet saved locally
+  useEffect(() => {
+    const envToken = (import.meta.env.VITE_SKETCHFAB_TOKEN as string | undefined)?.trim();
+    if (envToken && !localStorage.getItem(SKETCHFAB_TOKEN_STORAGE_KEY)) {
+      localStorage.setItem(SKETCHFAB_TOKEN_STORAGE_KEY, envToken);
     }
   }, []);
 
@@ -496,7 +527,9 @@ export default function ModelManager({
         : "glb";
 
       const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
-      await supabase.from("models").insert({
+
+      // Try full insert; if mesh_parts column doesn't exist yet fall back to minimal insert
+      let { error: insertError } = await supabase.from("models").insert({
         file_name: fileName,
         display_name: file.name.replace(/\.[^.]+$/, ""),
         category_id: activeCategory || categories[0]?.id || null,
@@ -505,6 +538,23 @@ export default function ModelManager({
         mesh_parts: translatedMeshes,
         media_type: detectedType,
       });
+
+      // Column mesh_parts or media_type might not exist yet (migration pending)
+      if (insertError?.code === "42703" || insertError?.message?.includes("mesh_parts") || insertError?.message?.includes("media_type")) {
+        const { error: fallbackError } = await supabase.from("models").insert({
+          file_name: fileName,
+          display_name: file.name.replace(/\.[^.]+$/, ""),
+          category_id: activeCategory || categories[0]?.id || null,
+          file_size: file.size,
+          file_url: fileUrl,
+        });
+        insertError = fallbackError ?? null;
+      }
+
+      if (insertError) {
+        updateUploadItem(uploadId, { status: "error", error: `שגיאת בסיס נתונים: ${insertError.message}` });
+        return;
+      }
 
       updateUploadItem(uploadId, { status: "done" });
       await load();
@@ -576,6 +626,17 @@ export default function ModelManager({
     await load();
   };
 
+  const modelHasMash = (model: ListModel): boolean => {
+    const rec = model.record;
+    const hasMeshParts = model.source === "cloud" && rec?.mesh_parts && Array.isArray(rec.mesh_parts) && rec.mesh_parts.length > 0;
+    const hasOrganHint = model.url ? getOrganHintFromUrl(model.url) !== null : false;
+    const hasMeshOrgans = hasMeshParts
+      ? getBestOrganDetail((rec!.mesh_parts as any[]).map((p: any) => typeof p === "string" ? p : p.name ?? "")) !== null
+      : false;
+    const nameHasOrgan = /organ|heart|lung|liver|kidney|brain|stomach|torso|anatomy|skull|spine|muscle|bicep|femur|tibia|humerus|bone|skeleton|ear|eye|tooth|teeth|pelvis|rib|trachea|aorta|nerve|pancreas|spleen|bladder/.test(model.displayName.toLowerCase());
+    return hasMeshParts || hasOrganHint || hasMeshOrgans || nameHasOrgan;
+  };
+
   const filteredModels = models
     .filter(m => !activeCategory || m.category_id === activeCategory)
     .filter(m => !activeMediaType || (m.media_type || "glb") === activeMediaType);
@@ -607,7 +668,9 @@ export default function ModelManager({
     ...(activeCategory || activeMediaType ? [] : localModels),
   ];
 
-  const combinedModels: ListModel[] = [...combinedModelsBase].sort((a, b) => {
+  const combinedModels: ListModel[] = [...combinedModelsBase]
+    .filter(m => !filterMash || modelHasMash(m))
+    .sort((a, b) => {
     if (sortMode === "all") {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }
@@ -776,6 +839,29 @@ export default function ModelManager({
             </button>
           );
         })}
+        {/* MASH filter toggle */}
+        <button
+          onClick={() => setFilterMash(f => !f)}
+          style={{
+            background: filterMash ? "rgba(201,162,39,0.15)" : "transparent",
+            color: filterMash ? "#c9a227" : t.textSecondary,
+            border: `1.5px solid ${filterMash ? "#c9a227" : t.panelBorder}`,
+            borderRadius: "20px", padding: "4px 12px",
+            cursor: "pointer", fontSize: "11px",
+            fontWeight: 600, transition: "all 0.2s",
+            display: "flex", alignItems: "center", gap: "4px",
+          }}
+        >
+          🧬 MASH · פירוט איברים
+          {filterMash && (
+            <span style={{
+              fontSize: "9px",
+              background: "rgba(201,162,39,0.25)",
+              color: "#c9a227",
+              borderRadius: "999px", padding: "0 5px",
+            }}>{combinedModelsBase.filter(modelHasMash).length}</span>
+          )}
+        </button>
 
         {/* Sort select pushed to the end */}
         <select
@@ -873,6 +959,32 @@ export default function ModelManager({
           חפש, צפה בתצוגה מוקדמת וייבא GLB ישירות למערכת
         </div>
 
+        {/* Quick MASH anatomy searches */}
+        <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" }}>
+          {[
+            { label: "🧬 איברים", query: "human organ anatomy interactive 3d" },
+            { label: "🫀 לב", query: "human heart anatomy detailed 3d" },
+            { label: "🧠 מוח", query: "human brain anatomy 3d" },
+            { label: "🦴 שלד", query: "human skeleton anatomy full body" },
+            { label: "💪 שרירים", query: "human muscular system anatomy" },
+            { label: "🫁 ריאות", query: "human lungs respiratory system 3d" },
+          ].map(({ label, query }) => (
+            <button
+              key={query}
+              onClick={() => { setSketchfabQuery(query); void handleSketchfabSearch(); }}
+              disabled={sketchfabSearching}
+              style={{
+                background: "transparent",
+                border: `1px solid ${t.accent}55`,
+                borderRadius: "14px", padding: "3px 10px",
+                color: t.accent, cursor: "pointer", fontSize: "10px",
+                fontWeight: 600, transition: "all 0.15s",
+                opacity: sketchfabSearching ? 0.5 : 1,
+              }}
+            >{label}</button>
+          ))}
+        </div>
+
         <div style={{ display: "flex", gap: "6px" }}>
           <input
             value={sketchfabQuery}
@@ -923,7 +1035,12 @@ export default function ModelManager({
           <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "300px", overflowY: "auto" }}>
             {sketchfabResults.slice(0, 8).map((result) => {
               const isPreview = previewUid === result.uid;
+              const isImporting = importingUid === result.uid;
               const thumb = pickBestThumb(result);
+              const nameLower = result.name.toLowerCase();
+              const hasOrganInName = /organ|heart|lung|liver|kidney|brain|stomach|torso|anatomy|skull|spine|muscle|bicep|femur|tibia|humerus|bone|skeleton|ear|eye|tooth|teeth|pelvis|rib|trachea|aorta|nerve|pancreas|spleen|bladder/.test(nameLower);
+              // Find matching upload progress item for this Sketchfab import
+              const importUpload = uploads.find(u => u.fileName.toLowerCase().includes(result.uid.toLowerCase()));
               return (
                 <div key={result.uid} style={{ border: `1px solid ${t.panelBorder}`, borderRadius: "10px", padding: "8px" }}>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -937,46 +1054,85 @@ export default function ModelManager({
                       <div style={{ fontSize: "12px", fontWeight: 700, color: t.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {result.name}
                       </div>
-                      <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "2px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                      <div style={{ fontSize: "10px", color: t.textSecondary, marginTop: "2px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
                         <span>⬇ {Number(result.downloadCount ?? 0).toLocaleString("en-US")}</span>
-                        <span>👍 {Number(result.likeCount ?? 0).toLocaleString("en-US")}</span>
                         <span>👁 {Number(result.viewCount ?? 0).toLocaleString("en-US")}</span>
+                        <span>👍 {Number(result.likeCount ?? 0).toLocaleString("en-US")}</span>
                         {result.license?.label && <span>📄 {result.license.label}</span>}
+                        {hasOrganInName && (
+                          <span style={{
+                            fontSize: "9px", fontWeight: 700,
+                            color: "#c9a227",
+                            background: "rgba(201,162,39,0.13)",
+                            border: "1px solid rgba(201,162,39,0.35)",
+                            borderRadius: "999px", padding: "1px 7px",
+                          }}>🧬 MASH · זיהוי איברים</span>
+                        )}
                       </div>
                     </div>
                   </div>
+
+                  {/* Import progress bar */}
+                  {isImporting && (
+                    <div style={{ marginTop: "8px" }}>
+                      {importUpload ? (
+                        <div style={{ padding: "8px 10px", borderRadius: "8px", border: `1.5px solid ${importUpload.status === "error" ? t.accentAlt : importUpload.status === "done" ? "#22c55e" : t.accent}`, background: `${importUpload.status === "error" ? t.accentAlt : importUpload.status === "done" ? "#22c55e" : t.accent}08` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+                            <span style={{ fontSize: "10px", fontWeight: 600, color: t.textPrimary }}>
+                              {importUpload.status === "analyzing" ? "🔬 מנתח מש ואיברים..." : importUpload.status === "done" ? "✅ הועלה לענן ול-DB" : importUpload.status === "error" ? `❌ ${importUpload.error}` : "⬆ מעלה לענן..."}
+                            </span>
+                            <span style={{ fontSize: "11px", fontWeight: 800, color: importUpload.status === "error" ? t.accentAlt : importUpload.status === "done" ? "#22c55e" : t.accent }}>
+                              {importUpload.status === "uploading" ? `${importUpload.progress}%` : ""}
+                            </span>
+                          </div>
+                          {importUpload.status === "uploading" && (
+                            <div style={{ height: "5px", borderRadius: "3px", background: t.panelBorder, overflow: "hidden" }}>
+                              <div style={{ height: "100%", borderRadius: "3px", background: t.accent, width: `${importUpload.progress}%`, transition: "width 0.3s ease-out" }} />
+                            </div>
+                          )}
+                          {importUpload.status === "analyzing" && (
+                            <div style={{ height: "5px", borderRadius: "3px", background: t.panelBorder, overflow: "hidden" }}>
+                              <div className="animate-pulse" style={{ height: "100%", borderRadius: "3px", background: "#a855f7", width: "100%" }} />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: "10px", color: t.textSecondary, padding: "6px 0" }}>⬇ מוריד מ-Sketchfab...</div>
+                      )}
+                    </div>
+                  )}
 
                   <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
                     <button
                       onClick={() => setPreviewUid((prev) => (prev === result.uid ? null : result.uid))}
                       style={{
-                        background: "transparent",
-                        border: `1px solid ${t.panelBorder}`,
+                        background: isPreview ? `${t.accent}18` : "transparent",
+                        border: `1px solid ${isPreview ? t.accent : t.panelBorder}`,
                         borderRadius: "8px",
                         padding: "6px 10px",
-                        color: t.textSecondary,
+                        color: isPreview ? t.accent : t.textSecondary,
                         cursor: "pointer",
                         fontSize: "11px",
                       }}
                     >
-                      {isPreview ? "הסתר Preview" : "Preview"}
+                      {isPreview ? "סגור תצוגה" : "תצוגה מקדימה"}
                     </button>
                     <button
                       onClick={() => void handleImportSketchfab(result)}
-                      disabled={importingUid === result.uid}
+                      disabled={isImporting}
                       style={{
                         background: t.accentBgHover,
                         border: `1px solid ${t.accent}`,
                         borderRadius: "8px",
                         padding: "6px 10px",
                         color: t.textPrimary,
-                        cursor: "pointer",
+                        cursor: isImporting ? "default" : "pointer",
                         fontSize: "11px",
                         fontWeight: 700,
-                        opacity: importingUid === result.uid ? 0.7 : 1,
+                        opacity: isImporting ? 0.6 : 1,
                       }}
                     >
-                      {importingUid === result.uid ? "מייבא..." : "ייבוא למערכת"}
+                      {isImporting ? "מייבא..." : "ייבוא למערכת"}
                     </button>
                     <a
                       href={result.viewerUrl || `https://sketchfab.com/models/${result.uid}`}
@@ -1225,6 +1381,22 @@ export default function ModelManager({
                     }}>
                       {mediaIcon} {model.mediaType === "glb" ? "3D" : model.mediaType === "animation" ? "אנימציה" : model.mediaType === "image" ? "תמונה" : "וידאו"}
                     </span>
+                    {model.mediaType === "glb" && (() => {
+                      const hasMeshParts = model.source === "cloud" && rec?.mesh_parts && Array.isArray(rec.mesh_parts) && rec.mesh_parts.length > 0;
+                      const hasOrganHint = model.url ? getOrganHintFromUrl(model.url) !== null : false;
+                      const hasMeshOrgans = hasMeshParts ? getBestOrganDetail((rec!.mesh_parts as any[]).map((p: any) => typeof p === "string" ? p : p.name ?? "")) !== null : false;
+                      const nameHasOrgan = /organ|heart|lung|liver|kidney|brain|stomach|torso|anatomy|skull|spine|muscle|bicep|femur|tibia|humerus|bone|skeleton|ear|eye|tooth|teeth|pelvis|rib|trachea|aorta|nerve|pancreas|spleen|bladder/.test(model.displayName.toLowerCase());
+                      return (hasMeshParts || hasOrganHint || hasMeshOrgans || nameHasOrgan) ? (
+                        <span style={{
+                          fontSize: "9px", fontWeight: 700,
+                          color: "#c9a227",
+                          background: "rgba(201,162,39,0.13)",
+                          border: "1px solid rgba(201,162,39,0.35)",
+                          borderRadius: "999px", padding: "1px 7px",
+                          whiteSpace: "nowrap",
+                        }}>🧬 MASH · זיהוי איברים</span>
+                      ) : null;
+                    })()}
                     <span style={{ fontSize: "9px", color: t.textSecondary }}>
                       {formatSize(model.fileSize)} • {new Date(model.createdAt).toLocaleDateString("he-IL")}
                     </span>

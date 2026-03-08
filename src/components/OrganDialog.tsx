@@ -48,9 +48,9 @@ function MediaPlayer({ item, accent, animationsEnabled, index }: {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.07, duration: 0.3 }}
       style={{
-        borderRadius: "12px", overflow: "hidden",
-        border: "1px solid #e2e6ec", background: "#fff",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+        borderRadius: "14px", overflow: "hidden",
+        border: "1.5px solid #c9a227", background: "#fff",
+        boxShadow: "0 1px 4px rgba(201,162,39,0.1)",
       }}
     >
       {/* ── Preview/Player ── */}
@@ -115,20 +115,20 @@ function MediaPlayer({ item, accent, animationsEnabled, index }: {
       )}
 
       {/* ── Caption ── */}
-      <div style={{ padding: "10px 14px", borderTop: "1px solid #f0f2f5", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+      <div style={{ padding: "10px 14px", borderTop: "1.5px solid #c9a227", display: "flex", alignItems: "flex-start", gap: "8px" }}>
         <span style={{
           minWidth: "28px", height: "28px", borderRadius: "8px", flexShrink: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
-          background: `${accent}12`, fontSize: "13px",
+          background: "#f5ecd5", fontSize: "13px",
         }}>
           {item.type === "video" ? "🎥" : "🖼️"}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: "0.83rem", fontWeight: 700, color: "#1a2332", lineHeight: 1.4 }}>
+          <div style={{ fontSize: "0.83rem", fontWeight: 700, color: "#0b1f4d", lineHeight: 1.4 }}>
             {item.title}
           </div>
           {item.description && (
-            <div style={{ fontSize: "0.74rem", color: "#8a95a5", marginTop: "2px", lineHeight: 1.5 }}>
+            <div style={{ fontSize: "0.74rem", color: "#27406f", marginTop: "2px", lineHeight: 1.5 }}>
               {item.description}
             </div>
           )}
@@ -156,6 +156,14 @@ function MediaPlayer({ item, accent, animationsEnabled, index }: {
     </motion.div>
   );
 }
+
+// ── Design tokens ──
+const NAVY = "#0b1f4d";
+const NAVY_SEC = "#27406f";
+const GOLD = "#c9a227";
+const GOLD_LIGHT = "#f5ecd5";
+const WHITE = "#ffffff";
+const GOLD_BORDER = `1.5px solid ${GOLD}`;
 
 export default function OrganDialog({
   organ,
@@ -276,13 +284,13 @@ export default function OrganDialog({
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            background: "#fafbfd",
-            borderRight: isRTL ? "none" : "1px solid #e2e6ec",
-            borderLeft: isRTL ? "1px solid #e2e6ec" : "none",
+            background: WHITE,
+            borderRight: isRTL ? "none" : GOLD_BORDER,
+            borderLeft: isRTL ? GOLD_BORDER : "none",
             overflow: "hidden",
             boxShadow: isRTL
-              ? "-8px 0 30px rgba(0,0,0,0.08)"
-              : "8px 0 30px rgba(0,0,0,0.08)",
+              ? "-8px 0 30px rgba(11,31,77,0.12)"
+              : "8px 0 30px rgba(11,31,77,0.12)",
           }}
         >
           {minimized ? (
@@ -290,21 +298,22 @@ export default function OrganDialog({
             <div style={{
               display: "flex", flexDirection: "column", alignItems: "center",
               paddingTop: "16px", gap: "12px", height: "100%",
+              background: WHITE,
             }}>
               <button
                 onClick={() => setMinimized(false)}
                 style={{
                   width: "36px", height: "36px", borderRadius: "10px",
-                  border: "1px solid #e2e6ec", background: "#fff",
-                  cursor: "pointer", fontSize: "16px", color: "#333",
+                  border: GOLD_BORDER, background: WHITE,
+                  cursor: "pointer", fontSize: "16px", color: GOLD,
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
-                {isRTL ? "◀" : "▶"}
+                {isRTL ? "▶" : "◀"}
               </button>
               <div style={{
                 writingMode: "vertical-rl", textOrientation: "mixed",
-                fontSize: "13px", fontWeight: 700, color: "#1a2332",
+                fontSize: "13px", fontWeight: 700, color: NAVY,
                 letterSpacing: "0.05em", marginTop: "8px",
               }}>
                 {organName}
@@ -318,13 +327,13 @@ export default function OrganDialog({
               {/* ─── Compact header ─── */}
               <div style={{
                 display: "flex", alignItems: "center", gap: "12px",
-                padding: "14px 16px", borderBottom: "1px solid #e8ecf1",
-                background: "#fff",
+                padding: "14px 16px", borderBottom: GOLD_BORDER,
+                background: WHITE,
               }}>
                 {/* Icon */}
                 <div style={{
                   width: "44px", height: "44px", borderRadius: "12px",
-                  background: `${accent}12`, border: `1.5px solid ${accent}30`,
+                  background: GOLD_LIGHT, border: GOLD_BORDER,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: "22px", flexShrink: 0,
                 }}>
@@ -334,25 +343,39 @@ export default function OrganDialog({
                 {/* Title area */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h2 style={{
-                    margin: 0, fontSize: "1.1rem", fontWeight: 800, color: "#1a2332",
+                    margin: 0, fontSize: "1.1rem", fontWeight: 800, color: NAVY,
                     lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}>
                     {organName}
                   </h2>
-                  {latinName && (
-                    <div style={{ fontSize: "0.78rem", color: "#8a95a5", fontStyle: "italic", marginTop: "2px" }}>
-                      {latinName}
+                  {(latinName || organ.ta2_id) && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px", flexWrap: "wrap" }}>
+                      {latinName && (
+                        <span style={{ fontSize: "0.78rem", color: NAVY_SEC, fontStyle: "italic" }}>
+                          {latinName}
+                        </span>
+                      )}
+                      {organ.ta2_id && (
+                        <span style={{
+                          fontSize: "0.62rem", fontWeight: 700, color: NAVY,
+                          background: GOLD_LIGHT, border: GOLD_BORDER,
+                          borderRadius: "4px", padding: "1px 5px",
+                          letterSpacing: "0.03em", fontFamily: "monospace", whiteSpace: "nowrap",
+                        }}>
+                          TA2 {organ.ta2_id}
+                        </span>
+                      )}
                     </div>
                   )}
                   <div style={{
                     display: "inline-flex", alignItems: "center", gap: "5px",
-                    fontSize: "0.7rem", fontWeight: 700, color: accent,
-                    background: `${accent}0d`, borderRadius: "6px",
+                    fontSize: "0.7rem", fontWeight: 700, color: GOLD,
+                    background: GOLD_LIGHT, borderRadius: "6px",
                     padding: "2px 8px", marginTop: "4px",
                   }}>
                     <span style={{
                       width: "5px", height: "5px", borderRadius: "50%",
-                      background: accent,
+                      background: GOLD,
                     }} />
                     {systemLabel}
                   </div>
@@ -365,7 +388,7 @@ export default function OrganDialog({
                     title={animationsEnabled ? "כבה אנימציות" : "הפעל אנימציות"}
                     style={{
                       width: "32px", height: "32px", borderRadius: "8px",
-                      border: "1px solid #e2e6ec", background: animationsEnabled ? `${accent}12` : "#fff",
+                      border: GOLD_BORDER, background: animationsEnabled ? GOLD_LIGHT : WHITE,
                       cursor: "pointer", fontSize: "14px",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}
@@ -377,8 +400,8 @@ export default function OrganDialog({
                     title={isFavorite ? "הסר ממועדפים" : "הוסף למועדפים"}
                     style={{
                       width: "32px", height: "32px", borderRadius: "8px",
-                      border: `1px solid ${isFavorite ? "#ffc107" : "#e2e6ec"}`,
-                      background: isFavorite ? "#fff8e1" : "#fff",
+                      border: GOLD_BORDER,
+                      background: isFavorite ? GOLD_LIGHT : WHITE,
                       cursor: "pointer", fontSize: "16px",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}
@@ -390,20 +413,20 @@ export default function OrganDialog({
                     title="מזער"
                     style={{
                       width: "32px", height: "32px", borderRadius: "8px",
-                      border: "1px solid #e2e6ec", background: "#fff",
-                      cursor: "pointer", fontSize: "14px",
+                      border: GOLD_BORDER, background: WHITE,
+                      cursor: "pointer", fontSize: "14px", color: NAVY,
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}
                   >
-                    {isRTL ? "▶" : "◀"}
+                    {isRTL ? "◀" : "▶"}
                   </button>
                   <button
                     onClick={onClose}
                     title="סגור"
                     style={{
                       width: "32px", height: "32px", borderRadius: "8px",
-                      border: "1px solid #e2e6ec", background: "#fff",
-                      cursor: "pointer", fontSize: "14px", color: "#666",
+                      border: GOLD_BORDER, background: WHITE,
+                      cursor: "pointer", fontSize: "14px", color: NAVY,
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}
                   >
@@ -415,7 +438,7 @@ export default function OrganDialog({
               {/* ─── Quick stats row ─── */}
               <div style={{
                 display: "flex", gap: "8px", padding: "12px 16px",
-                borderBottom: "1px solid #e8ecf1", background: "#fff",
+                borderBottom: GOLD_BORDER, background: WHITE,
               }}>
                 {statItems.map((stat, i) => (
                   <motion.div
@@ -424,16 +447,16 @@ export default function OrganDialog({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06, duration: 0.3 }}
                     style={{
-                      flex: 1, padding: "10px 8px", borderRadius: "10px",
-                      background: "#f4f6f9", textAlign: "center",
-                      border: "1px solid #eaecf0",
+                      flex: 1, padding: "10px 8px", borderRadius: "12px",
+                      background: GOLD_LIGHT, textAlign: "center",
+                      border: GOLD_BORDER,
                     }}
                   >
                     <div style={{ fontSize: "16px", marginBottom: "3px" }}>{stat.icon}</div>
-                    <div style={{ fontSize: "0.65rem", color: "#8a95a5", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    <div style={{ fontSize: "0.65rem", color: NAVY_SEC, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       {stat.label}
                     </div>
-                    <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#1a2332", marginTop: "2px" }}>
+                    <div style={{ fontSize: "0.82rem", fontWeight: 700, color: NAVY, marginTop: "2px" }}>
                       {stat.value}
                     </div>
                   </motion.div>
@@ -443,13 +466,14 @@ export default function OrganDialog({
               {/* ─── Age toggle + Tabs ─── */}
               <div style={{
                 display: "flex", alignItems: "center", gap: "8px",
-                padding: "8px 16px", borderBottom: "1px solid #e8ecf1",
-                background: "#fff",
+                padding: "8px 16px", borderBottom: GOLD_BORDER,
+                background: WHITE,
               }}>
                 {/* Age toggle */}
                 <div style={{
-                  display: "flex", gap: "2px", background: "#f0f2f5",
-                  borderRadius: "8px", padding: "3px", flexShrink: 0,
+                  display: "flex", gap: "2px", background: GOLD_LIGHT,
+                  borderRadius: "10px", padding: "3px", flexShrink: 0,
+                  border: GOLD_BORDER,
                 }}>
                   {([
                     { key: "adult" as AgeMode, label: "🧑‍⚕️" },
@@ -459,10 +483,10 @@ export default function OrganDialog({
                       key={mode.key}
                       onClick={() => { setAgeMode(mode.key); setActiveTab("overview"); }}
                       style={{
-                        padding: "5px 10px", borderRadius: "6px", border: "none",
+                        padding: "5px 10px", borderRadius: "8px", border: "none",
                         cursor: "pointer", fontSize: "14px",
-                        background: ageMode === mode.key ? "#fff" : "transparent",
-                        boxShadow: ageMode === mode.key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                        background: ageMode === mode.key ? WHITE : "transparent",
+                        boxShadow: ageMode === mode.key ? "0 1px 4px rgba(201,162,39,0.3)" : "none",
                       }}
                     >
                       {mode.label}
@@ -471,24 +495,25 @@ export default function OrganDialog({
                 </div>
 
                 {/* Separator */}
-                <div style={{ width: "1px", height: "24px", background: "#e2e6ec" }} />
+                <div style={{ width: "1px", height: "24px", background: GOLD }} />
 
                 {/* Tabs */}
                 <div style={{
                   display: "flex", gap: "2px", flex: 1,
-                  background: "#f0f2f5", borderRadius: "8px", padding: "3px",
+                  background: GOLD_LIGHT, borderRadius: "10px", padding: "3px",
+                  border: GOLD_BORDER,
                 }}>
                   {TABS.map((tab) => (
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
                       style={{
-                        flex: 1, padding: "6px 4px", borderRadius: "6px",
+                        flex: 1, padding: "6px 4px", borderRadius: "8px",
                         border: "none", cursor: "pointer",
                         fontSize: "0.72rem", fontWeight: 600,
-                        background: activeTab === tab.key ? "#fff" : "transparent",
-                        color: activeTab === tab.key ? "#1a2332" : "#8a95a5",
-                        boxShadow: activeTab === tab.key ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        background: activeTab === tab.key ? WHITE : "transparent",
+                        color: activeTab === tab.key ? NAVY : NAVY_SEC,
+                        boxShadow: activeTab === tab.key ? "0 1px 4px rgba(201,162,39,0.3)" : "none",
                         transition: "all 0.2s",
                       }}
                     >
@@ -501,7 +526,7 @@ export default function OrganDialog({
               {/* ─── Scrollable content ─── */}
               <div style={{
                 flex: 1, overflowY: "auto", padding: "16px",
-                background: "#fafbfd",
+                background: WHITE,
               }}
               className="organ-scroll"
               >
@@ -515,33 +540,27 @@ export default function OrganDialog({
                     {/* ── Overview ── */}
                     {activeTab === "overview" && (
                       <div>
-                        {/* Detection info */}
-                        {(organ.detectedElementType || organ.detectedBy || organ.detectionScore !== undefined) && (
+                        {/* Detection type badge — only show element type, no debug info */}
+                        {organ.detectedElementType && (
                           <div style={{
-                            marginBottom: "14px", padding: "10px 12px",
-                            borderRadius: "10px", border: "1px solid #e8ecf1",
-                            background: "#f8f9fb", fontSize: "0.78rem", color: "#5a6a7a",
-                            display: "grid", gap: "3px",
+                            marginBottom: "12px", display: "inline-flex", alignItems: "center", gap: "5px",
+                            fontSize: "0.72rem", fontWeight: 700,
+                            color: NAVY_SEC, background: GOLD_LIGHT,
+                            borderRadius: "8px", padding: "3px 9px",
+                            border: GOLD_BORDER,
                           }}>
-                            {organ.detectedElementType && (
-                              <div><strong style={{ color: "#1a2332" }}>{lang === "en" ? "Type" : "סוג"}:</strong> {getElementTypeLabel(organ.detectedElementType, lang)}</div>
-                            )}
-                            {organ.detectedBy && (
-                              <div><strong style={{ color: "#1a2332" }}>{lang === "en" ? "Matched by" : "זוהה לפי"}:</strong> {organ.detectedBy}</div>
-                            )}
-                            {organ.detectionScore !== undefined && (
-                              <div><strong style={{ color: "#1a2332" }}>{lang === "en" ? "Confidence" : "ביטחון"}:</strong> {Math.max(0, Math.min(100, organ.detectionScore))}%</div>
-                            )}
+                            🔬 {getElementTypeLabel(organ.detectedElementType, lang)}
                           </div>
                         )}
 
                         {/* Image */}
                         {organ.image && !imgFailed && (
                           <div style={{
-                            marginBottom: "14px", borderRadius: "12px",
-                            overflow: "hidden", background: "#f0f2f5",
+                            marginBottom: "14px", borderRadius: "14px",
+                            overflow: "hidden", background: GOLD_LIGHT,
                             maxHeight: "160px", display: "flex",
                             alignItems: "center", justifyContent: "center",
+                            border: GOLD_BORDER,
                           }}>
                             <img
                               src={organ.image}
@@ -560,7 +579,7 @@ export default function OrganDialog({
 
                         <p style={{
                           fontSize: isKids ? "0.95rem" : "0.88rem",
-                          color: "#3a4a5a", lineHeight: isKids ? 2 : 1.85,
+                          color: NAVY_SEC, lineHeight: isKids ? 2 : 1.85,
                           margin: "0 0 16px",
                         }}>
                           {summary}
@@ -568,12 +587,12 @@ export default function OrganDialog({
 
                         {funFact && (
                           <div style={{
-                            padding: "14px 16px", background: `${accent}08`,
-                            borderRadius: "12px", border: `1px solid ${accent}20`,
+                            padding: "14px 16px", background: GOLD_LIGHT,
+                            borderRadius: "14px", border: GOLD_BORDER,
                             marginBottom: "12px",
                           }}>
                             <div style={{
-                              fontSize: "0.7rem", fontWeight: 700, color: accent,
+                              fontSize: "0.7rem", fontWeight: 700, color: GOLD,
                               marginBottom: "6px", textTransform: "uppercase",
                               letterSpacing: "0.04em", display: "flex",
                               alignItems: "center", gap: "5px",
@@ -581,7 +600,7 @@ export default function OrganDialog({
                               {isKids ? "🤯" : "✨"} {isKids ? "וואו! הידעתם?" : "הידעת?"}
                             </div>
                             <p style={{
-                              margin: 0, fontSize: "0.85rem", color: "#1a2332",
+                              margin: 0, fontSize: "0.85rem", color: NAVY,
                               lineHeight: 1.75, fontWeight: 500,
                             }}>
                               {funFact}
@@ -592,19 +611,19 @@ export default function OrganDialog({
                         {organ.wonderNote && (
                           <div style={{
                             padding: "14px 16px",
-                            background: `${accent}06`,
-                            borderRadius: "12px",
-                            border: `1px solid ${accent}18`,
+                            background: GOLD_LIGHT,
+                            borderRadius: "14px",
+                            border: GOLD_BORDER,
                           }}>
                             <div style={{
-                              fontSize: "0.7rem", fontWeight: 700, color: accent,
+                              fontSize: "0.7rem", fontWeight: 700, color: GOLD,
                               marginBottom: "6px", textTransform: "uppercase",
                               letterSpacing: "0.04em",
                             }}>
                               ✨ פלא הבריאה
                             </div>
                             <p style={{
-                              margin: 0, fontSize: "0.85rem", color: "#1a2332",
+                              margin: 0, fontSize: "0.85rem", color: NAVY,
                               lineHeight: 1.75, fontWeight: 500,
                             }}>
                               {organ.wonderNote}
@@ -625,32 +644,33 @@ export default function OrganDialog({
                             transition={{ delay: i * 0.05, duration: 0.3 }}
                             style={{
                               display: "flex", alignItems: "flex-start", gap: "10px",
-                              padding: "12px 14px", borderRadius: "10px",
-                              background: "#fff", border: "1px solid #eaecf0",
+                              padding: "12px 14px", borderRadius: "12px",
+                              background: WHITE, border: GOLD_BORDER,
                               transition: "border-color 0.2s",
                             }}
-                            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = `${accent}50`; }}
-                            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "#eaecf0"; }}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = GOLD_LIGHT; }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = WHITE; }}
                           >
                             {!isKids && (
                               <span style={{
                                 minWidth: "26px", height: "26px", borderRadius: "8px",
                                 display: "flex", alignItems: "center", justifyContent: "center",
-                                background: `${accent}12`, color: accent,
+                                background: GOLD_LIGHT, color: GOLD,
                                 fontSize: "0.75rem", fontWeight: 800, flexShrink: 0,
+                                border: GOLD_BORDER,
                               }}>
                                 {i + 1}
                               </span>
                             )}
                             <span style={{
                               fontSize: isKids ? "0.9rem" : "0.85rem",
-                              color: "#2a3a4a", lineHeight: 1.7, fontWeight: 500,
+                              color: NAVY_SEC, lineHeight: 1.7, fontWeight: 500,
                             }}>
                               {fact}
                             </span>
                           </motion.div>
                         )) : (
-                          <p style={{ color: "#8a95a5", fontSize: "0.85rem", textAlign: "center", padding: "24px 0" }}>
+                          <p style={{ color: NAVY_SEC, fontSize: "0.85rem", textAlign: "center", padding: "24px 0" }}>
                             {lang === "en" ? "No additional facts available" : "אין עובדות נוספות זמינות"}
                           </p>
                         )}
@@ -669,7 +689,7 @@ export default function OrganDialog({
                             index={i}
                           />
                         )) : (
-                          <p style={{ color: "#8a95a5", fontSize: "0.85rem", textAlign: "center", padding: "24px 0" }}>
+                          <p style={{ color: NAVY_SEC, fontSize: "0.85rem", textAlign: "center", padding: "24px 0" }}>
                             {lang === "en" ? "No media available" : "אין מדיה זמינה"}
                           </p>
                         )}
@@ -681,27 +701,27 @@ export default function OrganDialog({
                       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                         {statItems.map((stat, i) => (
                           <div key={i} style={{
-                            padding: "14px 16px", borderRadius: "12px",
-                            background: "#fff", border: "1px solid #eaecf0",
+                            padding: "14px 16px", borderRadius: "14px",
+                            background: WHITE, border: GOLD_BORDER,
                           }}>
                             <div style={{
                               display: "flex", alignItems: "center",
                               justifyContent: "space-between", marginBottom: "8px",
                             }}>
                               <span style={{
-                                fontSize: "0.82rem", fontWeight: 700, color: "#1a2332",
+                                fontSize: "0.82rem", fontWeight: 700, color: NAVY,
                                 display: "flex", alignItems: "center", gap: "6px",
                               }}>
                                 <span style={{ fontSize: "16px" }}>{stat.icon}</span>
                                 {stat.label}
                               </span>
-                              <span style={{ fontSize: "0.82rem", fontWeight: 800, color: accent }}>
+                              <span style={{ fontSize: "0.82rem", fontWeight: 800, color: GOLD }}>
                                 {stat.value}
                               </span>
                             </div>
                             <div style={{
                               height: "5px", borderRadius: "3px",
-                              background: "#eaecf0", overflow: "hidden",
+                              background: GOLD_LIGHT, overflow: "hidden",
                             }}>
                               <motion.div
                                 initial={{ width: 0 }}
@@ -716,20 +736,82 @@ export default function OrganDialog({
                           </div>
                         ))}
 
-                        {funFact && (
+                        {/* ── Detection confidence ── */}
+                        {organ.scorePercent != null && (
                           <div style={{
-                            padding: "14px 16px", borderRadius: "12px",
-                            background: `${accent}06`, border: `1px solid ${accent}15`,
+                            padding: "14px 16px", borderRadius: "14px",
+                            background: WHITE, border: GOLD_BORDER,
                           }}>
                             <div style={{
-                              fontSize: "0.7rem", fontWeight: 700, color: accent,
+                              display: "flex", alignItems: "center",
+                              justifyContent: "space-between", marginBottom: "8px",
+                            }}>
+                              <span style={{
+                                fontSize: "0.82rem", fontWeight: 700, color: NAVY,
+                                display: "flex", alignItems: "center", gap: "6px",
+                              }}>
+                                <span style={{ fontSize: "16px" }}>🎯</span>
+                                {lang === "en" ? "Detection confidence" : "רמת זיהוי"}
+                              </span>
+                              <span style={{ fontSize: "0.82rem", fontWeight: 800, color: organ.scorePercent >= 80 ? "#22c55e" : organ.scorePercent >= 50 ? "#f59e0b" : "#ef4444" }}>
+                                {organ.scorePercent}%
+                              </span>
+                            </div>
+                            <div style={{
+                              height: "5px", borderRadius: "3px",
+                              background: GOLD_LIGHT, overflow: "hidden",
+                            }}>
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: progressAnim ? `${organ.scorePercent}%` : 0 }}
+                                transition={{ duration: 0.7, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                style={{
+                                  height: "100%", borderRadius: "3px",
+                                  background: organ.scorePercent >= 80 ? "#22c55e" : organ.scorePercent >= 50 ? "#f59e0b" : "#ef4444",
+                                }}
+                              />
+                            </div>
+                            {organ.detectedBy && (
+                              <div style={{ fontSize: "0.68rem", color: NAVY_SEC, marginTop: "6px" }}>
+                                {lang === "en" ? "Method" : "שיטה"}: <span style={{ fontWeight: 600 }}>{organ.detectedBy}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ── TA2 identifier ── */}
+                        {organ.ta2_id && (
+                          <div style={{
+                            padding: "12px 16px", borderRadius: "14px",
+                            background: GOLD_LIGHT, border: GOLD_BORDER,
+                            display: "flex", alignItems: "center", gap: "10px",
+                          }}>
+                            <span style={{ fontSize: "16px" }}>🏷️</span>
+                            <div>
+                              <div style={{ fontSize: "0.68rem", fontWeight: 700, color: GOLD, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                                Terminologia Anatomica 2
+                              </div>
+                              <div style={{ fontSize: "0.85rem", fontWeight: 800, color: NAVY, fontFamily: "monospace", marginTop: "2px" }}>
+                                {organ.ta2_id}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {funFact && (
+                          <div style={{
+                            padding: "14px 16px", borderRadius: "14px",
+                            background: GOLD_LIGHT, border: GOLD_BORDER,
+                          }}>
+                            <div style={{
+                              fontSize: "0.7rem", fontWeight: 700, color: GOLD,
                               marginBottom: "6px", textTransform: "uppercase",
                               letterSpacing: "0.04em",
                             }}>
                               💡 {lang === "en" ? "Fun fact" : "עובדה מעניינת"}
                             </div>
                             <p style={{
-                              margin: 0, fontSize: "0.85rem", color: "#1a2332",
+                              margin: 0, fontSize: "0.85rem", color: NAVY,
                               lineHeight: 1.75, fontWeight: 500,
                             }}>
                               {funFact}
@@ -743,13 +825,13 @@ export default function OrganDialog({
                       <QuizPanel
                         organ={organ}
                         theme={{
-                          textPrimary: "#1a2332",
-                          textSecondary: "#8a95a5",
-                          panelBg: "#fff",
-                          panelBorder: "#e2e6ec",
-                          accent,
-                          accentAlt: t.accentAlt,
-                          bg: t.bg,
+                          textPrimary: NAVY,
+                          textSecondary: NAVY_SEC,
+                          panelBg: WHITE,
+                          panelBorder: GOLD,
+                          accent: GOLD,
+                          accentAlt: GOLD,
+                          bg: WHITE,
                         }}
                         lang={lang as "he" | "en"}
                         animationsEnabled={animationsEnabled}
@@ -762,18 +844,18 @@ export default function OrganDialog({
               {/* ─── Footer ─── */}
               <div style={{
                 flexShrink: 0, padding: "10px 16px",
-                borderTop: "1px solid #e8ecf1", background: "#fff",
+                borderTop: GOLD_BORDER, background: WHITE,
                 display: "flex", alignItems: "center", justifyContent: "space-between",
               }}>
-                <span style={{ fontSize: "0.72rem", color: "#8a95a5", fontWeight: 600 }}>
+                <span style={{ fontSize: "0.72rem", color: NAVY_SEC, fontWeight: 600 }}>
                   {systemLabel} • {organName}
                 </span>
                 <button
                   onClick={onClose}
                   style={{
-                    padding: "6px 16px", borderRadius: "8px",
-                    border: "none", background: accent,
-                    color: "#fff", fontSize: "0.78rem", fontWeight: 700,
+                    padding: "6px 16px", borderRadius: "10px",
+                    border: GOLD_BORDER, background: NAVY,
+                    color: WHITE, fontSize: "0.78rem", fontWeight: 700,
                     cursor: "pointer",
                   }}
                 >
@@ -796,7 +878,7 @@ export default function OrganDialog({
               flexShrink: 0,
               zIndex: 2,
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = `${accent}30`; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = `${GOLD}30`; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
           >
             {/* Visual grip */}
@@ -804,7 +886,7 @@ export default function OrganDialog({
               position: "absolute", top: "50%", left: "50%",
               transform: "translate(-50%, -50%)",
               width: "4px", height: "40px", borderRadius: "2px",
-              background: "#ccd0d8",
+              background: GOLD,
             }} />
           </div>
         )}

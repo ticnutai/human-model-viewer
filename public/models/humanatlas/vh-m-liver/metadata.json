@@ -1,0 +1,15 @@
+{
+  "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+  "sourceUrl": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ",
+  "apiUrl": "https://ccf-api.hubmapconsortium.org/v1/reference-organs",
+  "label": "Liver",
+  "sex": "Male",
+  "creator": "Kristin Browne",
+  "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+  "glbUrl": "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Liver.glb",
+  "fileSubpath": "VH_M_liver",
+  "uberonId": "UBERON:0002107",
+  "downloadedAt": "2026-03-08T13:39:07.095Z"
+}

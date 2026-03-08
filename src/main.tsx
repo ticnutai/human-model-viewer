@@ -2,7 +2,9 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-if (import.meta.env.DEV) {
+const debugLogsEnabled = import.meta.env.DEV && import.meta.env.VITE_DEBUG_LOGS === "true";
+
+if (debugLogsEnabled) {
 	console.info("[APP_DEBUG] boot", {
 		time: new Date().toISOString(),
 		href: window.location.href,

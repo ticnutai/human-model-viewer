@@ -292,6 +292,66 @@
       "likes": 54,
       "views": 10603,
       "recommendedScore": 317.23
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-heart/model.glb",
+      "source": "Human Reference Atlas – CCF (Common Coordinate Framework)",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Heart (UBERON:0000948)",
+      "downloads": 0,
+      "likes": 0,
+      "views": 0,
+      "recommendedScore": 20000
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-allen-brain/model.glb",
+      "source": "Human Reference Atlas – CCF (Common Coordinate Framework)",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Female Allen Brain (UBERON:0000955)",
+      "downloads": 0,
+      "likes": 0,
+      "views": 0,
+      "recommendedScore": 20000
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-lung/model.glb",
+      "source": "Human Reference Atlas – CCF (Common Coordinate Framework)",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Lung (UBERON:0001004)",
+      "downloads": 0,
+      "likes": 0,
+      "views": 0,
+      "recommendedScore": 20000
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-kidney-left/model.glb",
+      "source": "Human Reference Atlas – CCF (Common Coordinate Framework)",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Left Kidney (UBERON:0004538)",
+      "downloads": 0,
+      "likes": 0,
+      "views": 0,
+      "recommendedScore": 20000
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-liver/model.glb",
+      "source": "Human Reference Atlas – CCF (Common Coordinate Framework)",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Liver (UBERON:0002107)",
+      "downloads": 0,
+      "likes": 0,
+      "views": 0,
+      "recommendedScore": 20000
     }
   ]
 }
