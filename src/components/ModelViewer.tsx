@@ -312,7 +312,13 @@ const ModelViewer = () => {
   const [layerOpacities, setLayerOpacities] = useState<Record<LayerType, number>>({ skeleton: 1, muscles: 1, organs: 1, vessels: 1 });
   const [peelAmount, setPeelAmount] = useState(0);
   const [bodyModelUrl, setBodyModelUrl] = useState<string | undefined>(undefined);
+  const [cloudModels, setCloudModels] = useState<{ id: string; display_name: string; hebrew_name: string | null; file_url: string | null }[]>([]);
 
+  // Fetch cloud models for body model picker
+  useEffect(() => {
+    supabase.from("models").select("id, display_name, hebrew_name, file_url").order("display_name")
+      .then(({ data }) => { if (data) setCloudModels(data); });
+  }, []);
   const t = THEMES[themeIdx];
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
   const lessonSequence = useMemo(() => Object.keys(ORGAN_DETAILS), []);
