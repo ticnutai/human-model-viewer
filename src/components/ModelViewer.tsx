@@ -1453,7 +1453,7 @@ const ModelViewer = () => {
           <Suspense fallback={null}>
             <ModelErrorBoundary key={modelUrl} onError={msg => { setModelLoadWarning(msg); if (modelUrl !== LOCAL_DEFAULT_MODEL) setModelUrl(LOCAL_DEFAULT_MODEL); }}>
               {useInteractive ? (
-                <InteractiveOrgans onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} explodeAmount={explodeAmount} focusSelected={focusSelected} animationSpeed={animationSpeed} pathologyKeys={pathologyKeys} layerOpacities={layerOpacities} peelAmount={peelAmount} bodyModelUrl={bodyModelUrl} />
+                <InteractiveOrgans onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} explodeAmount={explodeAmount} focusSelected={focusSelected} animationSpeed={animationSpeed} pathologyKeys={pathologyKeys} layerOpacities={layerOpacities} peelAmount={peelAmount} bodyModelUrl={bodyModelUrl} cloudShapes={dynamicShapes} cloudPeelDirs={dynamicPeelDirs} />
               ) : (
                 <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} onScan={handleGlbScan} />
               )}
