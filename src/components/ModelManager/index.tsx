@@ -180,7 +180,33 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     return thumbUrl;
   };
 
+  // ── Duplicate detection ──
+  const isDuplicate = (fileName: string, fileSize?: number): ModelRecord | undefined => {
+    const baseName = fileName.replace(/^\d+_/, "").replace(/\.[^.]+$/, "").toLowerCase().replace(/[_\-\s]+/g, "");
+    return models.find(m => {
+      const existingBase = m.file_name.replace(/^\d+_/, "").replace(/\.[^.]+$/, "").toLowerCase().replace(/[_\-\s]+/g, "");
+      const existingDisplay = m.display_name.toLowerCase().replace(/[_\-\s]+/g, "");
+      // Match by normalized name
+      if (existingBase === baseName || existingDisplay === baseName) return true;
+      // Match by sketchfab uid
+      const uidMatch = baseName.match(/sketchfab_([a-f0-9]+)/);
+      if (uidMatch && (existingBase.includes(uidMatch[1]) || existingDisplay.includes(uidMatch[1]))) return true;
+      // Match by exact size + similar name (first 10 chars)
+      if (fileSize && m.file_size === fileSize && baseName.slice(0, 10) === existingBase.slice(0, 10)) return true;
+      return false;
+    });
+  };
+
   const uploadSingleFile = async (file: File) => {
+    // Check for duplicates before uploading
+    const dup = isDuplicate(file.name, file.size);
+    if (dup) {
+      const uploadId = `dup_${Date.now()}`;
+      setUploads(prev => [...prev, { id: uploadId, file, fileName: file.name, progress: 0, status: "error", error: `⚠️ כפילות: "${dup.hebrew_name || dup.display_name}" כבר קיים במאגר` }]);
+      setTimeout(() => setUploads(prev => prev.filter(u => u.id !== uploadId)), 5000);
+      return;
+    }
+
     const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const fileName = `${Date.now()}_${file.name}`;
     const item: UploadItem = { id: uploadId, file, fileName, progress: 0, status: "uploading" };
@@ -301,12 +327,22 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     setSketchfabSearching(true); setSketchfabError(null);
     try {
       const url = new URL("https://api.sketchfab.com/v3/search");
-      url.searchParams.set("type", "models"); url.searchParams.set("q", query.trim());
-      url.searchParams.set("downloadable", "true"); url.searchParams.set("count", "24");
+      url.searchParams.set("type", "models");
+      url.searchParams.set("q", query.trim());
+      url.searchParams.set("downloadable", "true");
+      url.searchParams.set("count", "24");
+      url.searchParams.set("sort_by", "-likeCount");        // Sort by most liked = highest quality
+      url.searchParams.set("min_face_count", "1000");       // Minimum detail level
+      url.searchParams.set("file_format", "glb");           // GLB format preferred
       const res = await fetch(url.toString(), { headers: { Authorization: `Token ${token}`, Accept: "application/json" } });
       if (!res.ok) throw new Error(`Sketchfab API error ${res.status}`);
       const payload = await res.json();
-      setSketchfabResults(Array.isArray(payload?.results) ? payload.results : []);
+      const results = Array.isArray(payload?.results) ? payload.results : [];
+      // Sort: prioritize high downloads + likes for quality
+      results.sort((a: SketchfabSearchResult, b: SketchfabSearchResult) =>
+        ((b.likeCount ?? 0) + (b.downloadCount ?? 0) * 0.5) - ((a.likeCount ?? 0) + (a.downloadCount ?? 0) * 0.5)
+      );
+      setSketchfabResults(results);
     } catch { setSketchfabError("שגיאה בחיפוש. בדוק טוקן וחיבור."); setSketchfabResults([]); }
     finally { setSketchfabSearching(false); }
   };
@@ -314,6 +350,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const handleImportSketchfab = async (model: SketchfabSearchResult) => {
     const token = getSavedSketchfabToken();
     if (!token) { setSketchfabError("לא נמצא API token."); return; }
+    // Duplicate check by sketchfab uid
+    const dup = isDuplicate(`sketchfab_${model.uid}.glb`);
+    if (dup) {
+      setSketchfabError(`⚠️ כפילות: "${dup.hebrew_name || dup.display_name}" כבר קיים במאגר. לא מייבא.`);
+      return;
+    }
     setImportingUid(model.uid); setSketchfabError(null);
     try {
       const dlRes = await fetch(`https://api.sketchfab.com/v3/models/${model.uid}/download`, { headers: { Authorization: `Token ${token}`, Accept: "application/json" } });
@@ -571,6 +613,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               error={sketchfabError}
               importingUid={importingUid}
               uploads={uploads}
+              existingUids={models.map(m => m.file_name).filter(n => n.includes("sketchfab_")).map(n => { const match = n.match(/sketchfab_([a-f0-9]+)/); return match ? match[1] : ""; }).filter(Boolean)}
             />
           </div>
         )}
