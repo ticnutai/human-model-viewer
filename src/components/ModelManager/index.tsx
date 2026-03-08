@@ -990,25 +990,40 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               </div>
             )}
             {combinedModels.map(model => (
-              <ModelCard
-                key={model.id}
-                model={model}
-                isActive={currentModelUrl === model.url || currentModelUrl.includes(model.url.replace(`${SUPABASE_URL}/storage/v1/object/public/`, ""))}
-                categories={categories}
-                onSelect={onSelectModel}
-                onDelete={handleDelete}
-                onHideLocal={handleHideLocal}
-                onSaveEdit={handleSaveEdit}
-                onSaveInlineName={handleSaveInlineName}
-                onSaveDisplayName={handleSaveDisplayName}
-                onEditLocalName={handleEditLocalName}
-                onReanalyze={handleReanalyze}
-                onGenerateThumbnail={handleGenerateThumbnail}
-                reanalyzingId={reanalyzingId}
-                generatingThumbId={generatingThumbId}
-                viewMode={viewMode}
-                isBackgroundProcessing={bgProcessingIds.has(model.id.replace("local:", ""))}
-              />
+              <div key={model.id} className="relative">
+                {selectMode && model.source === "cloud" && (
+                  <button
+                    onClick={() => toggleSelect(model.id)}
+                    className="absolute top-1 right-1 z-10 w-5 h-5 rounded flex items-center justify-center cursor-pointer border-none text-xs"
+                    style={{
+                      background: selectedIds.has(model.id) ? "hsl(220 50% 50%)" : "hsl(0 0% 100% / 0.9)",
+                      color: selectedIds.has(model.id) ? "white" : "hsl(220 15% 55%)",
+                      border: `1.5px solid ${selectedIds.has(model.id) ? "hsl(220 50% 50%)" : "hsl(220 15% 70%)"}`,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    {selectedIds.has(model.id) ? "✓" : ""}
+                  </button>
+                )}
+                <ModelCard
+                  model={model}
+                  isActive={currentModelUrl === model.url || currentModelUrl.includes(model.url.replace(`${SUPABASE_URL}/storage/v1/object/public/`, ""))}
+                  categories={categories}
+                  onSelect={onSelectModel}
+                  onDelete={handleDelete}
+                  onHideLocal={handleHideLocal}
+                  onSaveEdit={handleSaveEdit}
+                  onSaveInlineName={handleSaveInlineName}
+                  onSaveDisplayName={handleSaveDisplayName}
+                  onEditLocalName={handleEditLocalName}
+                  onReanalyze={handleReanalyze}
+                  onGenerateThumbnail={handleGenerateThumbnail}
+                  reanalyzingId={reanalyzingId}
+                  generatingThumbId={generatingThumbId}
+                  viewMode={viewMode}
+                  isBackgroundProcessing={bgProcessingIds.has(model.id.replace("local:", ""))}
+                />
+              </div>
             ))}
           </div>
         </div>
