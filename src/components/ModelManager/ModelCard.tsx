@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Pencil, Trash2, Play, Pause, Camera, FlaskConical, ClipboardList, Loader2 } from "lucide-react";
 import { getOrganHintFromUrl, getBestOrganDetail } from "../OrganData";
-import { formatSize, getMediaIcon, translateMeshName, autoHebrewName } from "./utils";
+import { formatSize, getMediaIcon, translateMeshName, autoHebrewName, getOrganInfoForMesh } from "./utils";
+import type { MeshOrganInfo } from "./utils";
 import type { Category, ListModel, ModelRecord } from "./types";
 import ModelEditForm from "./ModelEditForm";
 
@@ -485,13 +486,39 @@ export default function ModelCard({
               )}
               {rec.mesh_parts && Array.isArray(rec.mesh_parts) && rec.mesh_parts.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-semibold mb-1" style={{ color: "hsl(220 15% 55%)" }}>🧩 חלקי Mesh ({rec.mesh_parts.length})</div>
-                  <div className="flex gap-1 flex-wrap">
-                    {(rec.mesh_parts as string[]).slice(0, 20).map((part, i) => (
-                      <Badge key={i} variant="secondary" className="text-[10px] px-2 py-0.5">{part}</Badge>
-                    ))}
-                    {(rec.mesh_parts as string[]).length > 20 && (
-                      <Badge variant="outline" className="text-[10px] px-2 py-0.5">+{(rec.mesh_parts as string[]).length - 20} עוד</Badge>
+                  <div className="text-[10px] font-semibold mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>🧩 איברים שזוהו ({rec.mesh_parts.length})</div>
+                  <div className="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto">
+                    {(rec.mesh_parts as string[]).slice(0, 30).map((part, i) => {
+                      // Extract original mesh name from translated format "Hebrew (original)"
+                      const originalMatch = typeof part === "string" ? part.match(/\(([^)]+)\)$/) : null;
+                      const originalName = originalMatch ? originalMatch[1] : (typeof part === "string" ? part : "");
+                      const info = getOrganInfoForMesh(originalName);
+                      if (info) {
+                        return (
+                          <div key={i} className="rounded-lg px-2.5 py-2 flex flex-col gap-0.5" style={{ background: "hsl(43 78% 47% / 0.06)", border: "1px solid hsl(43 60% 55% / 0.2)" }}>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-base">{info.icon}</span>
+                              <span className="text-[11px] font-bold" style={{ color: "hsl(220 40% 13%)" }}>{info.hebrewName}</span>
+                              <span className="text-[9px]" style={{ color: "hsl(220 15% 55%)" }}>{info.englishName}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="secondary" className="text-[8px] px-1.5 py-0 h-3.5">{info.system}</Badge>
+                              {info.latinName && <span className="text-[8px] italic" style={{ color: "hsl(220 15% 65%)" }}>{info.latinName}</span>}
+                            </div>
+                            {info.summary && (
+                              <div className="text-[9px] leading-tight mt-0.5" dir="rtl" style={{ color: "hsl(220 20% 40%)" }}>
+                                {info.summary.slice(0, 120)}{info.summary.length > 120 ? "..." : ""}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <Badge key={i} variant="secondary" className="text-[10px] px-2 py-0.5 w-fit">{part}</Badge>
+                      );
+                    })}
+                    {(rec.mesh_parts as string[]).length > 30 && (
+                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 w-fit">+{(rec.mesh_parts as string[]).length - 30} עוד</Badge>
                     )}
                   </div>
                 </div>

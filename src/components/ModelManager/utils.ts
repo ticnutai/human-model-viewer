@@ -1,6 +1,7 @@
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
-import { getOrganHintFromUrl, getBestOrganDetail } from "../OrganData";
+import { getOrganHintFromUrl, getBestOrganDetail, detectOrganMatch, getOrganDetail, ORGAN_NAME_I18N, ORGAN_SYSTEM_I18N, ORGAN_LATIN_NAME, ORGAN_DETAILS } from "../OrganData";
+import type { OrganDetail } from "../OrganData";
 import type { ListModel, LocalManifestAsset } from "./types";
 
 export const MESH_HEBREW: Record<string, string> = {
@@ -27,12 +28,63 @@ export const MESH_HEBREW: Record<string, string> = {
   wrist: "שורש כף היד", elbow: "מרפק",
 };
 
+/**
+ * Translate mesh name to Hebrew using OrganData detection first, then fallback to MESH_HEBREW.
+ */
 export function translateMeshName(name: string): string {
+  // Tier 1: Use OrganData's advanced detection
+  const match = detectOrganMatch(name);
+  if (match) {
+    const hebrewName = ORGAN_NAME_I18N[match.key]?.he;
+    if (hebrewName) return `${hebrewName} (${name})`;
+  }
+  // Tier 2: Simple dictionary lookup
   const lower = name.toLowerCase().replace(/[_\-\.]/g, " ");
   for (const [en, he] of Object.entries(MESH_HEBREW)) {
     if (lower.includes(en)) return `${he} (${name})`;
   }
   return name;
+}
+
+/** Get rich organ info for a mesh name. Returns null if no organ identified. */
+export type MeshOrganInfo = {
+  hebrewName: string;
+  englishName: string;
+  icon: string;
+  system: string;
+  latinName?: string;
+  summary: string;
+  organKey: string;
+};
+
+export function getOrganInfoForMesh(meshName: string): MeshOrganInfo | null {
+  const detail = getOrganDetail(meshName);
+  if (detail) {
+    return {
+      hebrewName: detail.nameI18n?.he || detail.name,
+      englishName: detail.nameI18n?.en || detail.name,
+      icon: detail.icon,
+      system: detail.systemI18n?.he || detail.system,
+      latinName: detail.latinName,
+      summary: detail.summary,
+      organKey: detail.meshName,
+    };
+  }
+  // Fallback: try MESH_HEBREW
+  const lower = meshName.toLowerCase().replace(/[_\-\.]/g, " ");
+  for (const [en, he] of Object.entries(MESH_HEBREW)) {
+    if (lower.includes(en)) {
+      return {
+        hebrewName: he,
+        englishName: en,
+        icon: "🔬",
+        system: "—",
+        summary: "",
+        organKey: en,
+      };
+    }
+  }
+  return null;
 }
 
 export async function analyzeGlbMeshes(urlOrFile: string | File): Promise<string[]> {
