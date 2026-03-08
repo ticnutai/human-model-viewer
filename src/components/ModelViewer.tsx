@@ -989,6 +989,7 @@ const ModelViewer = () => {
           <div className="flex shrink-0" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
             {([
               { id: "organs" as const, label: "איברים", icon: "🫀" },
+              { id: "gallery" as const, label: "צופה", icon: "🎬" },
               { id: "models" as const, label: "קבצים", icon: "📂" },
               { id: "info" as const, label: "מידע", icon: "ℹ️" },
             ]).map(tab => (
