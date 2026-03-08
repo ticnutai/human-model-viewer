@@ -633,7 +633,52 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     setReanalyzingId(null);
   };
 
-  const handleAddCategory = async (name: string, icon: string) => {
+  // ── Multi-select & Batch analysis ──
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    const cloudIds = combinedModels.filter(m => m.source === "cloud" && m.record?.file_url).map(m => m.id);
+    setSelectedIds(new Set(cloudIds));
+  };
+
+  const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false); };
+
+  const handleBatchAnalyze = async (targetIds: string[]) => {
+    const targets = models.filter(m => targetIds.includes(m.id) && m.file_url);
+    if (targets.length === 0) return;
+    setBatchAnalyzing(true);
+    setBatchAnalysisProgress({ done: 0, total: targets.length });
+    let completed = 0;
+    for (const m of targets) {
+      setReanalyzingId(m.id);
+      try {
+        const meshNames = await analyzeGlbMeshes(m.file_url!);
+        await supabase.from("models").update({ mesh_parts: meshNames.map(translateMeshName) }).eq("id", m.id);
+      } catch (e) { console.warn(`[BatchAnalysis] Failed for ${m.display_name}:`, e); }
+      completed++;
+      setBatchAnalysisProgress({ done: completed, total: targets.length });
+    }
+    setReanalyzingId(null);
+    setBatchAnalyzing(false);
+    setBatchAnalysisProgress({ done: 0, total: 0 });
+    clearSelection();
+    await load();
+  };
+
+  const handleAnalyzeAll = () => {
+    const allCloudIds = models.filter(m => m.file_url).map(m => m.id);
+    handleBatchAnalyze(allCloudIds);
+  };
+
+  const handleAnalyzeSelected = () => {
+    handleBatchAnalyze(Array.from(selectedIds));
+  };
     await supabase.from("model_categories").insert({ name, icon, sort_order: categories.length });
     await load();
   };
