@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { getBestOrganDetail, getFallbackDetail, getOrganHintFromUrl, detectOrganByColor, ORGAN_DETAILS, getLocalizedOrganName, getLocalizedOrganSystem, searchOrgansByDisease } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
 import { supabase } from "@/integrations/supabase/client";
+import { useMeshMappings } from "@/hooks/useMeshMappings";
 
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
 import OrganDialog from "./OrganDialog";
@@ -467,15 +468,45 @@ const ModelViewer = () => {
     supabase.from("models").select("id, display_name, hebrew_name, file_url").order("display_name")
       .then(({ data }) => { if (data) setCloudModels(data); });
   }, []);
+
+  // Fetch all cloud mesh mappings for enriching organ info
+  const { allMappings: cloudMeshData } = useMeshMappings();
+
+  // Build enriched ORGAN_DETAILS map from cloud data
+  const enrichedOrganDetails = useMemo(() => {
+    if (!cloudMeshData.length) return ORGAN_DETAILS;
+    const enriched = { ...ORGAN_DETAILS };
+    cloudMeshData.forEach(cm => {
+      const factsData = cm.facts || {};
+      const key = cm.mesh_key;
+      // Only add if not already in ORGAN_DETAILS (cloud supplements, doesn't override hardcoded)
+      if (!enriched[key]) {
+        enriched[key] = {
+          name: cm.name,
+          hebrewName: factsData.displayNameHe || cm.summary,
+          system: cm.system,
+          meshName: key,
+          description: factsData.functionHe || factsData.function || "",
+          latinName: factsData.latinName || "",
+          diseases: factsData.diseasesHe || factsData.diseases || [],
+          facts: factsData.factsHe || factsData.facts || [],
+          icon: cm.icon,
+          cameraPos: undefined,
+          lookAt: undefined,
+        } as unknown as OrganDetail;
+      }
+    });
+    return enriched;
+  }, [cloudMeshData]);
   const t = THEMES[themeIdx];
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
-  const lessonSequence = useMemo(() => Object.keys(ORGAN_DETAILS), []);
+  const lessonSequence = useMemo(() => Object.keys(enrichedOrganDetails), [enrichedOrganDetails]);
 
   const atlasSystems = useMemo(() => {
     const systems = new Set<string>();
-    Object.entries(ORGAN_DETAILS).forEach(([key, organ]) => systems.add(getLocalizedOrganSystem(key, organ.system, lang)));
+    Object.entries(enrichedOrganDetails).forEach(([key, organ]) => systems.add(getLocalizedOrganSystem(key, organ.system, lang)));
     return Array.from(systems).sort((a, b) => a.localeCompare(b));
-  }, [lang]);
+  }, [lang, enrichedOrganDetails]);
 
   const diseaseMatchKeys = useMemo(() => {
     const q = atlasQuery.trim();
@@ -489,14 +520,14 @@ const ModelViewer = () => {
 
   const filteredAtlasEntries = useMemo(() => {
     const query = atlasQuery.trim().toLowerCase();
-    return Object.entries(ORGAN_DETAILS).map(([key, organ]) => [key, { ...organ, meshName: key }] as [string, OrganDetail]).filter(([key, organ]) => {
+    return Object.entries(enrichedOrganDetails).map(([key, organ]) => [key, { ...organ, meshName: key }] as [string, OrganDetail]).filter(([key, organ]) => {
       const localizedName = getLocalizedOrganName(key, organ.name, lang).toLowerCase();
       const localizedSystem = getLocalizedOrganSystem(key, organ.system, lang);
       const matchesQuery = query.length === 0 || localizedName.includes(query) || key.toLowerCase().includes(query) || localizedSystem.toLowerCase().includes(query) || diseaseMatchKeys.has(key);
       const matchesSystem = selectedSystem === "all" || localizedSystem === selectedSystem;
       return matchesQuery && matchesSystem;
     });
-  }, [atlasQuery, lang, selectedSystem, diseaseMatchKeys]);
+  }, [atlasQuery, lang, selectedSystem, diseaseMatchKeys, enrichedOrganDetails]);
 
   // Group atlas entries by system
   const groupedAtlasEntries = useMemo(() => {
@@ -603,10 +634,10 @@ const ModelViewer = () => {
   }, [tryResolveToCloud]);
 
   const focusOrganByKey = useCallback((key: string) => {
-    const organ = ORGAN_DETAILS[key]; if (!organ) return;
+    const organ = enrichedOrganDetails[key]; if (!organ) return;
     setSelectedOrgan({ ...organ, meshName: key });
     if (organ.cameraPos) handleViewChange(organ.cameraPos, organ.lookAt);
-  }, [handleViewChange]);
+  }, [handleViewChange, enrichedOrganDetails]);
 
   const moveLesson = useCallback((direction: 1 | -1) => {
     setLessonIndex(prev => { const next = (prev + direction + lessonSequence.length) % lessonSequence.length; focusOrganByKey(lessonSequence[next]); return next; });
@@ -902,11 +933,11 @@ const ModelViewer = () => {
               <button onClick={() => setShowOrganSidebar(false)} className="text-lg transition-colors bg-transparent border-none cursor-pointer p-1 rounded-lg hover:bg-gray-100" style={{ color: "hsl(220 15% 60%)" }}>✕</button>
             </div>
             <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>
-              <span>📊 {exploredOrgans.size}/{Object.keys(ORGAN_DETAILS).length} נחקרו</span>
+              <span>📊 {exploredOrgans.size}/{Object.keys(enrichedOrganDetails).length} נחקרו</span>
               <span style={{ color: "hsl(43 78% 42%)" }}>⭐ {favorites.size}</span>
             </div>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(220 20% 93%)" }}>
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(ORGAN_DETAILS).length, 1) * 100)}%`, background: "linear-gradient(90deg, hsl(43 78% 47%), hsl(43 78% 55%))" }} />
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(enrichedOrganDetails).length, 1) * 100)}%`, background: "linear-gradient(90deg, hsl(43 78% 47%), hsl(43 78% 55%))" }} />
             </div>
           </div>
 
@@ -1216,7 +1247,7 @@ const ModelViewer = () => {
               {pathologyKeys.size > 0 ? (
                 <div className="flex flex-col gap-1">
                   {Array.from(pathologyKeys).map(key => {
-                    const organ = ORGAN_DETAILS[key]; if (!organ) return null;
+                    const organ = enrichedOrganDetails[key]; if (!organ) return null;
                     return (
                       <button key={key} onClick={() => { focusOrganByKey(key); setShowSymptomSearch(false); }} className="organ-card text-left" style={{ textAlign: isRTL ? "right" : "left" }}>
                         <span className="text-lg">{organ.icon}</span>

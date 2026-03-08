@@ -7,6 +7,7 @@
  * - X-Ray, Explode, חיפוש
  */
 
+import { useMeshMappings } from "@/hooks/useMeshMappings";
 import {
   Canvas, useLoader, useThree, useFrame, ThreeEvent,
 } from "@react-three/fiber";
@@ -696,7 +697,32 @@ export default function AdvancedAnatomyViewer() {
   });
   const [showSettings, setShowSettings] = useState(false);
   const theme = THEMES[themeId];
-  const meta = MODEL_META[modelId];
+  const baseMeta = MODEL_META[modelId];
+
+  // Fetch cloud mesh mappings and merge with hardcoded data
+  const { mappings: cloudMappings, loading: cloudLoading } = useMeshMappings(modelId);
+
+  const meta = useMemo(() => {
+    if (cloudMappings.size === 0) return baseMeta;
+    // Merge cloud data into infoMap
+    const mergedInfoMap = { ...baseMeta.infoMap };
+    cloudMappings.forEach((cm, meshKey) => {
+      const factsData = cm.facts || {};
+      mergedInfoMap[meshKey] = {
+        displayName: cm.name,
+        displayNameHe: factsData.displayNameHe || cm.summary || cm.name,
+        layer: cm.system,
+        facts: factsData.facts || [],
+        factsHe: factsData.factsHe || [],
+        latinName: factsData.latinName || "",
+        function: factsData.function || "",
+        functionHe: factsData.functionHe || "",
+        diseases: factsData.diseases || [],
+        diseasesHe: factsData.diseasesHe || [],
+      };
+    });
+    return { ...baseMeta, infoMap: mergedInfoMap };
+  }, [baseMeta, cloudMappings]);
 
   const [loadedMeshKeys, setLoadedMeshKeys] = useState<string[]>([]);
   const [hiddenLayers, setHiddenLayers] = useState<Set<string>>(new Set());
