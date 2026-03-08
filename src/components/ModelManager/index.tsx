@@ -54,6 +54,11 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [sketchfabNextUrl, setSketchfabNextUrl] = useState<string | null>(null);
   const [sketchfabLoadingMore, setSketchfabLoadingMore] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(true);
+  // Multi-select for batch analysis
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  const [batchAnalyzing, setBatchAnalyzing] = useState(false);
+  const [batchAnalysisProgress, setBatchAnalysisProgress] = useState({ done: 0, total: 0 });
 
   // ── Data loading using direct fetch (bypasses supabase-js client hang) ──
   const load = useCallback(async (retryCount = 0) => {
