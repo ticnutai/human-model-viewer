@@ -933,7 +933,7 @@ const ModelViewer = () => {
               <button onClick={() => setShowOrganSidebar(false)} className="text-lg transition-colors bg-transparent border-none cursor-pointer p-1 rounded-lg hover:bg-gray-100" style={{ color: "hsl(220 15% 60%)" }}>✕</button>
             </div>
             <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>
-              <span>📊 {exploredOrgans.size}/{Object.keys(ORGAN_DETAILS).length} נחקרו</span>
+              <span>📊 {exploredOrgans.size}/{Object.keys(enrichedOrganDetails).length} נחקרו</span>
               <span style={{ color: "hsl(43 78% 42%)" }}>⭐ {favorites.size}</span>
             </div>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(220 20% 93%)" }}>
