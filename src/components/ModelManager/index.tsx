@@ -10,7 +10,7 @@ import SketchfabSearch from "./SketchfabSearch";
 import { generateThumbnailFromUrl } from "./ThumbnailGenerator";
 import {
   translateMeshName, analyzeGlbMeshes, buildRelevance,
-  normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken,
+  normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken, autoHebrewName,
 } from "./utils";
 import type {
   Category, ModelRecord, ListModel, SortMode,
