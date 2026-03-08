@@ -18,8 +18,8 @@ const STATUS_CONFIG: Record<string, { icon: string; color: string; bg: string; b
   error: { icon: "❌", color: "hsl(0 70% 45%)", bg: "hsl(0 80% 97%)", border: "hsl(0 70% 80%)" },
 };
 
-const STEP_ORDER = ["uploading", "analyzing", "saving", "thumbnail", "done"] as const;
-const STEP_LABELS = ["העלאה", "ניתוח", "שמירה", "תמונה", "הושלם"];
+const STEP_ORDER = ["uploading", "saving", "done"] as const;
+const STEP_LABELS = ["העלאה", "שמירה", "הושלם"];
 
 function getStepIndex(status: string): number {
   const idx = STEP_ORDER.indexOf(status as any);

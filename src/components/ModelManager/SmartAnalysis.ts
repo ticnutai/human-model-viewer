@@ -115,7 +115,7 @@ export async function analyzeGlbSmart(
     method: "none",
     durationMs: Math.round(performance.now() - start),
   };
-  console.warn(`[SmartAnalysis] All paths failed after ${empty.durationMs}ms`);
+  console.warn(`[SmartAnalysis] ⚠️ ALL 3 TIERS FAILED after ${empty.durationMs}ms for: ${inputType}`);
   onComplete?.(empty);
   return empty;
 }
