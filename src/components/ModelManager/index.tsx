@@ -8,6 +8,7 @@ import UploadZone from "./UploadZone";
 import ModelCard from "./ModelCard";
 import SketchfabSearch from "./SketchfabSearch";
 import { generateThumbnailFromUrl } from "./ThumbnailGenerator";
+import MeshLayerManager from "./MeshLayerManager";
 import {
   translateMeshName, analyzeGlbMeshes, buildRelevance,
   normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken, autoHebrewName,
