@@ -194,8 +194,7 @@ function SearchableModelPicker({ lang, cloudModels, modelUrl, bodyModelUrl, onSe
     </>
   );
 }
-
-
+type Theme = {
   name: string; bg: string; canvasBg: string;
   textPrimary: string; textSecondary: string;
   panelBg: string; panelBorder: string;
