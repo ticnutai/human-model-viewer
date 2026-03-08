@@ -118,6 +118,33 @@ export function getSavedSketchfabToken() {
   );
 }
 
+/** Auto-detect Hebrew name from display_name / file_name */
+export function autoHebrewName(displayName: string, fileName?: string): string {
+  const candidates = [displayName, fileName || ""].join(" ").toLowerCase().replace(/[_\-\.]/g, " ");
+  const found: string[] = [];
+  // Sort by key length desc so "vertebrae" matches before "vert"
+  const sorted = Object.entries(MESH_HEBREW).sort((a, b) => b[0].length - a[0].length);
+  for (const [en, he] of sorted) {
+    if (candidates.includes(en) && !found.includes(he)) found.push(he);
+  }
+  if (found.length === 0) {
+    // Try common compound names
+    const compounds: Record<string, string> = {
+      "full body": "גוף מלא", "male body": "גוף גברי", "female body": "גוף נשי",
+      "muscular system": "מערכת שרירים", "skeletal system": "מערכת שלד",
+      "nervous system": "מערכת עצבים", "circulatory": "מערכת דם",
+      "digestive": "מערכת עיכול", "respiratory": "מערכת נשימה",
+      "human anatomy": "אנטומיה אנושית", "anatomy": "אנטומיה",
+      "bodybuilder": "פיתוח גוף", "exploding": "מפורק", "point cloud": "ענן נקודות",
+      "ct head": "ראש CT", "visible human": "אדם שקוף",
+    };
+    for (const [en, he] of Object.entries(compounds)) {
+      if (candidates.includes(en) && !found.includes(he)) found.push(he);
+    }
+  }
+  return found.join(" + ") || "";
+}
+
 export function pickBestThumb(model: { thumbnails?: { images?: { url: string; width: number; height: number }[] } }) {
   const images = model.thumbnails?.images ?? [];
   if (images.length === 0) return "";

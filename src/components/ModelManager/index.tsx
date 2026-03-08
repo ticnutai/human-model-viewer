@@ -10,7 +10,7 @@ import SketchfabSearch from "./SketchfabSearch";
 import { generateThumbnailFromUrl } from "./ThumbnailGenerator";
 import {
   translateMeshName, analyzeGlbMeshes, buildRelevance,
-  normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken,
+  normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken, autoHebrewName,
 } from "./utils";
 import type {
   Category, ModelRecord, ListModel, SortMode,
@@ -38,6 +38,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [generatingThumbId, setGeneratingThumbId] = useState<string | null>(null);
   const [batchGenerating, setBatchGenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
+  const [autoNaming, setAutoNaming] = useState(false);
 
   // Sketchfab
   const [sketchfabResults, setSketchfabResults] = useState<SketchfabSearchResult[]>([]);
@@ -321,6 +323,21 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     await load();
   };
 
+  // ── Auto Hebrew naming ──
+  const handleAutoNameAll = async () => {
+    const needsName = models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "");
+    if (needsName.length === 0) return;
+    setAutoNaming(true);
+    for (const m of needsName) {
+      const detected = autoHebrewName(m.display_name, m.file_name);
+      if (detected) {
+        await supabase.from("models").update({ hebrew_name: detected }).eq("id", m.id);
+      }
+    }
+    setAutoNaming(false);
+    await load();
+  };
+
   // ── Build combined model list ──
   const countForCategory = (catId: string | null) => models.filter(m => !catId || m.category_id === catId).length;
   const countForMediaType = (mt: string | null) => models.filter(m => !activeCategory || m.category_id === activeCategory).filter(m => !mt || (m.media_type || "glb") === mt).length;
@@ -378,7 +395,17 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
             {localModels.length} מקומיים
           </Badge>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          {/* Auto Hebrew names */}
+          {models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "").length > 0 && (
+            <button
+              onClick={handleAutoNameAll}
+              disabled={autoNaming}
+              className="text-[10px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 rounded-lg px-2 py-1 font-semibold cursor-pointer hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+            >
+              {autoNaming ? "⏳ מתרגם..." : `🇮🇱 שמות עברית (${models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "").length})`}
+            </button>
+          )}
           {modelsWithoutThumb > 0 && (
             <button
               onClick={handleBatchGenerateThumbnails}
@@ -388,6 +415,17 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               {batchGenerating ? `⏳ יוצר תמונות...` : `📸 צור תמונות (${modelsWithoutThumb})`}
             </button>
           )}
+          {/* View mode toggle */}
+          <div className="flex border border-border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`text-[10px] px-2 py-1 cursor-pointer border-none transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"}`}
+            >☰</button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`text-[10px] px-2 py-1 cursor-pointer border-none transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"}`}
+            >⊞</button>
+          </div>
           <button
             onClick={() => setShowSketchfab(s => !s)}
             className={`text-[10px] border rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors ${
@@ -462,9 +500,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
       {/* Model list */}
       <ScrollArea className="max-h-[500px] px-2 pt-2">
-        <div className="flex flex-col gap-2 pb-2">
+        <div className={viewMode === "grid"
+          ? "grid grid-cols-2 gap-2 pb-2"
+          : "flex flex-col gap-2 pb-2"
+        }>
           {combinedModels.length === 0 && (
-            <div className="text-center text-muted-foreground text-sm py-8 opacity-70">
+            <div className={`text-center text-muted-foreground text-sm py-8 opacity-70 ${viewMode === "grid" ? "col-span-2" : ""}`}>
               <span className="text-2xl block mb-2">📭</span>
               {searchQuery ? "לא נמצאו תוצאות" : "אין מודלים בקטגוריה זו"}
             </div>
@@ -484,6 +525,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               onGenerateThumbnail={handleGenerateThumbnail}
               reanalyzingId={reanalyzingId}
               generatingThumbId={generatingThumbId}
+              viewMode={viewMode}
             />
           ))}
         </div>
