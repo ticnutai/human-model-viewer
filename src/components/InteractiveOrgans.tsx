@@ -562,7 +562,7 @@ function OrganMesh({
 
     meshRef.current.scale.set(sx, sy, sz);
 
-    const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+    const mat = meshRef.current.material as THREE.MeshPhysicalMaterial;
     const isGhosted = focusSelected && hasSelection && !isSelected && !isPathology;
     const targetEmissive = isPathology ? 0.55 + Math.sin(at * 6) * 0.2
       : isGhosted ? 0.02 : isSelected ? 0.6 : hovered ? 0.3 : 0.08;
