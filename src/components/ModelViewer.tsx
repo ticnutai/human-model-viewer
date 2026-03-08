@@ -1063,6 +1063,9 @@ const ModelViewer = () => {
                 </div>
               </div>
             )}
+            {sidebarTab === "gallery" && (
+              <ModelGallery onSelectModel={handleSelectModel} currentModelUrl={modelUrl} />
+            )}
             {sidebarTab === "models" && (
               <ModelManager onSelectModel={handleSelectModel} currentModelUrl={modelUrl} />
             )}
