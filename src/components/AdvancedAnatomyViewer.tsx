@@ -439,6 +439,41 @@ function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers:
   };
 }
 
+// ─── Loading overlay with timeout ────────────────────────────────────────────
+
+function LoadingOverlay({ meta, theme }: { meta: { titleHe: string; titleEn: string; path: string }; theme: { bg: string; textDim: string } }) {
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), 15000);
+    return () => clearTimeout(timer);
+  }, [meta.path]);
+
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: theme.bg + "dd" }}>
+      {timedOut ? (
+        <>
+          <span className="text-3xl">⚠️</span>
+          <div className="text-center">
+            <div className="text-base font-semibold text-red-400">שגיאה בטעינת המודל</div>
+            <div className="text-xs mt-1" style={{ color: theme.textDim }}>
+              הקובץ עלול להיות פגום או מצביע Git LFS.<br />
+              נסה מודל אחר מהרשימה.
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <span className="text-3xl">⚕️</span>
+          <div>
+            <div className="text-base font-semibold">טוען {meta.titleHe}...</div>
+            <div className="text-xs" style={{ color: theme.textDim }}>Loading {meta.titleEn}</div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── ErrorBoundary ───────────────────────────────────────────────────────────
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
