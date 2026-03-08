@@ -18,6 +18,7 @@ interface ModelCardProps {
   onGenerateThumbnail: (rec: ModelRecord) => void;
   reanalyzingId: string | null;
   generatingThumbId: string | null;
+  viewMode?: "list" | "grid";
 }
 
 export default function ModelCard({
