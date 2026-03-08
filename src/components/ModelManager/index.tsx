@@ -552,7 +552,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
             />
           ))}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
