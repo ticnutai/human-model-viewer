@@ -96,15 +96,24 @@ const cloud = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/objec
 // Map local paths to cloud storage slugs. Uses closest available cloud model as fallback.
 const CLOUD_MAP: Record<string, string> = {
   // Original models now imported to cloud from Sketchfab
-  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb": cloud("sketchfab_5a2c779eb9524a5081cb1e6297d15e83.glb"), // Hans anatomy (valid GLB fallback for skull)
-  "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb": cloud("sketchfab_22ebd4abce9440639563807e72e5f8d1.glb"), // ✅ Original heart-in-thorax
-  "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb": cloud("sketchfab_5f28b52cab3e439490727e0aede55a6b.glb"), // ✅ Original female skeleton
-  "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb": cloud("sketchfab_665890c542be433fb18ef235cf987cef.glb"), // ✅ Original male skeleton
-  "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb": cloud("sketchfab_9a596b6c24b344bfbe6bb5246290df0e.glb"), // ✅ Original female muscles
-  "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb": cloud("sketchfab_991eb96938be4d0d8fadee241a1063d3.glb"), // ✅ Original male muscles
-  "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb": cloud("sketchfab_3f8072336ce94d18b3d0d055a1ece089.glb"), // ✅ Original realistic heart
-  "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb": cloud("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb"), // Z-Anatomy (original too large for edge fn)
-  "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb": cloud("sketchfab_15f7ed2eefb244dc94d32b6a7d989355.glb"), // ✅ Original front body
+  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb": cloud("sketchfab_5a2c779eb9524a5081cb1e6297d15e83.glb"),
+  "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb": cloud("sketchfab_22ebd4abce9440639563807e72e5f8d1.glb"),
+  "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb": cloud("sketchfab_5f28b52cab3e439490727e0aede55a6b.glb"),
+  "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb": cloud("sketchfab_665890c542be433fb18ef235cf987cef.glb"),
+  "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb": cloud("sketchfab_9a596b6c24b344bfbe6bb5246290df0e.glb"),
+  "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb": cloud("sketchfab_991eb96938be4d0d8fadee241a1063d3.glb"),
+  "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb": cloud("sketchfab_3f8072336ce94d18b3d0d055a1ece089.glb"),
+  "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb": cloud("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb"),
+  "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb": cloud("sketchfab_15f7ed2eefb244dc94d32b6a7d989355.glb"),
+  // New models
+  "/models/cloud/brain.glb": cloud("sketchfab_756bc05dd59e4f3ca1a93ffcc57a8994.glb"),
+  "/models/cloud/brain-eyes.glb": cloud("sketchfab_847350461cdf4d99ad18bc89daf13853.glb"),
+  "/models/cloud/stomach.glb": cloud("sketchfab_e0f1952de7204654ba469c3e887a029b.glb"),
+  "/models/cloud/humerus.glb": cloud("sketchfab_367fade2e5cb45fea2502faddff64f5f.glb"),
+  // HumanAtlas CDN (public, no import needed)
+  "/models/humanatlas/kidney.glb": "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Kidney_L.glb",
+  "/models/humanatlas/liver.glb": "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Liver.glb",
+  "/models/humanatlas/lung.glb": "https://ccf-ontology.hubmapconsortium.org/objects/v1.4/3d-vh-m-lung.glb",
 };
 
 function resolveModelPath(localPath: string): string {
