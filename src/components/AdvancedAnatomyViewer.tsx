@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 
 // ─── Model definitions ───────────────────────────────────────────────────────
 
-type ModelId = "skull" | "thorax" | "skeleton_f" | "skeleton_m" | "muscles_f" | "muscles_m" | "heart" | "torso";
+type ModelId = "skull" | "thorax" | "skeleton_f" | "skeleton_m" | "muscles_f" | "muscles_m" | "heart" | "torso" | "brain" | "brain_eyes" | "stomach" | "kidney" | "liver" | "lung";
 
 type Layer = {
   id: string;
