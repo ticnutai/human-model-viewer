@@ -378,7 +378,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   heart: {
-    path: "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb",
+    path: resolveModelPath("/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb"),
     titleHe: "לב ריאליסטי", titleEn: "Realistic Heart", icon: "🫀",
     hasAnimation: false, description: "מודל לב אנושי ריאליסטי ומפורט",
     layers: [
