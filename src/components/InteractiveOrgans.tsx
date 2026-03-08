@@ -542,6 +542,23 @@ function OrganMesh({
   );
 }
 
+/** Animated layer group — smoothly fades scale on show/hide */
+function LayerFadeGroup({ visible, children }: { visible: boolean; children: React.ReactNode }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const currentScale = useRef(visible ? 1 : 0);
+  const targetScale = visible ? 1 : 0;
+
+  useFrame(() => {
+    if (!groupRef.current) return;
+    currentScale.current += (targetScale - currentScale.current) * 0.08;
+    const s = currentScale.current;
+    groupRef.current.scale.set(s, s, s);
+    groupRef.current.visible = s > 0.01;
+  });
+
+  return <group ref={groupRef}>{children}</group>;
+}
+
 export default function InteractiveOrgans({
   onSelect,
   selectedMesh,
