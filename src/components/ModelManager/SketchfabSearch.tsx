@@ -14,6 +14,9 @@ interface SketchfabSearchProps {
   importingUid: string | null;
   uploads: UploadItem[];
   existingUids?: string[];
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 const QUICK_SEARCHES = [
@@ -27,7 +30,7 @@ const QUICK_SEARCHES = [
   { label: "🦷 ראש + גולגולת", query: "human skull head anatomy detailed realistic" },
 ];
 
-export default function SketchfabSearch({ onSearch, onImport, results, searching, error, importingUid, uploads, existingUids = [] }: SketchfabSearchProps) {
+export default function SketchfabSearch({ onSearch, onImport, results, searching, error, importingUid, uploads, existingUids = [], hasMore, loadingMore, onLoadMore }: SketchfabSearchProps) {
   const [query, setQuery] = useState("human organ anatomy realistic detailed");
   const [previewUid, setPreviewUid] = useState<string | null>(null);
 
@@ -73,13 +76,14 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
 
       {error && <div className="text-[11px] rounded-lg px-2.5 py-1.5" style={{ color: "hsl(0 70% 45%)", background: "hsl(0 80% 97%)", border: "1px solid hsl(0 70% 85%)" }}>{error}</div>}
 
-      {/* Results */}
+      {/* Results - NO LIMIT, show all */}
       {results.length > 0 && (
         <div className="flex flex-col gap-2">
           <div className="text-[10px] font-bold" style={{ color: "hsl(220 15% 55%)" }}>
             {results.length} תוצאות • ממוינות לפי איכות
+            {hasMore && " • יש עוד"}
           </div>
-          {results.slice(0, 12).map((result) => {
+          {results.map((result) => {
             const isPreview = previewUid === result.uid;
             const isImporting = importingUid === result.uid;
             const thumb = pickBestThumb(result);
@@ -188,6 +192,18 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
               </div>
             );
           })}
+
+          {/* Load more button */}
+          {hasMore && (
+            <button
+              onClick={onLoadMore}
+              disabled={loadingMore}
+              className="rounded-xl px-4 py-2.5 text-xs font-bold cursor-pointer transition-all disabled:opacity-60 border-none mx-auto"
+              style={{ background: "hsl(43 78% 47% / 0.15)", color: "hsl(43 78% 40%)", border: "1px solid hsl(43 60% 55% / 0.4)" }}
+            >
+              {loadingMore ? "⏳ טוען עוד..." : `📥 טען עוד תוצאות`}
+            </button>
+          )}
         </div>
       )}
     </div>
