@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Pencil, Trash2, Play, Pause, Camera, FlaskConical, ClipboardList } from "lucide-react";
 import { getOrganHintFromUrl, getBestOrganDetail } from "../OrganData";
-import { formatSize, getMediaIcon, translateMeshName } from "./utils";
+import { formatSize, getMediaIcon, translateMeshName, autoHebrewName } from "./utils";
 import type { Category, ListModel, ModelRecord } from "./types";
 import ModelEditForm from "./ModelEditForm";
 
