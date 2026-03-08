@@ -12,7 +12,7 @@ import MeshLayerManager from "./MeshLayerManager";
 import MeshMappingManager from "./MeshMappingManager";
 import { analyzeGlbSmart } from "./SmartAnalysis";
 import {
-  translateMeshName, analyzeGlbMeshes, buildRelevance,
+  translateMeshName, buildRelevance,
   normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken, autoHebrewName,
 } from "./utils";
 import type {
@@ -629,10 +629,20 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     if (!rec.file_url) return;
     setReanalyzingId(rec.id);
     try {
-      const meshNames = await analyzeGlbMeshes(rec.file_url);
-      await supabase.from("models").update({ mesh_parts: meshNames.map(translateMeshName) }).eq("id", rec.id);
+      const result = await analyzeGlbSmart(rec.file_url, rec.id);
+      const translated = result.translatedNames.length > 0 ? result.translatedNames : result.meshNames.map(translateMeshName);
+      const updateData: Record<string, any> = { mesh_parts: translated };
+      // Auto-set hebrew_name if empty
+      if (!rec.hebrew_name || rec.hebrew_name.trim() === "") {
+        const autoHeb = autoHebrewName(rec.display_name, rec.file_name);
+        if (autoHeb) updateData.hebrew_name = autoHeb;
+      }
+      await supabase.from("models").update(updateData).eq("id", rec.id);
+      console.log(`[Reanalyze] ✅ ${rec.display_name}: ${translated.length} meshes (method: ${result.method}, ${result.durationMs}ms)`);
       await load();
-    } catch {}
+    } catch (e) {
+      console.error("[Reanalyze] ❌ Failed:", e);
+    }
     setReanalyzingId(null);
   };
 
@@ -671,12 +681,19 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       setBatchAnalysisProgress(prev => ({ ...prev, done: completed, currentName: name }));
       setReanalyzingId(m.id);
       try {
-        const meshNames = await analyzeGlbMeshes(m.file_url!);
-        const translated = meshNames.map(translateMeshName);
-        await supabase.from("models").update({ mesh_parts: translated }).eq("id", m.id);
-        successNames.push(`${name} (${translated.length})`);
+        const result = await analyzeGlbSmart(m.file_url!, m.id);
+        const translated = result.translatedNames.length > 0 ? result.translatedNames : result.meshNames.map(translateMeshName);
+        const updateData: Record<string, any> = { mesh_parts: translated };
+        // Auto-set hebrew_name if empty
+        if (!m.hebrew_name || m.hebrew_name.trim() === "") {
+          const autoHeb = autoHebrewName(m.display_name, m.file_name);
+          if (autoHeb) updateData.hebrew_name = autoHeb;
+        }
+        await supabase.from("models").update(updateData).eq("id", m.id);
+        successNames.push(`${name} (${translated.length} · ${result.method})`);
+        console.log(`[BatchAnalysis] ✅ ${name}: ${translated.length} meshes (${result.method}, ${result.durationMs}ms)`);
       } catch (e) {
-        console.warn(`[BatchAnalysis] Failed for ${name}:`, e);
+        console.warn(`[BatchAnalysis] ❌ Failed for ${name}:`, e);
         failed++;
       }
       completed++;
