@@ -790,6 +790,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
                 reanalyzingId={reanalyzingId}
                 generatingThumbId={generatingThumbId}
                 viewMode={viewMode}
+                isBackgroundProcessing={bgProcessingIds.has(model.id.replace("local:", ""))}
               />
             ))}
           </div>
