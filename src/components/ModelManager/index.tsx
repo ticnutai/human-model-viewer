@@ -397,8 +397,25 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   };
 
   const handleDelete = async (rec: ModelRecord) => {
-    await supabase.storage.from("models").remove([rec.file_name]);
-    await supabase.from("models").delete().eq("id", rec.id);
+    // Remove main file from storage
+    const filesToRemove = [rec.file_name];
+    // Also remove thumbnail if it's in the same bucket
+    if (rec.thumbnail_url) {
+      const thumbMatch = rec.thumbnail_url.match(/\/models\/(.+)$/);
+      if (thumbMatch) filesToRemove.push(thumbMatch[1]);
+    }
+    const { error: storageErr } = await supabase.storage.from("models").remove(filesToRemove);
+    if (storageErr) console.warn("[ModelManager] storage remove error:", storageErr.message);
+
+    const { error: dbErr } = await supabase.from("models").delete().eq("id", rec.id);
+    if (dbErr) {
+      console.error("[ModelManager] DB delete error:", dbErr.message);
+      return;
+    }
+    // Also clean mesh mappings for this model
+    if (rec.file_url) {
+      await supabase.from("model_mesh_mappings").delete().eq("model_url", rec.file_url);
+    }
     await load();
   };
 
