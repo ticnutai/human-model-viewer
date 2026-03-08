@@ -843,7 +843,7 @@ const ModelViewer = () => {
 
           <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "🧩 Layers" : "🧩 שכבות"}</div>
           <div className="flex flex-col gap-1">
-            {LAYER_DEFS.map(layer => {
+            {dynamicLayerDefs.map(layer => {
               const active = visibleLayers.has(layer.key);
               return (
                 <button key={layer.key} onClick={() => toggleLayer(layer.key)}
