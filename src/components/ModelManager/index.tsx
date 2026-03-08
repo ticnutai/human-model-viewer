@@ -454,7 +454,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
   const handleImportSketchfab = async (model: SketchfabSearchResult) => {
     const token = getSavedSketchfabToken();
-    if (!token) { setSketchfabError("לא נמצא API token."); return; }
+    if (!token) { setSketchfabError("לא נמצא API token. שמור טוקן בהגדרות (⚙️ → 🔑 API)."); return; }
     // Duplicate check by sketchfab uid
     const dup = isDuplicate(`sketchfab_${model.uid}.glb`);
     if (dup) {
@@ -462,18 +462,56 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       return;
     }
     setImportingUid(model.uid); setSketchfabError(null);
+    
+    // Create a visual upload item for progress tracking
+    const uploadId = `sf_${model.uid}_${Date.now()}`;
+    const fakeItem: UploadItem = { id: uploadId, file: new File([], `sketchfab_${model.uid}.glb`), fileName: `sketchfab_${model.uid}.glb`, progress: 0, status: "uploading", statusLabel: `⬇️ מוריד מ-Sketchfab: ${model.name}` };
+    setUploads(prev => [...prev, fakeItem]);
+    
     try {
-      const dlRes = await fetch(`https://api.sketchfab.com/v3/models/${model.uid}/download`, { headers: { Authorization: `Token ${token}`, Accept: "application/json" } });
-      if (!dlRes.ok) throw new Error(`download failed ${dlRes.status}`);
-      const dlPayload = await dlRes.json();
-      const urls = collectDownloadUrls(dlPayload).filter(u => u.startsWith("http"));
-      const glbUrl = urls.find(u => u.toLowerCase().includes(".glb")) || null;
-      if (!glbUrl) throw new Error("GLB not available");
-      const fileRes = await fetch(glbUrl);
-      if (!fileRes.ok) throw new Error(`GLB download failed ${fileRes.status}`);
-      const blob = await fileRes.blob();
-      await uploadSingleFile(new File([blob], `sketchfab_${model.uid}.glb`, { type: "model/gltf-binary" }));
+      console.log(`[Sketchfab Import] 🚀 Starting import via Edge Function: ${model.name} (uid: ${model.uid})`);
+      updateUploadItem(uploadId, { progress: 20, statusLabel: `⬇️ מוריד מ-Sketchfab...` });
+      
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const functionUrl = `https://${projectId}.supabase.co/functions/v1/import-sketchfab-model`;
+      
+      console.log(`[Sketchfab Import] 📡 Calling edge function: ${functionUrl}`);
+      const res = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": anonKey,
+          "Authorization": `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({
+          uid: model.uid,
+          name: model.name,
+          sketchfabToken: token,
+        }),
+      });
+      
+      updateUploadItem(uploadId, { progress: 70, statusLabel: `💾 שומר למאגר...` });
+      
+      const result = await res.json();
+      console.log(`[Sketchfab Import] Response:`, result);
+      
+      if (!res.ok || result.error) {
+        const errMsg = result.error || `שגיאה ${res.status}`;
+        console.error(`[Sketchfab Import] ❌ Failed:`, errMsg);
+        updateUploadItem(uploadId, { status: "error", error: errMsg });
+        setSketchfabError(`ייבוא נכשל: ${errMsg}`);
+        return;
+      }
+      
+      console.log(`[Sketchfab Import] ✅ Success: ${result.displayName} (${(result.fileSize / 1048576).toFixed(1)}MB)`);
+      updateUploadItem(uploadId, { status: "done", progress: 100, statusLabel: `✅ ${model.name} — יובא בהצלחה!` });
+      await load();
+      
+      setTimeout(() => setUploads(prev => prev.filter(u => u.id !== uploadId)), 4000);
     } catch (err) {
+      console.error(`[Sketchfab Import] ❌ Exception:`, err);
+      updateUploadItem(uploadId, { status: "error", error: err instanceof Error ? err.message : "שגיאה בחיבור" });
       setSketchfabError(`ייבוא נכשל: ${err instanceof Error ? err.message : String(err)}`);
     } finally { setImportingUid(null); }
   };
