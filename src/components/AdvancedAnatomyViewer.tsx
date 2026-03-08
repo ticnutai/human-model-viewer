@@ -326,7 +326,7 @@ const MODEL_META: Record<ModelId, {
     },
   },
   skeleton_f: {
-    path: "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb",
+    path: resolveModelPath("/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb"),
     titleHe: "שלד נשי", titleEn: "Female Skeleton", icon: "🦴",
     hasAnimation: false, description: "שלד אנושי נשי מפורט — מחקר אנטומי",
     layers: [
