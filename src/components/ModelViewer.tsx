@@ -863,7 +863,7 @@ const ModelViewer = () => {
           <div className="h-px bg-border" />
           <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "👁 Layer Opacity" : "👁 שקיפות שכבות"}</div>
           <div className="flex flex-col gap-1.5">
-            {LAYER_DEFS.map(layer => {
+            {dynamicLayerDefs.map(layer => {
               const active = visibleLayers.has(layer.key);
               return (
                 <div key={`opacity-${layer.key}`} className={`flex items-center gap-1.5 ${!active ? "opacity-30 pointer-events-none" : ""}`}>
