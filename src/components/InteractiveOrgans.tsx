@@ -566,27 +566,30 @@ export default function InteractiveOrgans({
   return (
     <group position={[0, -0.5, 0]}>
       <BodySilhouette />
-      {layers.has("vessels") && <BloodVessels />}
-      {ORGAN_SHAPES.filter(s => layers.has(s.category)).map((shape, i) => (
-        <Float
-          key={`${shape.key}-${i}`}
-          speed={1.5}
-          rotationIntensity={0}
-          floatIntensity={shape.key === selectedMesh ? 0.08 : 0.02}
-          floatingRange={[-0.01, 0.01]}
-        >
-          <OrganMesh
-            shape={shape}
-            isSelected={selectedMesh === shape.key}
-            accent={accent}
-            explodeAmount={explodeAmount}
-            focusSelected={focusSelected}
-            hasSelection={Boolean(selectedMesh)}
-            onSelect={onSelect}
-            animationSpeed={animationSpeed}
-            pathologyKeys={pathologyKeys}
-          />
-        </Float>
+      <LayerFadeGroup visible={layers.has("vessels")}>
+        <BloodVessels />
+      </LayerFadeGroup>
+      {ORGAN_SHAPES.map((shape, i) => (
+        <LayerFadeGroup key={`${shape.key}-${i}`} visible={layers.has(shape.category)}>
+          <Float
+            speed={1.5}
+            rotationIntensity={0}
+            floatIntensity={shape.key === selectedMesh ? 0.08 : 0.02}
+            floatingRange={[-0.01, 0.01]}
+          >
+            <OrganMesh
+              shape={shape}
+              isSelected={selectedMesh === shape.key}
+              accent={accent}
+              explodeAmount={explodeAmount}
+              focusSelected={focusSelected}
+              hasSelection={Boolean(selectedMesh)}
+              onSelect={onSelect}
+              animationSpeed={animationSpeed}
+              pathologyKeys={pathologyKeys}
+            />
+          </Float>
+        </LayerFadeGroup>
       ))}
 
       {/* Global ambient particles */}
