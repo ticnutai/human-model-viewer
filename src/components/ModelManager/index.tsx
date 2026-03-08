@@ -12,7 +12,7 @@ import MeshLayerManager from "./MeshLayerManager";
 import MeshMappingManager from "./MeshMappingManager";
 import { analyzeGlbSmart } from "./SmartAnalysis";
 import {
-  translateMeshName, analyzeGlbMeshes, buildRelevance,
+  translateMeshName, buildRelevance,
   normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken, autoHebrewName,
 } from "./utils";
 import type {
