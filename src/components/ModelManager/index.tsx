@@ -746,6 +746,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
