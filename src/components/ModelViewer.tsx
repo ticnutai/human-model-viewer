@@ -332,7 +332,7 @@ const ModelViewer = () => {
 
   const filteredAtlasEntries = useMemo(() => {
     const query = atlasQuery.trim().toLowerCase();
-    return Object.entries(ORGAN_DETAILS).filter(([key, organ]) => {
+    return Object.entries(ORGAN_DETAILS).map(([key, organ]) => [key, { ...organ, meshName: key }] as [string, OrganDetail]).filter(([key, organ]) => {
       const localizedName = getLocalizedOrganName(key, organ.name, lang).toLowerCase();
       const localizedSystem = getLocalizedOrganSystem(key, organ.system, lang);
       const matchesQuery = query.length === 0 || localizedName.includes(query) || key.toLowerCase().includes(query) || localizedSystem.toLowerCase().includes(query) || diseaseMatchKeys.has(key);
