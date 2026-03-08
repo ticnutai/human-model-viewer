@@ -657,7 +657,7 @@ const ModelViewer = () => {
                   <select value={selectedSystem} onChange={e => setSelectedSystem(e.target.value)}
                     className="w-full rounded-lg border border-border bg-card text-foreground px-3 py-2 text-xs outline-none focus:border-primary"
                   >
-                    <option value="all">{tr("filter.allSystems")}</option>
+                    <option value="all">{lang === "en" ? "All Systems" : "כל המערכות"}</option>
                     {atlasSystems.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 )}
