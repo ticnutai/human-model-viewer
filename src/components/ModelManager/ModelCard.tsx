@@ -294,8 +294,6 @@ export default function ModelCard({
   }
 
   // ── LIST VIEW ──
-  const localHebrewHint = !isCloud ? autoHebrewName(model.displayName, model.url) : "";
-  const displayHebrew = hebrewName || localHebrewHint;
 
   return (
     <div className="rounded-xl transition-all overflow-hidden group"
