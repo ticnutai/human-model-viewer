@@ -332,6 +332,28 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   };
 
   // ── CRUD handlers ──
+  // Hidden local models (persisted in localStorage)
+  const [hiddenLocalIds, setHiddenLocalIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("hidden-local-models") || "[]"); } catch { return []; }
+  });
+  const [localNameOverrides, setLocalNameOverrides] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("local-model-names") || "{}"); } catch { return {}; }
+  });
+
+  const handleHideLocal = (id: string) => {
+    const next = [...hiddenLocalIds, id];
+    setHiddenLocalIds(next);
+    localStorage.setItem("hidden-local-models", JSON.stringify(next));
+  };
+
+  const handleEditLocalName = (id: string, name: string) => {
+    if (!name.trim()) return;
+    const next = { ...localNameOverrides, [id]: name.trim() };
+    setLocalNameOverrides(next);
+    localStorage.setItem("local-model-names", JSON.stringify(next));
+    setLocalModels(prev => prev.map(m => m.id === id ? { ...m, displayName: name.trim() } : m));
+  };
+
   const handleDelete = async (rec: ModelRecord) => {
     await supabase.storage.from("models").remove([rec.file_name]);
     await supabase.from("models").delete().eq("id", rec.id);
