@@ -938,13 +938,13 @@ export default function AdvancedAnatomyViewer() {
                 {group.models.map(id => {
                   const m = MODEL_META[id];
                   return (
-                    <button key={id} onClick={() => setModelId(id)}
+                    <button key={id} onClick={() => { setModelId(id); setCloudModelUrl(null); }}
                       className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] cursor-pointer border transition-all"
                       style={{
-                        background: modelId === id ? theme.accentBg : "transparent",
-                        borderColor: modelId === id ? theme.accent : theme.border,
-                        color: modelId === id ? theme.accent : theme.textDim,
-                        fontWeight: modelId === id ? 600 : 400,
+                        background: modelId === id && !isCloudModel ? theme.accentBg : "transparent",
+                        borderColor: modelId === id && !isCloudModel ? theme.accent : theme.border,
+                        color: modelId === id && !isCloudModel ? theme.accent : theme.textDim,
+                        fontWeight: modelId === id && !isCloudModel ? 600 : 400,
                       }}>
                       <span>{m.icon}</span>
                       <span>{m.titleHe}</span>
@@ -954,6 +954,57 @@ export default function AdvancedAnatomyViewer() {
               </div>
             </div>
           ))}
+
+          {/* Cloud models */}
+          {cloudModels.length > 0 && (
+            <div className="mb-2">
+              <div className="text-[10px] font-bold mb-1" style={{ color: theme.textDim }}>☁️ מודלים מהענן ({cloudModels.filter(m => m.file_url).length})</div>
+              {cloudCategories.map(cat => {
+                const catModels = cloudModelsByCategory.byCategory[cat.id];
+                if (!catModels?.length) return null;
+                return (
+                  <div key={cat.id} className="mb-1.5">
+                    <div className="text-[9px] font-semibold mb-0.5" style={{ color: theme.textDim }}>{cat.icon || "📁"} {cat.name}</div>
+                    <div className="flex gap-1 flex-wrap">
+                      {catModels.map(mod => (
+                        <button key={mod.id} onClick={() => selectCloudModel(mod)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all"
+                          style={{
+                            background: isCloudModel && cloudModelUrl === mod.file_url ? theme.accentBg : "transparent",
+                            borderColor: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.border,
+                            color: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.textDim,
+                            fontWeight: isCloudModel && cloudModelUrl === mod.file_url ? 600 : 400,
+                          }}>
+                          <span>☁️</span>
+                          <span className="truncate max-w-[120px]">{mod.hebrew_name || mod.display_name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {cloudModelsByCategory.uncategorized.length > 0 && (
+                <div className="mb-1.5">
+                  <div className="text-[9px] font-semibold mb-0.5" style={{ color: theme.textDim }}>📂 ללא קטגוריה</div>
+                  <div className="flex gap-1 flex-wrap">
+                    {cloudModelsByCategory.uncategorized.map(mod => (
+                      <button key={mod.id} onClick={() => selectCloudModel(mod)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all"
+                        style={{
+                          background: isCloudModel && cloudModelUrl === mod.file_url ? theme.accentBg : "transparent",
+                          borderColor: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.border,
+                          color: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.textDim,
+                          fontWeight: isCloudModel && cloudModelUrl === mod.file_url ? 600 : 400,
+                        }}>
+                        <span>☁️</span>
+                        <span className="truncate max-w-[120px]">{mod.hebrew_name || mod.display_name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Search */}
