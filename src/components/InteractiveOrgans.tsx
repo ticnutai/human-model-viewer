@@ -216,16 +216,17 @@ function OrganParticles({ position, color }: { position: [number, number, number
 }
 
 /** GLB-based realistic human body silhouette — loads a real 3D model as transparent shell */
-const BODY_GLB_URL = (() => {
+const DEFAULT_BODY_GLB_URL = (() => {
   const supaUrl = import.meta.env.VITE_SUPABASE_URL;
   return supaUrl
     ? `${supaUrl}/storage/v1/object/public/models/sketchfab_6cc9217317804dc89622b7b0e499bc89.glb`
     : "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb";
 })();
 
-function BodySilhouette() {
+function BodySilhouette({ modelUrl }: { modelUrl?: string }) {
+  const url = modelUrl || DEFAULT_BODY_GLB_URL;
   const groupRef = useRef<THREE.Group>(null);
-  const gltf = useLoader(GLTFLoader, BODY_GLB_URL);
+  const gltf = useLoader(GLTFLoader, url);
   const scene = useMemo(() => {
     const clone = gltf.scene.clone(true);
     // Make all meshes semi-transparent ghost shell
@@ -614,6 +615,7 @@ export default function InteractiveOrgans({
   pathologyKeys,
   layerOpacities,
   peelAmount = 0,
+  bodyModelUrl,
 }: {
   onSelect: (detail: OrganDetail) => void;
   selectedMesh: string | null;
@@ -625,13 +627,14 @@ export default function InteractiveOrgans({
   pathologyKeys?: Set<string>;
   layerOpacities?: Record<LayerType, number>;
   peelAmount?: number;
+  bodyModelUrl?: string;
 }) {
   const layers = visibleLayers ?? new Set<LayerType>(["skeleton", "muscles", "organs", "vessels"]);
   const opacities = layerOpacities ?? { skeleton: 1, muscles: 1, organs: 1, vessels: 1 };
 
   return (
     <group position={[0, -0.5, 0]}>
-      <BodySilhouette />
+      <BodySilhouette modelUrl={bodyModelUrl} />
       <LayerPeelGroup visible={layers.has("vessels")} opacity={opacities.vessels} peelAmount={peelAmount} peelDirection={LAYER_PEEL_DIRS.vessels}>
         <BloodVessels />
       </LayerPeelGroup>
