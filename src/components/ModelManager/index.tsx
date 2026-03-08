@@ -8,6 +8,7 @@ import UploadZone from "./UploadZone";
 import ModelCard from "./ModelCard";
 import SketchfabSearch from "./SketchfabSearch";
 import { generateThumbnailFromUrl } from "./ThumbnailGenerator";
+import MeshLayerManager from "./MeshLayerManager";
 import {
   translateMeshName, analyzeGlbMeshes, buildRelevance,
   normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken, autoHebrewName,
@@ -40,6 +41,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [autoNaming, setAutoNaming] = useState(false);
+  const [managerTab, setManagerTab] = useState<"models" | "meshmap">("models");
 
   // Sketchfab
   const [sketchfabResults, setSketchfabResults] = useState<SketchfabSearchResult[]>([]);
@@ -551,6 +553,38 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }}>
+      {/* Tab switcher */}
+      <div className="flex" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
+        <button
+          onClick={() => setManagerTab("models")}
+          className="flex-1 text-[11px] font-bold py-2 cursor-pointer border-none transition-colors"
+          style={{
+            background: managerTab === "models" ? "hsl(43 78% 47% / 0.1)" : "transparent",
+            color: managerTab === "models" ? "hsl(43 78% 35%)" : "hsl(220 15% 55%)",
+            borderBottom: managerTab === "models" ? "2px solid hsl(43 78% 47%)" : "2px solid transparent",
+          }}
+        >
+          📦 מודלים
+        </button>
+        <button
+          onClick={() => setManagerTab("meshmap")}
+          className="flex-1 text-[11px] font-bold py-2 cursor-pointer border-none transition-colors"
+          style={{
+            background: managerTab === "meshmap" ? "hsl(220 50% 50% / 0.1)" : "transparent",
+            color: managerTab === "meshmap" ? "hsl(220 50% 40%)" : "hsl(220 15% 55%)",
+            borderBottom: managerTab === "meshmap" ? "2px solid hsl(220 50% 50%)" : "2px solid transparent",
+          }}
+        >
+          🗺️ מיפוי Mesh
+        </button>
+      </div>
+
+      {managerTab === "meshmap" ? (
+        <div className="flex-1 overflow-y-auto sidebar-scroll">
+          <MeshLayerManager models={models} />
+        </div>
+      ) : (
+      <>
       {/* Header stats */}
       <div className="flex items-center justify-between px-3 py-2.5" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)", background: "hsl(43 78% 47% / 0.05)" }}>
         <div className="flex items-center gap-2">
@@ -712,6 +746,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
