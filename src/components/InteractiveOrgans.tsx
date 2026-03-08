@@ -615,6 +615,7 @@ export default function InteractiveOrgans({
   pathologyKeys,
   layerOpacities,
   peelAmount = 0,
+  bodyModelUrl,
 }: {
   onSelect: (detail: OrganDetail) => void;
   selectedMesh: string | null;
@@ -626,13 +627,14 @@ export default function InteractiveOrgans({
   pathologyKeys?: Set<string>;
   layerOpacities?: Record<LayerType, number>;
   peelAmount?: number;
+  bodyModelUrl?: string;
 }) {
   const layers = visibleLayers ?? new Set<LayerType>(["skeleton", "muscles", "organs", "vessels"]);
   const opacities = layerOpacities ?? { skeleton: 1, muscles: 1, organs: 1, vessels: 1 };
 
   return (
     <group position={[0, -0.5, 0]}>
-      <BodySilhouette />
+      <BodySilhouette modelUrl={bodyModelUrl} />
       <LayerPeelGroup visible={layers.has("vessels")} opacity={opacities.vessels} peelAmount={peelAmount} peelDirection={LAYER_PEEL_DIRS.vessels}>
         <BloodVessels />
       </LayerPeelGroup>
