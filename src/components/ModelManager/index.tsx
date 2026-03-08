@@ -58,7 +58,10 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const [batchAnalyzing, setBatchAnalyzing] = useState(false);
-  const [batchAnalysisProgress, setBatchAnalysisProgress] = useState({ done: 0, total: 0 });
+  const [batchAnalysisProgress, setBatchAnalysisProgress] = useState<{
+    done: number; total: number; currentName: string; skipped: number; failed: number; successNames: string[];
+  }>({ done: 0, total: 0, currentName: "", skipped: 0, failed: 0, successNames: [] });
+  const batchAbortRef = useRef(false);
 
   // ── Data loading using direct fetch (bypasses supabase-js client hang) ──
   const load = useCallback(async (retryCount = 0) => {
