@@ -574,7 +574,36 @@ const ModelViewer = () => {
             })}
           </div>
 
-          {/* X-Ray slider */}
+          {/* Per-layer opacity sliders */}
+          <div className="h-px bg-border" />
+          <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "👁 Layer Opacity" : "👁 שקיפות שכבות"}</div>
+          <div className="flex flex-col gap-1.5">
+            {LAYER_DEFS.map(layer => {
+              const active = visibleLayers.has(layer.key);
+              return (
+                <div key={`opacity-${layer.key}`} className={`flex items-center gap-1.5 ${!active ? "opacity-30 pointer-events-none" : ""}`}>
+                  <span className="text-[10px] w-4">{layer.icon}</span>
+                  <input type="range" min={5} max={100} value={Math.round(layerOpacities[layer.key] * 100)}
+                    onChange={e => setLayerOpacities(prev => ({ ...prev, [layer.key]: Number(e.target.value) / 100 }))}
+                    className="flex-1 h-1" style={{ accentColor: layer.color }}
+                  />
+                  <span className="text-[9px] text-muted-foreground w-7 text-center">{Math.round(layerOpacities[layer.key] * 100)}%</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Peel / anatomy book slider */}
+          <div className="h-px bg-border" />
+          <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "📖 Layer Peel" : "📖 קילוף שכבות"}</div>
+          <input type="range" min={0} max={100} value={Math.round(peelAmount * 100)}
+            onChange={e => setPeelAmount(Number(e.target.value) / 100)}
+            className="w-full h-1.5" style={{ accentColor: "hsl(var(--primary))" }}
+          />
+          <div className="text-[9px] text-muted-foreground text-center">
+            {peelAmount === 0 ? (lang === "en" ? "Assembled" : "מורכב") : `${Math.round(peelAmount * 100)}%`}
+          </div>
+
           <div className="h-px bg-border" />
           <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "🔬 X-Ray" : "🔬 רנטגן"}</div>
           <input type="range" min={15} max={100} value={Math.round(xRayOpacity * 100)}
