@@ -13,6 +13,7 @@ import { useMeshMappings, useCloudLayers } from "@/hooks/useMeshMappings";
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
 import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager/index";
+import ModelGallery from "./ModelGallery";
 import DevPanel from "./DevPanel";
 import InteractiveOrgans, { type LayerType } from "./InteractiveOrgans";
 import AnatomySourcesPanel from "./AnatomySourcesPanel";
@@ -427,7 +428,7 @@ const ModelViewer = () => {
   const [showViewPopup, setShowViewPopup] = useState(false);
   const [showHintTooltip, setShowHintTooltip] = useState(false);
   const [showOrganSidebar, setShowOrganSidebar] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "info">("organs");
+  const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "gallery" | "info">("organs");
   const [showLayerPanel, setShowLayerPanel] = useState(true);
   const [exploredOrgans, setExploredOrgans] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem("anatomy-explored") || "[]")); } catch { return new Set(); }
@@ -989,6 +990,7 @@ const ModelViewer = () => {
           <div className="flex shrink-0" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
             {([
               { id: "organs" as const, label: "איברים", icon: "🫀" },
+              { id: "gallery" as const, label: "צופה", icon: "🎬" },
               { id: "models" as const, label: "קבצים", icon: "📂" },
               { id: "info" as const, label: "מידע", icon: "ℹ️" },
             ]).map(tab => (
@@ -1060,6 +1062,9 @@ const ModelViewer = () => {
                   )}
                 </div>
               </div>
+            )}
+            {sidebarTab === "gallery" && (
+              <ModelGallery onSelectModel={handleSelectModel} currentModelUrl={modelUrl} />
             )}
             {sidebarTab === "models" && (
               <ModelManager onSelectModel={handleSelectModel} currentModelUrl={modelUrl} />
