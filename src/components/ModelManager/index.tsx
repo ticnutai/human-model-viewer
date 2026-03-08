@@ -47,10 +47,14 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [sketchfabError, setSketchfabError] = useState<string | null>(null);
   const [importingUid, setImportingUid] = useState<string | null>(null);
   const [showSketchfab, setShowSketchfab] = useState(false);
+  const [sketchfabNextUrl, setSketchfabNextUrl] = useState<string | null>(null);
+  const [sketchfabLoadingMore, setSketchfabLoadingMore] = useState(false);
+  const [modelsLoading, setModelsLoading] = useState(true);
 
   // ── Data loading ──
   const load = useCallback(async () => {
     console.log("[ModelManager] load() called");
+    setModelsLoading(true);
     const isAbortError = (e: { message?: string } | null) =>
       e?.message?.includes('AbortError') || e?.message?.includes('steal');
 
@@ -77,6 +81,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       }
     } catch (err) {
       console.error("[ModelManager] load() exception:", err);
+    } finally {
+      setModelsLoading(false);
     }
   }, []);
 
@@ -320,31 +326,46 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     return bag;
   };
 
+  const fetchSketchfabPage = async (fetchUrl: string, token: string, append = false) => {
+    const res = await fetch(fetchUrl, { headers: { Authorization: `Token ${token}`, Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Sketchfab API error ${res.status}`);
+    const payload = await res.json();
+    const results = Array.isArray(payload?.results) ? payload.results : [];
+    results.sort((a: SketchfabSearchResult, b: SketchfabSearchResult) =>
+      ((b.likeCount ?? 0) + (b.downloadCount ?? 0) * 0.5) - ((a.likeCount ?? 0) + (a.downloadCount ?? 0) * 0.5)
+    );
+    setSketchfabResults(prev => append ? [...prev, ...results] : results);
+    setSketchfabNextUrl(payload?.next || null);
+  };
+
   const handleSketchfabSearch = async (query: string) => {
     const token = getSavedSketchfabToken();
     if (!token) { setSketchfabError("לא נמצא API token. שמור טוקן בהגדרות (⚙️ → 🔑 API)."); return; }
     if (!query.trim()) return;
-    setSketchfabSearching(true); setSketchfabError(null);
+    setSketchfabSearching(true); setSketchfabError(null); setSketchfabNextUrl(null);
     try {
       const url = new URL("https://api.sketchfab.com/v3/search");
       url.searchParams.set("type", "models");
       url.searchParams.set("q", query.trim());
       url.searchParams.set("downloadable", "true");
       url.searchParams.set("count", "24");
-      url.searchParams.set("sort_by", "-likeCount");        // Sort by most liked = highest quality
-      url.searchParams.set("min_face_count", "1000");       // Minimum detail level
-      url.searchParams.set("file_format", "glb");           // GLB format preferred
-      const res = await fetch(url.toString(), { headers: { Authorization: `Token ${token}`, Accept: "application/json" } });
-      if (!res.ok) throw new Error(`Sketchfab API error ${res.status}`);
-      const payload = await res.json();
-      const results = Array.isArray(payload?.results) ? payload.results : [];
-      // Sort: prioritize high downloads + likes for quality
-      results.sort((a: SketchfabSearchResult, b: SketchfabSearchResult) =>
-        ((b.likeCount ?? 0) + (b.downloadCount ?? 0) * 0.5) - ((a.likeCount ?? 0) + (a.downloadCount ?? 0) * 0.5)
-      );
-      setSketchfabResults(results);
+      url.searchParams.set("sort_by", "-likeCount");
+      url.searchParams.set("min_face_count", "1000");
+      url.searchParams.set("file_format", "glb");
+      await fetchSketchfabPage(url.toString(), token, false);
     } catch { setSketchfabError("שגיאה בחיפוש. בדוק טוקן וחיבור."); setSketchfabResults([]); }
     finally { setSketchfabSearching(false); }
+  };
+
+  const handleSketchfabLoadMore = async () => {
+    if (!sketchfabNextUrl || sketchfabLoadingMore) return;
+    const token = getSavedSketchfabToken();
+    if (!token) return;
+    setSketchfabLoadingMore(true);
+    try {
+      await fetchSketchfabPage(sketchfabNextUrl, token, true);
+    } catch { setSketchfabError("שגיאה בטעינת תוצאות נוספות."); }
+    finally { setSketchfabLoadingMore(false); }
   };
 
   const handleImportSketchfab = async (model: SketchfabSearchResult) => {
@@ -525,7 +546,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         <div className="flex items-center gap-2">
           <span className="text-sm font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>📦 מאגר מודלים</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "hsl(43 78% 47% / 0.15)", color: "hsl(43 78% 40%)" }}>
-            {models.length} בענן
+            {modelsLoading ? "⏳" : models.length} בענן
           </span>
           <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "hsl(220 20% 93%)", color: "hsl(220 30% 25%)" }}>
             {localModels.length} מקומיים
@@ -631,6 +652,9 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               importingUid={importingUid}
               uploads={uploads}
               existingUids={models.map(m => m.file_name).filter(n => n.includes("sketchfab_")).map(n => { const match = n.match(/sketchfab_([a-f0-9]+)/); return match ? match[1] : ""; }).filter(Boolean)}
+              hasMore={!!sketchfabNextUrl}
+              loadingMore={sketchfabLoadingMore}
+              onLoadMore={handleSketchfabLoadMore}
             />
           </div>
         )}
