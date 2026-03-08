@@ -1130,7 +1130,7 @@ export default function AdvancedAnatomyViewer() {
             <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
             <Suspense fallback={null}>
               <ModelScene
-                key={modelId}
+                key={isCloudModel ? cloudModelUrl : modelId}
                 url={meta.path}
                 hiddenMeshes={hiddenMeshes}
                 xRayMeshes={xRayMeshes}
