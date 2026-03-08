@@ -216,16 +216,17 @@ function OrganParticles({ position, color }: { position: [number, number, number
 }
 
 /** GLB-based realistic human body silhouette — loads a real 3D model as transparent shell */
-const BODY_GLB_URL = (() => {
+const DEFAULT_BODY_GLB_URL = (() => {
   const supaUrl = import.meta.env.VITE_SUPABASE_URL;
   return supaUrl
     ? `${supaUrl}/storage/v1/object/public/models/sketchfab_6cc9217317804dc89622b7b0e499bc89.glb`
     : "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb";
 })();
 
-function BodySilhouette() {
+function BodySilhouette({ modelUrl }: { modelUrl?: string }) {
+  const url = modelUrl || DEFAULT_BODY_GLB_URL;
   const groupRef = useRef<THREE.Group>(null);
-  const gltf = useLoader(GLTFLoader, BODY_GLB_URL);
+  const gltf = useLoader(GLTFLoader, url);
   const scene = useMemo(() => {
     const clone = gltf.scene.clone(true);
     // Make all meshes semi-transparent ghost shell
