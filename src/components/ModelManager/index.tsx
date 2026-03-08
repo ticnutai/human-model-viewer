@@ -47,6 +47,9 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [sketchfabError, setSketchfabError] = useState<string | null>(null);
   const [importingUid, setImportingUid] = useState<string | null>(null);
   const [showSketchfab, setShowSketchfab] = useState(false);
+  const [sketchfabNextUrl, setSketchfabNextUrl] = useState<string | null>(null);
+  const [sketchfabLoadingMore, setSketchfabLoadingMore] = useState(false);
+  const [modelsLoading, setModelsLoading] = useState(true);
 
   // ── Data loading ──
   const load = useCallback(async () => {
