@@ -504,9 +504,9 @@ const ModelViewer = () => {
 
   const atlasSystems = useMemo(() => {
     const systems = new Set<string>();
-    Object.entries(ORGAN_DETAILS).forEach(([key, organ]) => systems.add(getLocalizedOrganSystem(key, organ.system, lang)));
+    Object.entries(enrichedOrganDetails).forEach(([key, organ]) => systems.add(getLocalizedOrganSystem(key, organ.system, lang)));
     return Array.from(systems).sort((a, b) => a.localeCompare(b));
-  }, [lang]);
+  }, [lang, enrichedOrganDetails]);
 
   const diseaseMatchKeys = useMemo(() => {
     const q = atlasQuery.trim();
