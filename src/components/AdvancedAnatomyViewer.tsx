@@ -416,6 +416,78 @@ const MODEL_META: Record<ModelId, {
     ],
     infoMap: {},
   },
+  brain: {
+    path: resolveModelPath("/models/cloud/brain.glb"),
+    titleHe: "מוח אנושי", titleEn: "Realistic Brain", icon: "🧠",
+    hasAnimation: false, description: "מודל מוח אנושי ריאליסטי תלת-ממדי",
+    layers: [
+      { id: "cerebrum", label: "Cerebrum", labelHe: "מוח גדול", color: "#f0b0b0", icon: "🧠",
+        meshPatterns: [/cerebr/i, /frontal/i, /parietal/i, /temporal/i, /occipital/i, /cortex/i] },
+      { id: "cerebellum", label: "Cerebellum", labelHe: "מוח קטן", color: "#b0c0f0", icon: "🔬",
+        meshPatterns: [/cerebellum/i, /vermis/i] },
+      { id: "brainstem", label: "Brainstem", labelHe: "גזע המוח", color: "#c0e0b0", icon: "🌿",
+        meshPatterns: [/brain.?stem/i, /medulla/i, /pons/i, /midbrain/i] },
+    ],
+    infoMap: {},
+  },
+  brain_eyes: {
+    path: resolveModelPath("/models/cloud/brain-eyes.glb"),
+    titleHe: "מוח ועיניים", titleEn: "Brain & Eyes", icon: "👁️",
+    hasAnimation: false, description: "מוח אנושי עם מערכת העיניים ועצבי הראייה",
+    layers: [
+      { id: "brain", label: "Brain", labelHe: "מוח", color: "#f0b0b0", icon: "🧠",
+        meshPatterns: [/brain/i, /cerebr/i, /cortex/i] },
+      { id: "eyes", label: "Eyes & Optic", labelHe: "עיניים ועצב ראייה", color: "#80c0ff", icon: "👁️",
+        meshPatterns: [/eye/i, /optic/i, /retina/i, /lens/i, /cornea/i, /sclera/i] },
+    ],
+    infoMap: {},
+  },
+  stomach: {
+    path: resolveModelPath("/models/cloud/stomach.glb"),
+    titleHe: "קיבה אנושית", titleEn: "Realistic Stomach", icon: "🫃",
+    hasAnimation: false, description: "מודל קיבה אנושית ריאליסטי",
+    layers: [
+      { id: "gastric", label: "Gastric Layers", labelHe: "שכבות הקיבה", color: "#e8a0a0", icon: "🫃",
+        meshPatterns: [/stomach/i, /gastric/i, /pylor/i, /fundus/i, /cardia/i, /mucosa/i] },
+      { id: "vessels", label: "Blood Supply", labelHe: "אספקת דם", color: "#cc3355", icon: "🩸",
+        meshPatterns: [/artery/i, /vein/i, /vessel/i] },
+    ],
+    infoMap: {},
+  },
+  kidney: {
+    path: resolveModelPath("/models/humanatlas/kidney.glb"),
+    titleHe: "כליה שמאלית", titleEn: "Left Kidney", icon: "🫘",
+    hasAnimation: false, description: "כליה אנושית שמאלית — Human Reference Atlas",
+    layers: [
+      { id: "cortex", label: "Cortex & Medulla", labelHe: "קליפה ומדולה", color: "#cc8866", icon: "🫘",
+        meshPatterns: [/cortex/i, /medulla/i, /pyramid/i, /papilla/i, /pelvis/i] },
+      { id: "vessels", label: "Renal Vessels", labelHe: "כלי דם כלייתיים", color: "#cc3355", icon: "🩸",
+        meshPatterns: [/artery/i, /vein/i, /vessel/i, /renal/i] },
+    ],
+    infoMap: {},
+  },
+  liver: {
+    path: resolveModelPath("/models/humanatlas/liver.glb"),
+    titleHe: "כבד", titleEn: "Liver", icon: "🫁",
+    hasAnimation: false, description: "כבד אנושי — Human Reference Atlas",
+    layers: [
+      { id: "lobes", label: "Liver Lobes", labelHe: "אונות הכבד", color: "#8b4513", icon: "🫁",
+        meshPatterns: [/lobe/i, /liver/i, /hepatic/i, /portal/i, /gallbladder/i] },
+    ],
+    infoMap: {},
+  },
+  lung: {
+    path: resolveModelPath("/models/humanatlas/lung.glb"),
+    titleHe: "ריאות", titleEn: "Lungs", icon: "🫁",
+    hasAnimation: false, description: "ריאות אנושיות — Human Reference Atlas",
+    layers: [
+      { id: "lobes", label: "Lung Lobes", labelHe: "אונות הריאה", color: "#f4a0a0", icon: "🫁",
+        meshPatterns: [/lobe/i, /lung/i, /bronch/i, /trachea/i] },
+      { id: "airways", label: "Airways", labelHe: "דרכי אוויר", color: "#90c0e0", icon: "💨",
+        meshPatterns: [/airway/i, /bronchiol/i, /alveol/i] },
+    ],
+    infoMap: {},
+  },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
