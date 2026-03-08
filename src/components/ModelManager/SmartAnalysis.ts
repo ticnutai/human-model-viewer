@@ -33,15 +33,19 @@ export async function analyzeGlbSmart(
   onComplete?: AnalysisCallback,
 ): Promise<AnalysisResult> {
   const start = performance.now();
+  const inputType = fileOrUrl instanceof File ? `File(${(fileOrUrl as File).name}, ${(fileOrUrl as File).size}b)` : fileOrUrl;
+  console.log(`[SmartAnalysis] Starting analysis for: ${inputType}`);
 
   // ── Tier 1: Fast binary parser (instant) ──
   try {
+    console.log(`[SmartAnalysis] Tier 1: Fast binary parser...`);
     let fastResult: FastMeshInfo;
     if (fileOrUrl instanceof File) {
       fastResult = await parseGlbFromFile(fileOrUrl);
     } else {
       fastResult = await parseGlbFromUrl(fileOrUrl);
     }
+    console.log(`[SmartAnalysis] Tier 1 result: ${fastResult.meshNames.length} meshes, ${fastResult.nodeNames.length} nodes`);
 
     if (fastResult.meshNames.length > 0) {
       const result: AnalysisResult = {
@@ -50,12 +54,13 @@ export async function analyzeGlbSmart(
         method: "fast",
         durationMs: Math.round(performance.now() - start),
       };
-      console.log(`[SmartAnalysis] Fast path: ${result.meshNames.length} meshes in ${result.durationMs}ms`);
+      console.log(`[SmartAnalysis] ✅ Fast path SUCCESS: ${result.meshNames.length} meshes in ${result.durationMs}ms`, result.meshNames.slice(0, 5));
       onComplete?.(result);
       return result;
     }
+    console.log(`[SmartAnalysis] Tier 1: no meshes found, trying next tier...`);
   } catch (e) {
-    console.warn("[SmartAnalysis] Fast path failed:", e);
+    console.warn("[SmartAnalysis] ❌ Fast path FAILED:", e);
   }
 
   // ── Tier 2: Web Worker with Three.js (background thread) ──
