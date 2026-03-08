@@ -96,7 +96,7 @@ const cloud = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/objec
 // Map local paths to cloud storage slugs. Uses closest available cloud model as fallback.
 const CLOUD_MAP: Record<string, string> = {
   // Original models now imported to cloud from Sketchfab
-  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb": cloud("sketchfab_14191ef860b44925be0e94462c84ffe6.glb"), // Full anatomy fallback (skull not re-importable)
+  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb": cloud("sketchfab_5a2c779eb9524a5081cb1e6297d15e83.glb"), // Hans anatomy (valid GLB fallback for skull)
   "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb": cloud("sketchfab_22ebd4abce9440639563807e72e5f8d1.glb"), // ✅ Original heart-in-thorax
   "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb": cloud("sketchfab_5f28b52cab3e439490727e0aede55a6b.glb"), // ✅ Original female skeleton
   "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb": cloud("sketchfab_665890c542be433fb18ef235cf987cef.glb"), // ✅ Original male skeleton
