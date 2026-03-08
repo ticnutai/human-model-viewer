@@ -735,7 +735,7 @@ export default function AdvancedAnatomyViewer() {
     : MODEL_META[modelId as ModelId];
 
   // Fetch cloud mesh mappings and merge with hardcoded data
-  const { mappings: cloudMappings, loading: cloudLoading } = useMeshMappings(isCloudModel ? null : modelId);
+  const { mappings: cloudMappings, loading: cloudLoading } = useMeshMappings(isCloudModel ? undefined : modelId);
 
   const meta = useMemo(() => {
     if (cloudMappings.size === 0) return baseMeta;
