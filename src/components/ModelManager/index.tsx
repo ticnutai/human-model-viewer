@@ -58,7 +58,10 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const [batchAnalyzing, setBatchAnalyzing] = useState(false);
-  const [batchAnalysisProgress, setBatchAnalysisProgress] = useState({ done: 0, total: 0 });
+  const [batchAnalysisProgress, setBatchAnalysisProgress] = useState<{
+    done: number; total: number; currentName: string; skipped: number; failed: number; successNames: string[];
+  }>({ done: 0, total: 0, currentName: "", skipped: 0, failed: 0, successNames: [] });
+  const batchAbortRef = useRef(false);
 
   // ── Data loading using direct fetch (bypasses supabase-js client hang) ──
   const load = useCallback(async (retryCount = 0) => {
@@ -646,36 +649,55 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
   const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false); };
 
-  const handleBatchAnalyze = async (targetIds: string[]) => {
-    const targets = models.filter(m => targetIds.includes(m.id) && m.file_url);
-    if (targets.length === 0) return;
+  const handleBatchAnalyze = async (targetIds: string[], skipAnalyzed = false) => {
+    const allTargets = models.filter(m => targetIds.includes(m.id) && m.file_url);
+    const targets = skipAnalyzed
+      ? allTargets.filter(m => !m.mesh_parts || (Array.isArray(m.mesh_parts) && (m.mesh_parts as any[]).length === 0))
+      : allTargets;
+    const skippedCount = allTargets.length - targets.length;
+    if (targets.length === 0) { 
+      if (skippedCount > 0) alert(`כל ${skippedCount} המודלים כבר נותחו ✅`);
+      return; 
+    }
+    batchAbortRef.current = false;
     setBatchAnalyzing(true);
-    setBatchAnalysisProgress({ done: 0, total: targets.length });
+    setBatchAnalysisProgress({ done: 0, total: targets.length, currentName: "", skipped: skippedCount, failed: 0, successNames: [] });
     let completed = 0;
+    let failed = 0;
+    const successNames: string[] = [];
     for (const m of targets) {
+      if (batchAbortRef.current) break;
+      const name = m.hebrew_name || m.display_name;
+      setBatchAnalysisProgress(prev => ({ ...prev, done: completed, currentName: name }));
       setReanalyzingId(m.id);
       try {
         const meshNames = await analyzeGlbMeshes(m.file_url!);
-        await supabase.from("models").update({ mesh_parts: meshNames.map(translateMeshName) }).eq("id", m.id);
-      } catch (e) { console.warn(`[BatchAnalysis] Failed for ${m.display_name}:`, e); }
+        const translated = meshNames.map(translateMeshName);
+        await supabase.from("models").update({ mesh_parts: translated }).eq("id", m.id);
+        successNames.push(`${name} (${translated.length})`);
+      } catch (e) {
+        console.warn(`[BatchAnalysis] Failed for ${name}:`, e);
+        failed++;
+      }
       completed++;
-      setBatchAnalysisProgress({ done: completed, total: targets.length });
+      setBatchAnalysisProgress(prev => ({ ...prev, done: completed, failed, successNames: [...successNames] }));
     }
     setReanalyzingId(null);
     setBatchAnalyzing(false);
-    setBatchAnalysisProgress({ done: 0, total: 0 });
     clearSelection();
     await load();
   };
 
   const handleAnalyzeAll = () => {
     const allCloudIds = models.filter(m => m.file_url).map(m => m.id);
-    handleBatchAnalyze(allCloudIds);
+    handleBatchAnalyze(allCloudIds, true); // skip already analyzed
   };
 
   const handleAnalyzeSelected = () => {
-    handleBatchAnalyze(Array.from(selectedIds));
+    handleBatchAnalyze(Array.from(selectedIds), false);
   };
+
+  const handleStopBatch = () => { batchAbortRef.current = true; };
 
   const handleAddCategory = async (name: string, icon: string) => {
     await supabase.from("model_categories").insert({ name, icon, sort_order: categories.length });
@@ -896,49 +918,103 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       </div>
 
       {/* Batch analysis toolbar */}
-      <div className="px-2 pt-1.5 pb-1 flex items-center gap-1 flex-wrap" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.15)" }}>
-        <button
-          onClick={() => { setSelectMode(s => !s); if (selectMode) clearSelection(); }}
-          className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors"
-          style={{
-            background: selectMode ? "hsl(220 50% 50% / 0.15)" : "transparent",
-            color: selectMode ? "hsl(220 50% 40%)" : "hsl(220 15% 55%)",
-            border: `1px solid ${selectMode ? "hsl(220 50% 50%)" : "hsl(43 60% 55% / 0.3)"}`,
-          }}
-        >
-          {selectMode ? "✖ בטל בחירה" : "☑ בחירה מרובה"}
-        </button>
-        {selectMode && (
-          <>
-            <button
-              onClick={selectAllVisible}
-              className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors"
-              style={{ background: "hsl(220 50% 50% / 0.08)", color: "hsl(220 50% 40%)", border: "1px solid hsl(220 50% 50% / 0.3)" }}
-            >
-              ✅ בחר הכל ({combinedModels.filter(m => m.source === "cloud").length})
-            </button>
-            {selectedIds.size > 0 && (
-              <button
-                onClick={handleAnalyzeSelected}
-                disabled={batchAnalyzing}
-                className="text-[10px] rounded-lg px-2 py-1 font-bold cursor-pointer transition-colors disabled:opacity-50"
-                style={{ background: "hsl(280 60% 50% / 0.12)", color: "hsl(280 60% 40%)", border: "1px solid hsl(280 60% 50% / 0.3)" }}
-              >
-                {batchAnalyzing ? `⏳ מנתח ${batchAnalysisProgress.done}/${batchAnalysisProgress.total}...` : `🔬 נתח נבחרים (${selectedIds.size})`}
-              </button>
-            )}
-          </>
-        )}
-        {!selectMode && (
+      <div className="px-2 pt-1.5 pb-1 flex flex-col gap-1" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.15)" }}>
+        <div className="flex items-center gap-1 flex-wrap">
           <button
-            onClick={handleAnalyzeAll}
-            disabled={batchAnalyzing}
-            className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors disabled:opacity-50"
-            style={{ background: "hsl(280 60% 50% / 0.08)", color: "hsl(280 60% 40%)", border: "1px solid hsl(280 60% 50% / 0.3)" }}
+            onClick={() => { setSelectMode(s => !s); if (selectMode) clearSelection(); }}
+            className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors"
+            style={{
+              background: selectMode ? "hsl(220 50% 50% / 0.15)" : "transparent",
+              color: selectMode ? "hsl(220 50% 40%)" : "hsl(220 15% 55%)",
+              border: `1px solid ${selectMode ? "hsl(220 50% 50%)" : "hsl(43 60% 55% / 0.3)"}`,
+            }}
           >
-            {batchAnalyzing ? `⏳ מנתח ${batchAnalysisProgress.done}/${batchAnalysisProgress.total}...` : `🔬 נתח הכל (${models.filter(m => m.file_url).length})`}
+            {selectMode ? "✖ בטל בחירה" : "☑ בחירה מרובה"}
           </button>
-        )}
+          {selectMode && (
+            <>
+              <button
+                onClick={selectAllVisible}
+                className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors"
+                style={{ background: "hsl(220 50% 50% / 0.08)", color: "hsl(220 50% 40%)", border: "1px solid hsl(220 50% 50% / 0.3)" }}
+              >
+                ✅ בחר הכל ({combinedModels.filter(m => m.source === "cloud").length})
+              </button>
+              {selectedIds.size > 0 && (
+                <button
+                  onClick={handleAnalyzeSelected}
+                  disabled={batchAnalyzing}
+                  className="text-[10px] rounded-lg px-2 py-1 font-bold cursor-pointer transition-colors disabled:opacity-50"
+                  style={{ background: "hsl(280 60% 50% / 0.12)", color: "hsl(280 60% 40%)", border: "1px solid hsl(280 60% 50% / 0.3)" }}
+                >
+                  🔬 נתח נבחרים ({selectedIds.size})
+                </button>
+              )}
+            </>
+          )}
+          {!selectMode && (
+            <>
+              <button
+                onClick={handleAnalyzeAll}
+                disabled={batchAnalyzing}
+                className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors disabled:opacity-50"
+                style={{ background: "hsl(280 60% 50% / 0.08)", color: "hsl(280 60% 40%)", border: "1px solid hsl(280 60% 50% / 0.3)" }}
+              >
+                🔬 נתח חדשים ({models.filter(m => m.file_url && (!m.mesh_parts || (Array.isArray(m.mesh_parts) && (m.mesh_parts as any[]).length === 0))).length})
+              </button>
+              <span className="text-[9px]" style={{ color: "hsl(145 50% 40%)" }}>
+                ✅ {models.filter(m => m.mesh_parts && Array.isArray(m.mesh_parts) && (m.mesh_parts as any[]).length > 0).length} נותחו
+              </span>
+            </>
+          )}
+          {batchAnalyzing && (
+            <button
+              onClick={handleStopBatch}
+              className="text-[10px] rounded-lg px-2 py-1 font-bold cursor-pointer transition-colors"
+              style={{ background: "hsl(0 70% 50% / 0.12)", color: "hsl(0 70% 40%)", border: "1px solid hsl(0 70% 50% / 0.3)" }}
+            >
+              ⏹ עצור
+            </button>
+          )}
+        </div>
+
+        {/* Progress bar */}
+        {batchAnalyzing && batchAnalysisProgress.total > 0 && (() => {
+          const { done, total, currentName, skipped, failed, successNames } = batchAnalysisProgress;
+          const pct = Math.round((done / total) * 100);
+          return (
+            <div className="flex flex-col gap-1 px-0.5 pb-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold" style={{ color: "hsl(280 60% 40%)" }}>
+                  ⏳ {done}/{total} ({pct}%)
+                </span>
+                <span className="text-[9px]" style={{ color: "hsl(220 15% 55%)" }}>
+                  {skipped > 0 && <span style={{ color: "hsl(145 50% 40%)" }}>⏭ {skipped} דילוג </span>}
+                  {failed > 0 && <span style={{ color: "hsl(0 70% 50%)" }}>❌ {failed} שגיאות </span>}
+                </span>
+              </div>
+              <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ background: "hsl(220 20% 92%)" }}>
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${pct}%`,
+                    background: "linear-gradient(90deg, hsl(280 60% 55%), hsl(220 60% 55%))",
+                  }}
+                />
+              </div>
+              {currentName && (
+                <div className="text-[9px] truncate" style={{ color: "hsl(220 30% 40%)" }}>
+                  🔬 מנתח: <strong>{currentName}</strong>
+                </div>
+              )}
+              {successNames.length > 0 && (
+                <div className="text-[9px] max-h-[40px] overflow-y-auto" style={{ color: "hsl(145 40% 35%)" }}>
+                  {successNames.slice(-3).map((n, i) => <div key={i}>✅ {n}</div>)}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Scrollable content area */}
