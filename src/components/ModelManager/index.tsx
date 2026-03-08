@@ -406,7 +406,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const modelsWithoutThumb = models.filter(m => !m.thumbnail_url && m.file_url && (m.media_type || "glb") === "glb").length;
 
   return (
-    <div className="flex flex-col gap-0" style={{ direction: "rtl" }}>
+    <div className="flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }}>
       {/* Header stats */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-accent/10">
         <div className="flex items-center gap-2">
@@ -522,7 +522,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       />
 
       {/* Model list */}
-      <ScrollArea className="max-h-[500px] px-2 pt-2">
+      <div className="flex-1 overflow-y-auto sidebar-scroll px-2 pt-2">
         <div className={viewMode === "grid"
           ? "grid grid-cols-2 gap-2 pb-2"
           : "flex flex-col gap-2 pb-2"
@@ -552,7 +552,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
             />
           ))}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

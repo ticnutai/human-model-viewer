@@ -64,13 +64,15 @@ export default function ModelCard({
   if (viewMode === "grid") {
     return (
       <div
-        onClick={() => onSelect(model.url)}
-        className={`rounded-xl border cursor-pointer transition-all overflow-hidden flex flex-col ${
+        className={`rounded-xl border transition-all overflow-hidden flex flex-col ${
           isActive ? "border-primary bg-primary/10 shadow-lg shadow-primary/10 ring-2 ring-primary/30" : "border-border hover:border-primary/40 hover:bg-accent/30"
         }`}
       >
         {/* Thumbnail area */}
-        <div className={`aspect-square w-full relative flex items-center justify-center overflow-hidden ${isActive ? "bg-primary/5" : "bg-muted"}`}>
+        <div
+          onClick={() => onSelect(model.url)}
+          className={`aspect-square w-full relative flex items-center justify-center overflow-hidden cursor-pointer ${isActive ? "bg-primary/5" : "bg-muted"}`}
+        >
           {thumb ? (
             <img src={thumb} alt={cleanDisplayName} className="w-full h-full object-cover" />
           ) : (
@@ -88,9 +90,9 @@ export default function ModelCard({
             </div>
           )}
         </div>
-        {/* Info */}
-        <div className="p-2 flex flex-col gap-0.5 min-h-[48px]">
-          <div className="text-[11px] font-bold text-foreground truncate leading-tight" dir="rtl">
+        {/* Info + actions */}
+        <div className="p-2 flex flex-col gap-1 min-h-[56px]">
+          <div className="text-[11px] font-bold text-foreground truncate leading-tight cursor-pointer" dir="rtl" onClick={() => onSelect(model.url)}>
             {hebrewName || cleanDisplayName}
           </div>
           {hebrewName && (
@@ -98,10 +100,54 @@ export default function ModelCard({
               {cleanDisplayName}
             </div>
           )}
-          <div className="text-[9px] text-muted-foreground mt-auto">
-            {formatSize(model.fileSize)}
+          <div className="flex items-center justify-between mt-auto">
+            <span className="text-[9px] text-muted-foreground">
+              {formatSize(model.fileSize)}
+            </span>
+            {model.source === "cloud" && rec && (
+              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                <button
+                  onClick={() => { setInlineEdit(true); setInlineValue(hebrewName); }}
+                  title="ערוך שם"
+                  className="text-[11px] p-0.5 rounded bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer border-none"
+                >✏️</button>
+                {confirmDel ? (
+                  <div className="flex gap-0.5">
+                    <button onClick={() => onDelete(rec)} className="bg-destructive text-destructive-foreground rounded px-1.5 py-0.5 text-[8px] font-semibold cursor-pointer border-none">מחק</button>
+                    <button onClick={() => setConfirmDel(false)} className="bg-transparent text-muted-foreground border border-border rounded px-1 py-0.5 text-[8px] cursor-pointer">✕</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDel(true)}
+                    title="מחק"
+                    className="text-[11px] p-0.5 rounded bg-transparent text-destructive hover:bg-destructive/10 transition-colors cursor-pointer border-none"
+                  >🗑️</button>
+                )}
+              </div>
+            )}
           </div>
         </div>
+        {/* Inline edit overlay for grid */}
+        {inlineEdit && model.source === "cloud" && rec && (
+          <div className="border-t border-border bg-card p-2" onClick={e => e.stopPropagation()}>
+            <div className="flex gap-1 items-center">
+              <input
+                autoFocus
+                value={inlineValue}
+                onChange={e => setInlineValue(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") { onSaveInlineName(model.id, inlineValue); setInlineEdit(false); }
+                  if (e.key === "Escape") setInlineEdit(false);
+                }}
+                placeholder="שם בעברית..."
+                className="flex-1 bg-card border border-primary rounded-md px-2 py-1 text-[10px] font-bold text-foreground outline-none"
+                style={{ direction: "rtl" }}
+              />
+              <button onClick={() => { onSaveInlineName(model.id, inlineValue); setInlineEdit(false); }} className="bg-primary text-primary-foreground rounded-md px-1.5 py-1 text-[10px] font-bold cursor-pointer border-none">✓</button>
+              <button onClick={() => setInlineEdit(false)} className="text-muted-foreground border border-border rounded-md px-1.5 py-1 text-[10px] bg-transparent cursor-pointer">✕</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
