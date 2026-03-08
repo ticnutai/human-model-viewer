@@ -60,6 +60,53 @@ export default function ModelCard({
   // Source badge
   const sourceBadge = model.source === "cloud" ? "☁️ ענן" : "📂 מקומי";
 
+  // ── GRID VIEW ──
+  if (viewMode === "grid") {
+    return (
+      <div
+        onClick={() => onSelect(model.url)}
+        className={`rounded-xl border cursor-pointer transition-all overflow-hidden flex flex-col ${
+          isActive ? "border-primary bg-primary/10 shadow-lg shadow-primary/10 ring-2 ring-primary/30" : "border-border hover:border-primary/40 hover:bg-accent/30"
+        }`}
+      >
+        {/* Thumbnail area */}
+        <div className={`aspect-square w-full relative flex items-center justify-center overflow-hidden ${isActive ? "bg-primary/5" : "bg-muted"}`}>
+          {thumb ? (
+            <img src={thumb} alt={cleanDisplayName} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-4xl opacity-60">{mediaIcon}</span>
+          )}
+          {/* Source badge */}
+          <div className={`absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold backdrop-blur-sm ${
+            model.source === "cloud" ? "bg-blue-500/80 text-white" : "bg-amber-500/80 text-white"
+          }`}>
+            {model.source === "cloud" ? "☁️" : "📂"}
+          </div>
+          {hasMash && (
+            <div className="absolute top-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold bg-primary/80 text-primary-foreground backdrop-blur-sm">
+              🧬
+            </div>
+          )}
+        </div>
+        {/* Info */}
+        <div className="p-2 flex flex-col gap-0.5 min-h-[48px]">
+          <div className="text-[11px] font-bold text-foreground truncate leading-tight" dir="rtl">
+            {hebrewName || cleanDisplayName}
+          </div>
+          {hebrewName && (
+            <div className="text-[9px] text-muted-foreground truncate" dir="ltr">
+              {cleanDisplayName}
+            </div>
+          )}
+          <div className="text-[9px] text-muted-foreground mt-auto">
+            {formatSize(model.fileSize)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── LIST VIEW ──
   return (
     <div className={`rounded-xl border transition-all overflow-hidden ${
       isActive ? "border-primary bg-primary/10 shadow-lg shadow-primary/10" : "border-border hover:border-primary/40 hover:bg-accent/30"
