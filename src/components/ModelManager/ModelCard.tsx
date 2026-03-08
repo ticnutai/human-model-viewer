@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Pencil, Trash2, Play, Pause, Camera, FlaskConical, ClipboardList } from "lucide-react";
 import { getOrganHintFromUrl, getBestOrganDetail } from "../OrganData";
-import { formatSize, getMediaIcon, translateMeshName } from "./utils";
+import { formatSize, getMediaIcon, translateMeshName, autoHebrewName } from "./utils";
 import type { Category, ListModel, ModelRecord } from "./types";
 import ModelEditForm from "./ModelEditForm";
 
@@ -109,6 +109,9 @@ export default function ModelCard({
     }
     setInlineEdit(false);
   };
+  // Hebrew name for all models (local + cloud)
+  const localHebrewHint = !isCloud ? autoHebrewName(model.displayName, model.url) : "";
+  const displayHebrew = hebrewName || localHebrewHint;
 
   // ── GRID VIEW ──
   if (viewMode === "grid") {
@@ -180,11 +183,11 @@ export default function ModelCard({
 
         {/* Info */}
         <div className="p-2.5 flex flex-col gap-1">
-          <div className="text-[11px] font-bold truncate leading-tight" dir="rtl" style={{ color: "hsl(220 40% 13%)" }}>
-            {hebrewName || cleanDisplayName}
+          <div className="text-[12px] font-bold leading-tight" dir="rtl" style={{ color: "hsl(220 40% 13%)", wordBreak: "break-word" }}>
+            {displayHebrew || cleanDisplayName}
           </div>
-          {hebrewName && (
-            <div className="text-[9px] truncate" dir="ltr" style={{ color: "hsl(220 15% 55%)" }}>
+          {displayHebrew && (
+            <div className="text-[10px] truncate" dir="ltr" style={{ color: "hsl(220 15% 55%)" }}>
               {cleanDisplayName}
             </div>
           )}
@@ -291,6 +294,7 @@ export default function ModelCard({
   }
 
   // ── LIST VIEW ──
+
   return (
     <div className="rounded-xl transition-all overflow-hidden group"
       style={{
@@ -303,24 +307,34 @@ export default function ModelCard({
         {/* Thumbnail */}
         <div
           onClick={() => onSelect(model.url)}
-          className="w-20 min-h-[80px] shrink-0 flex items-center justify-center cursor-pointer rounded-l-xl overflow-hidden relative"
-          style={{ background: "hsl(220 20% 96%)" }}
+          className="w-[88px] min-h-[88px] shrink-0 flex items-center justify-center cursor-pointer rounded-l-xl overflow-hidden relative"
+          style={{ background: thumb ? "hsl(220 20% 96%)" : "linear-gradient(135deg, hsl(43 78% 47% / 0.12), hsl(220 30% 92%))" }}
         >
           {thumb ? (
             <img src={thumb} alt={cleanDisplayName} className="w-full h-full object-cover" />
           ) : (
-            <span className="text-2xl opacity-50">{mediaIcon}</span>
+            <div className="flex flex-col items-center justify-center gap-1">
+              <span className="text-3xl">{mediaIcon}</span>
+              <span className="text-[8px] font-bold px-1 text-center leading-tight" style={{ color: "hsl(220 30% 45%)" }}>
+                {cleanDisplayName.slice(0, 16)}
+              </span>
+            </div>
           )}
-          <div className="absolute top-1 right-1 text-[8px] px-1 py-0.5 rounded-md font-bold" style={{
+          <div className="absolute top-1.5 right-1.5 text-[8px] px-1.5 py-0.5 rounded-md font-bold" style={{
             background: isCloud ? "hsl(210 70% 50% / 0.9)" : "hsl(43 78% 47% / 0.9)",
             color: "white",
           }}>
             {isCloud ? "☁️" : "📂"}
           </div>
+          {isActive && (
+            <div className="absolute bottom-1 left-1 text-[8px] px-1.5 py-0.5 rounded-md font-bold animate-pulse" style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}>
+              ▶
+            </div>
+          )}
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0 p-2.5 flex flex-col gap-1">
+        <div className="flex-1 min-w-0 p-3 flex flex-col gap-1.5 justify-center">
           {inlineEdit ? (
             <div className="flex gap-1.5 items-center" onClick={e => e.stopPropagation()}>
               <input
@@ -339,60 +353,48 @@ export default function ModelCard({
               <button onClick={() => setInlineEdit(false)} className="rounded-lg px-2 py-1.5 text-[10px] cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>✕</button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5">
-              <span onClick={() => onSelect(model.url)} className="text-xs font-bold cursor-pointer truncate flex-1" style={{ color: isActive ? "hsl(43 78% 40%)" : "hsl(220 40% 13%)" }}>
-                {hebrewName || cleanDisplayName}
-              </span>
-            </div>
-          )}
-
-          {editingDisplayName ? (
-            <div className="flex gap-1 items-center" onClick={e => e.stopPropagation()}>
-              <input
-                autoFocus
-                value={displayNameValue}
-                onChange={e => setDisplayNameValue(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter") { onSaveDisplayName(model.id, displayNameValue); setEditingDisplayName(false); }
-                  if (e.key === "Escape") setEditingDisplayName(false);
-                }}
-                className="flex-1 rounded-md px-2 py-0.5 text-[10px] outline-none"
-                style={{ direction: "ltr", background: "hsl(0 0% 100%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 78% 47%)" }}
-              />
-              <button onClick={() => { onSaveDisplayName(model.id, displayNameValue); setEditingDisplayName(false); }} className="text-[10px] font-bold cursor-pointer bg-transparent border-none" style={{ color: "hsl(43 78% 40%)" }}>✓</button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1">
-              <span onClick={() => onSelect(model.url)} className="text-[10px] truncate cursor-pointer flex-1" style={{ direction: "ltr", color: "hsl(220 15% 55%)" }}>
-                {cleanDisplayName !== (hebrewName || cleanDisplayName) ? cleanDisplayName : model.displayName}
-              </span>
-            </div>
+            <>
+              {/* Primary name — Hebrew if available */}
+              <div className="flex items-center gap-1.5">
+                <span onClick={() => onSelect(model.url)} className="text-sm font-bold cursor-pointer leading-tight" dir="rtl"
+                  style={{ color: isActive ? "hsl(43 78% 40%)" : "hsl(220 40% 13%)", wordBreak: "break-word" }}>
+                  {displayHebrew || cleanDisplayName}
+                </span>
+              </div>
+              {/* Secondary name — English */}
+              {displayHebrew && (
+                <div className="text-[11px] leading-tight" dir="ltr" style={{ color: "hsl(220 15% 55%)" }}>
+                  {cleanDisplayName}
+                </div>
+              )}
+            </>
           )}
 
           {/* Badges */}
-          <div className="flex gap-1 flex-wrap items-center">
+          <div className="flex gap-1.5 flex-wrap items-center">
             {catName && (
               <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5">{catName.icon} {catName.name}</Badge>
             )}
             {hasMash && (
               <Badge className="text-[9px] px-1.5 py-0 h-4 gap-0.5 font-bold" style={{ background: "hsl(43 78% 47% / 0.15)", color: "hsl(43 78% 40%)", border: "1px solid hsl(43 78% 47% / 0.35)" }}>🧬 MASH</Badge>
             )}
-            <span className="text-[9px]" style={{ color: "hsl(220 15% 55%)" }}>
+            <span className="text-[10px]" style={{ color: "hsl(220 15% 55%)" }}>
               {formatSize(model.fileSize)} · {new Date(model.createdAt).toLocaleDateString("he-IL")}
             </span>
           </div>
         </div>
 
         {/* Actions — always visible for all models */}
-        <div className="flex flex-col justify-center gap-1 px-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+        <div className="flex flex-col justify-center gap-1.5 px-2 shrink-0" onClick={e => e.stopPropagation()}>
+          <ActionBtn onClick={() => onSelect(model.url)} title={isActive ? "מודל פעיל" : "הפעל"} icon={isActive ? <Pause size={14} /> : <Play size={14} />} variant={isActive ? "active" : "default"} />
           <ActionBtn onClick={handleEdit} title="ערוך שם" icon={<Pencil size={14} />} />
           {isCloud && rec && (
             <ActionBtn onClick={() => setExpanded(!expanded)} title="פרטים" icon={<ClipboardList size={14} />} variant={expanded ? "active" : "default"} />
           )}
           {confirmDel ? (
             <div className="flex flex-col gap-0.5">
-              <button onClick={handleDelete} className="rounded-lg px-2 py-0.5 text-[9px] font-bold cursor-pointer border-none" style={{ background: "hsl(0 70% 55%)", color: "white" }}>מחק</button>
-              <button onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }} className="rounded-lg px-1.5 py-0.5 text-[9px] cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>בטל</button>
+              <button onClick={handleDelete} className="rounded-lg px-2 py-1 text-[9px] font-bold cursor-pointer border-none" style={{ background: "hsl(0 70% 55%)", color: "white" }}>מחק</button>
+              <button onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }} className="rounded-lg px-1.5 py-1 text-[9px] cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>בטל</button>
             </div>
           ) : (
             <ActionBtn onClick={handleDelete} title={isCloud ? "מחק" : "הסתר"} icon={<Trash2 size={14} />} variant="danger" />
