@@ -364,6 +364,11 @@ export default function ModelCard({
               ▶
             </div>
           )}
+          {isBackgroundProcessing && (
+            <div className="absolute bottom-1 right-1 flex items-center gap-0.5 text-[7px] px-1.5 py-0.5 rounded-md font-bold animate-pulse" style={{ background: "hsl(270 60% 55% / 0.9)", color: "white" }}>
+              <Loader2 size={8} className="animate-spin" /> ניתוח...
+            </div>
+          )}
         </div>
 
         {/* Content */}
