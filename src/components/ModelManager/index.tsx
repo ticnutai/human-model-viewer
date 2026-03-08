@@ -659,10 +659,19 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
   const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false); };
 
+  // Helper: check if mesh_parts are only generic names like "Object_0"
+  const hasOnlyGenericMeshes = (parts: any): boolean => {
+    if (!parts || !Array.isArray(parts) || parts.length === 0) return true;
+    return parts.every((p: any) => {
+      const name = typeof p === "string" ? p : p?.name ?? "";
+      return /^Object_\d+$/i.test(name) || /^\d{3}-\d+-\d+_/i.test(name) || name.trim() === "";
+    });
+  };
+
   const handleBatchAnalyze = async (targetIds: string[], skipAnalyzed = false) => {
     const allTargets = models.filter(m => targetIds.includes(m.id) && m.file_url);
     const targets = skipAnalyzed
-      ? allTargets.filter(m => !m.mesh_parts || (Array.isArray(m.mesh_parts) && (m.mesh_parts as any[]).length === 0))
+      ? allTargets.filter(m => hasOnlyGenericMeshes(m.mesh_parts) || !m.hebrew_name || m.hebrew_name.trim() === "")
       : allTargets;
     const skippedCount = allTargets.length - targets.length;
     if (targets.length === 0) { 
