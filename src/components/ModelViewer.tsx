@@ -30,10 +30,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePreferences } from "@/hooks/usePreferences";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const LOCAL_DEFAULT_MODEL = "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb";
-const DEFAULT_MODEL = SUPABASE_URL
-  ? `${SUPABASE_URL}/storage/v1/object/public/models/sketchfab_6cc9217317804dc89622b7b0e499bc89.glb`
-  : LOCAL_DEFAULT_MODEL;
+const cloudUrl = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
+const LOCAL_DEFAULT_MODEL = cloudUrl("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb") || "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb";
+const DEFAULT_MODEL = LOCAL_DEFAULT_MODEL;
 const SKETCHFAB_TOKEN_STORAGE_KEY = "sketchfab-api-token";
 const EFFECTS_PREFS_KEY = "anatomy-effects-prefs-v1";
 
