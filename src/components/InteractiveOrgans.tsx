@@ -1,7 +1,8 @@
 import { useRef, useState, useMemo, useEffect } from "react";
 import * as THREE from "three";
-import { ThreeEvent, useFrame } from "@react-three/fiber";
+import { ThreeEvent, useFrame, useLoader } from "@react-three/fiber";
 import { Html, Float } from "@react-three/drei";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ORGAN_DETAILS, getLocalizedOrganName } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
 import { useLanguage } from "@/contexts/LanguageContext";
