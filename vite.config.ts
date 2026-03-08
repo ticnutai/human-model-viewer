@@ -39,7 +39,7 @@ const manualChunks = (id: string) => {
   }
 
   if (normalizedId.includes("/src/components/ModelViewer.tsx")) return "viewer-shell";
-  if (normalizedId.includes("/src/components/ModelManager.tsx")) return "viewer-model-manager";
+  if (normalizedId.includes("/src/components/ModelManager/")) return "viewer-model-manager";
   if (normalizedId.includes("/src/components/InteractiveOrgans.tsx") || normalizedId.includes("/src/components/OrganDialog.tsx") || normalizedId.includes("/src/components/OrganData.ts")) return "viewer-organs";
   if (normalizedId.includes("/src/components/anatomy/")) return "viewer-effects";
   if (normalizedId.includes("/src/components/AnatomySourcesPanel.tsx") || normalizedId.includes("/src/components/DevPanel.tsx") || normalizedId.includes("/src/components/GlbAnalyzerPanel.tsx") || normalizedId.includes("/src/components/QuizPanel.tsx") || normalizedId.includes("/src/components/SqlHighlighter.tsx")) return "viewer-panels";

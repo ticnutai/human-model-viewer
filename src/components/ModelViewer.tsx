@@ -10,7 +10,7 @@ import type { OrganDetail } from "./OrganData";
 
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
 import OrganDialog from "./OrganDialog";
-import ModelManager from "./ModelManager";
+import ModelManager from "./ModelManager/index";
 import DevPanel from "./DevPanel";
 import InteractiveOrgans, { type LayerType } from "./InteractiveOrgans";
 import AnatomySourcesPanel from "./AnatomySourcesPanel";
@@ -691,7 +691,6 @@ const ModelViewer = () => {
             )}
             {sidebarTab === "models" && (
               <ModelManager
-                theme={t}
                 onSelectModel={handleSelectModel}
                 currentModelUrl={modelUrl}
               />
