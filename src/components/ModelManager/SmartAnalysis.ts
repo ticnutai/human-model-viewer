@@ -65,7 +65,9 @@ export async function analyzeGlbSmart(
 
   // ── Tier 2: Web Worker with Three.js (background thread) ──
   try {
+    console.log(`[SmartAnalysis] Tier 2: Web Worker with Three.js...`);
     const workerResult = await analyzeWithWorker(fileOrUrl);
+    console.log(`[SmartAnalysis] Tier 2 result: ${workerResult.meshNames.length} meshes`);
     if (workerResult.meshNames.length > 0) {
       const result: AnalysisResult = {
         ...workerResult,
@@ -73,18 +75,21 @@ export async function analyzeGlbSmart(
         method: "worker",
         durationMs: Math.round(performance.now() - start),
       };
-      console.log(`[SmartAnalysis] Worker path: ${result.meshNames.length} meshes in ${result.durationMs}ms`);
+      console.log(`[SmartAnalysis] ✅ Worker path SUCCESS: ${result.meshNames.length} meshes in ${result.durationMs}ms`, result.meshNames.slice(0, 5));
       onComplete?.(result);
       return result;
     }
+    console.log(`[SmartAnalysis] Tier 2: no meshes found, trying next tier...`);
   } catch (e) {
-    console.warn("[SmartAnalysis] Worker path failed:", e);
+    console.warn("[SmartAnalysis] ❌ Worker path FAILED:", e);
   }
 
   // ── Tier 3: Cloud Edge Function fallback ──
   if (typeof fileOrUrl === "string") {
     try {
+      console.log(`[SmartAnalysis] Tier 3: Cloud Edge Function...`);
       const cloudResult = await analyzeWithCloud(fileOrUrl, modelId);
+      console.log(`[SmartAnalysis] Tier 3 result: ${cloudResult.meshNames.length} meshes`);
       if (cloudResult.meshNames.length > 0) {
         const result: AnalysisResult = {
           ...cloudResult,
@@ -92,13 +97,15 @@ export async function analyzeGlbSmart(
           method: "cloud",
           durationMs: Math.round(performance.now() - start),
         };
-        console.log(`[SmartAnalysis] Cloud path: ${result.meshNames.length} meshes in ${result.durationMs}ms`);
+        console.log(`[SmartAnalysis] ✅ Cloud path SUCCESS: ${result.meshNames.length} meshes in ${result.durationMs}ms`);
         onComplete?.(result);
         return result;
       }
     } catch (e) {
-      console.warn("[SmartAnalysis] Cloud path failed:", e);
+      console.warn("[SmartAnalysis] ❌ Cloud path FAILED:", e);
     }
+  } else {
+    console.log(`[SmartAnalysis] Tier 3 skipped (input is File, not URL)`);
   }
 
   // ── All paths failed ──
