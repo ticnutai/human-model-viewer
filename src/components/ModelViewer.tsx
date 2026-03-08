@@ -500,7 +500,7 @@ const ModelViewer = () => {
   }, [cloudMeshData]);
   const t = THEMES[themeIdx];
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
-  const lessonSequence = useMemo(() => Object.keys(ORGAN_DETAILS), []);
+  const lessonSequence = useMemo(() => Object.keys(enrichedOrganDetails), [enrichedOrganDetails]);
 
   const atlasSystems = useMemo(() => {
     const systems = new Set<string>();
