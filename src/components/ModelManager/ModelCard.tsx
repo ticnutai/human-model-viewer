@@ -22,12 +22,14 @@ interface ModelCardProps {
   reanalyzingId: string | null;
   generatingThumbId: string | null;
   viewMode?: "list" | "grid";
+  isBackgroundProcessing?: boolean;
 }
 
 export default function ModelCard({
   model, isActive, categories, onSelect, onDelete, onHideLocal,
   onSaveEdit, onSaveInlineName, onSaveDisplayName, onEditLocalName, onReanalyze,
   onGenerateThumbnail, reanalyzingId, generatingThumbId, viewMode = "list",
+  isBackgroundProcessing = false,
 }: ModelCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -203,6 +205,11 @@ export default function ModelCard({
               ▶ פעיל
             </div>
           )}
+          {isBackgroundProcessing && (
+            <div className="absolute bottom-2 right-2 flex items-center gap-1 text-[8px] px-2 py-1 rounded-md font-bold animate-pulse" style={{ background: "hsl(270 60% 55% / 0.9)", color: "white", backdropFilter: "blur(4px)" }}>
+              <Loader2 size={10} className="animate-spin" /> מנתח ברקע...
+            </div>
+          )}
 
           {/* Hover overlay — always show, not just when thumb exists */}
           <div
@@ -355,6 +362,11 @@ export default function ModelCard({
           {isActive && (
             <div className="absolute bottom-1 left-1 text-[8px] px-1.5 py-0.5 rounded-md font-bold animate-pulse" style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}>
               ▶
+            </div>
+          )}
+          {isBackgroundProcessing && (
+            <div className="absolute bottom-1 right-1 flex items-center gap-0.5 text-[7px] px-1.5 py-0.5 rounded-md font-bold animate-pulse" style={{ background: "hsl(270 60% 55% / 0.9)", color: "white" }}>
+              <Loader2 size={8} className="animate-spin" /> ניתוח...
             </div>
           )}
         </div>
