@@ -676,6 +676,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const handleAnalyzeSelected = () => {
     handleBatchAnalyze(Array.from(selectedIds));
   };
+
+  const handleAddCategory = async (name: string, icon: string) => {
     await supabase.from("model_categories").insert({ name, icon, sort_order: categories.length });
     await load();
   };
