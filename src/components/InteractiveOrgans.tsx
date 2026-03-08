@@ -641,11 +641,11 @@ export default function InteractiveOrgans({
   return (
     <group position={[0, -0.5, 0]}>
       <BodySilhouette modelUrl={bodyModelUrl} />
-      <LayerPeelGroup visible={layers.has("vessels")} opacity={opacities.vessels} peelAmount={peelAmount} peelDirection={LAYER_PEEL_DIRS.vessels}>
+      <LayerPeelGroup visible={layers.has("vessels")} opacity={opacities.vessels} peelAmount={peelAmount} peelDirection={peelDirs.vessels || LAYER_PEEL_DIRS.vessels}>
         <BloodVessels />
       </LayerPeelGroup>
-      {ORGAN_SHAPES.map((shape, i) => (
-        <LayerPeelGroup key={`${shape.key}-${i}`} visible={layers.has(shape.category)} opacity={opacities[shape.category]} peelAmount={peelAmount} peelDirection={LAYER_PEEL_DIRS[shape.category]}>
+      {shapes.map((shape, i) => (
+        <LayerPeelGroup key={`${shape.key}-${i}`} visible={layers.has(shape.category)} opacity={opacities[shape.category]} peelAmount={peelAmount} peelDirection={peelDirs[shape.category] || LAYER_PEEL_DIRS[shape.category] || [0,0,0]}>
           <Float
             speed={1.5}
             rotationIntensity={0}
