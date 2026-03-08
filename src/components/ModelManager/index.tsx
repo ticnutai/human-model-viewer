@@ -9,6 +9,7 @@ import ModelCard from "./ModelCard";
 import SketchfabSearch from "./SketchfabSearch";
 import { generateThumbnailFromUrl } from "./ThumbnailGenerator";
 import MeshLayerManager from "./MeshLayerManager";
+import MeshMappingManager from "./MeshMappingManager";
 import {
   translateMeshName, analyzeGlbMeshes, buildRelevance,
   normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken, autoHebrewName,
