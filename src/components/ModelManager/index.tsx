@@ -236,21 +236,42 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       // Get the user's session token for authenticated uploads
       const { data: { session } } = await supabase.auth.getSession();
       const authToken = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      console.log(`[Upload] 🚀 Starting upload: ${file.name} (${(file.size/1024/1024).toFixed(1)}MB), auth: ${authToken ? 'token' : 'anon'}`);
 
       const success = await new Promise<boolean>((resolve) => {
         const xhr = new XMLHttpRequest();
         const url = `${SUPABASE_URL}/storage/v1/object/models/${fileName}`;
+        console.log(`[Upload] XHR POST → ${url}`);
+        
         xhr.upload.addEventListener("progress", (e) => {
           if (e.lengthComputable) {
             const pct = Math.round((e.loaded / e.total) * 100);
+            if (pct % 20 === 0 || pct === 100) console.log(`[Upload] Progress: ${pct}% (${(e.loaded/1024).toFixed(0)}KB / ${(e.total/1024).toFixed(0)}KB)`);
             updateUploadItem(uploadId, { progress: pct, statusLabel: `מעלה: ${file.name} (${pct}%)` });
           }
         });
         xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) { updateUploadItem(uploadId, { progress: 100, statusLabel: `העלאה הושלמה ✓` }); resolve(true); }
-          else { console.error("[Upload] failed status:", xhr.status, xhr.responseText); updateUploadItem(uploadId, { status: "error", error: `שגיאה ${xhr.status}: ${xhr.statusText}` }); resolve(false); }
+          console.log(`[Upload] XHR load: status=${xhr.status}`);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            console.log(`[Upload] ✅ Upload success: ${file.name}`);
+            updateUploadItem(uploadId, { progress: 100, statusLabel: `העלאה הושלמה ✓` });
+            resolve(true);
+          } else {
+            console.error("[Upload] ❌ Upload failed:", xhr.status, xhr.responseText);
+            updateUploadItem(uploadId, { status: "error", error: `שגיאה ${xhr.status}: ${xhr.statusText}` });
+            resolve(false);
+          }
         });
-        xhr.addEventListener("error", () => { updateUploadItem(uploadId, { status: "error", error: "החיבור נותק" }); resolve(false); });
+        xhr.addEventListener("error", (e) => {
+          console.error("[Upload] ❌ XHR error event:", e);
+          updateUploadItem(uploadId, { status: "error", error: "החיבור נותק" });
+          resolve(false);
+        });
+        xhr.addEventListener("timeout", () => {
+          console.error("[Upload] ❌ XHR timeout");
+          updateUploadItem(uploadId, { status: "error", error: "הזמן הקצוב עבר" });
+          resolve(false);
+        });
         xhr.open("POST", url);
         xhr.setRequestHeader("Authorization", `Bearer ${authToken}`);
         xhr.setRequestHeader("apikey", import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
@@ -258,13 +279,14 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         xhr.send(file);
       });
 
-      if (!success) return;
+      if (!success) { console.warn("[Upload] Upload failed, aborting pipeline"); return; }
 
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
       const detectedType = ["glb"].includes(ext) ? "glb" : ["png","jpg","jpeg","webp","gif"].includes(ext) ? "image" : ["mp4","webm","mov"].includes(ext) ? "video" : "glb";
       const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
 
-      // Step 2: Save to database FIRST (don't block on analysis)
+      // Step 2: Save to database
+      console.log(`[Upload] 💾 Saving to DB: ${file.name}, type=${detectedType}`);
       updateUploadItem(uploadId, { status: "saving", statusLabel: `💾 שומר למאגר...` });
 
       let { error: insertError, data: insertData } = await supabase.from("models").insert({
@@ -274,6 +296,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       }).select().single();
 
       if (insertError?.code === "42703" || insertError?.message?.includes("mesh_parts") || insertError?.message?.includes("media_type")) {
+        console.warn("[Upload] Insert failed with column error, trying fallback:", insertError.message);
         const fallback = await supabase.from("models").insert({
           file_name: fileName, display_name: file.name.replace(/\.[^.]+$/, ""),
           category_id: activeCategory || categories[0]?.id || null, file_size: file.size, file_url: fileUrl,
@@ -282,46 +305,61 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         insertData = fallback.data;
       }
 
-      if (insertError) { updateUploadItem(uploadId, { status: "error", error: insertError.message }); return; }
-      updateUploadItem(uploadId, { statusLabel: `💾 נשמר בהצלחה ✓` });
+      if (insertError) {
+        console.error("[Upload] ❌ DB insert failed:", insertError);
+        updateUploadItem(uploadId, { status: "error", error: insertError.message });
+        return;
+      }
+      console.log(`[Upload] ✅ DB saved: id=${insertData?.id}`);
 
-      // Step 3: Mark as done immediately — user sees success
+      // Step 3: Mark as done immediately
       updateUploadItem(uploadId, { status: "done", statusLabel: `🎉 ${file.name} — נשמר בהצלחה!` });
       await load();
 
-      // Step 4: Background tasks (smart analysis + thumbnail) — non-blocking
+      // Step 4: Background tasks — non-blocking
       if (insertData) {
         const modelId = insertData.id;
+        console.log(`[Upload] 🔄 Starting background tasks for ${modelId}`);
         setBgProcessingIds(prev => new Set(prev).add(modelId));
 
         (async () => {
           try {
-            // Smart 3-tier analysis: fast binary → worker → cloud
+            console.log(`[Upload/BG] 🔬 Starting smart analysis for ${file.name}...`);
+            const t0 = performance.now();
             const result = await analyzeGlbSmart(file, modelId);
+            console.log(`[Upload/BG] 🔬 Analysis complete: method=${result.method}, meshes=${result.meshNames.length}, time=${result.durationMs}ms`);
             if (result.translatedNames.length > 0) {
-              await supabase.from("models").update({ mesh_parts: result.translatedNames }).eq("id", modelId);
-              console.log(`[Upload] Smart analysis (${result.method}): ${result.meshNames.length} meshes in ${result.durationMs}ms`);
+              const { error: updateErr } = await supabase.from("models").update({ mesh_parts: result.translatedNames }).eq("id", modelId);
+              if (updateErr) console.error("[Upload/BG] ❌ Failed to save mesh_parts:", updateErr);
+              else console.log(`[Upload/BG] ✅ Saved ${result.translatedNames.length} mesh parts to DB`);
+            } else {
+              console.warn(`[Upload/BG] ⚠️ No meshes found in ${file.name}`);
             }
-          } catch (e) { console.warn("[Upload] Background analysis failed:", e); }
+          } catch (e) { console.error("[Upload/BG] ❌ Analysis exception:", e); }
 
           try {
             if (detectedType === "glb") {
+              console.log(`[Upload/BG] 📸 Generating thumbnail for ${file.name}...`);
               const { generateThumbnailFromFile } = await import("./ThumbnailGenerator");
               const thumbBlob = await generateThumbnailFromFile(file);
               if (thumbBlob) {
                 await uploadThumbnailBlob(thumbBlob, modelId);
-                console.log(`[Upload] Thumbnail generated for ${file.name}`);
+                console.log(`[Upload/BG] ✅ Thumbnail generated and saved`);
+              } else {
+                console.warn(`[Upload/BG] ⚠️ Thumbnail generation returned null`);
               }
             }
-          } catch (e) { console.warn("[Upload] Background thumbnail failed:", e); }
+          } catch (e) { console.error("[Upload/BG] ❌ Thumbnail exception:", e); }
 
           setBgProcessingIds(prev => { const s = new Set(prev); s.delete(modelId); return s; });
+          console.log(`[Upload/BG] 🏁 All background tasks complete for ${modelId}`);
           load();
         })();
       }
 
       setTimeout(() => setUploads(prev => prev.filter(u => u.id !== uploadId)), 4000);
     } catch (err) {
+      console.error("[Upload] ❌ Unhandled exception:", err);
       updateUploadItem(uploadId, { status: "error", error: err instanceof Error ? err.message : "שגיאה" });
     }
   };

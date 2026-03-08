@@ -27,11 +27,10 @@ function getStepIndex(status: string): number {
 }
 
 function getOverallProgress(status: string, uploadProgress: number): number {
-  const stepIdx = getStepIndex(status);
-  const totalSteps = STEP_ORDER.length;
-  const basePercent = (stepIdx / totalSteps) * 100;
-  if (status === "uploading") return (uploadProgress / totalSteps);
-  return basePercent;
+  if (status === "uploading") return uploadProgress * 0.7; // 0-70%
+  if (status === "saving") return 80;
+  if (status === "done") return 100;
+  return 0;
 }
 
 export default function UploadZone({ uploads, onUpload, onCancel, onDropFiles }: UploadZoneProps) {
