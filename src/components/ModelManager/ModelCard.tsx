@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Eye, Pencil, Trash2, Play, Pause, Camera, FlaskConical, ClipboardList } from "lucide-react";
 import { getOrganHintFromUrl, getBestOrganDetail } from "../OrganData";
 import { formatSize, getMediaIcon, translateMeshName } from "./utils";
 import type { Category, ListModel, ModelRecord } from "./types";
@@ -11,9 +12,11 @@ interface ModelCardProps {
   categories: Category[];
   onSelect: (url: string) => void;
   onDelete: (rec: ModelRecord) => void;
+  onHideLocal?: (id: string) => void;
   onSaveEdit: (id: string, form: { display_name: string; hebrew_name: string; notes: string; category_id: string | null; media_type: string }) => void;
   onSaveInlineName: (id: string, name: string) => void;
   onSaveDisplayName: (id: string, name: string) => void;
+  onEditLocalName?: (id: string, name: string) => void;
   onReanalyze: (rec: ModelRecord) => void;
   onGenerateThumbnail: (rec: ModelRecord) => void;
   reanalyzingId: string | null;
@@ -22,8 +25,8 @@ interface ModelCardProps {
 }
 
 export default function ModelCard({
-  model, isActive, categories, onSelect, onDelete,
-  onSaveEdit, onSaveInlineName, onSaveDisplayName, onReanalyze,
+  model, isActive, categories, onSelect, onDelete, onHideLocal,
+  onSaveEdit, onSaveInlineName, onSaveDisplayName, onEditLocalName, onReanalyze,
   onGenerateThumbnail, reanalyzingId, generatingThumbId, viewMode = "list",
 }: ModelCardProps) {
   const [expanded, setExpanded] = useState(false);
@@ -33,89 +36,151 @@ export default function ModelCard({
   const [editingDisplayName, setEditingDisplayName] = useState(false);
   const [displayNameValue, setDisplayNameValue] = useState("");
   const [confirmDel, setConfirmDel] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const rec = model.record;
+  const isCloud = model.source === "cloud";
   const hebrewName = rec?.hebrew_name || "";
   const catName = categories.find(c => c.id === model.categoryId);
   const mediaIcon = getMediaIcon(model.mediaType);
   const thumb = rec?.thumbnail_url || null;
   const isGenerating = generatingThumbId === rec?.id;
 
-  // Human-readable name from display_name
   const cleanDisplayName = model.displayName
     .replace(/^sketchfab_[a-f0-9]+$/i, "מודל Sketchfab")
     .replace(/^[0-9]+_/, "")
     .replace(/_/g, " ")
     .replace(/\b\w/g, s => s.toUpperCase());
 
-  // MASH badge check
   const hasMash = (() => {
-    const hasMeshParts = model.source === "cloud" && rec?.mesh_parts && Array.isArray(rec.mesh_parts) && rec.mesh_parts.length > 0;
+    const hasMeshParts = isCloud && rec?.mesh_parts && Array.isArray(rec.mesh_parts) && rec.mesh_parts.length > 0;
     const hasOrganHint = model.url ? getOrganHintFromUrl(model.url) !== null : false;
     const hasMeshOrgans = hasMeshParts ? getBestOrganDetail((rec!.mesh_parts as any[]).map((p: any) => typeof p === "string" ? p : p.name ?? "")) !== null : false;
     const nameHasOrgan = /organ|heart|lung|liver|kidney|brain|stomach|torso|anatomy|skull|spine|muscle|bicep|femur|tibia|humerus|bone|skeleton|ear|eye|tooth|teeth|pelvis|rib|trachea|aorta|nerve|pancreas|spleen|bladder/.test(model.displayName.toLowerCase());
     return model.mediaType === "glb" && (hasMeshParts || hasOrganHint || hasMeshOrgans || nameHasOrgan);
   })();
 
-  // Source badge
-  const sourceBadge = model.source === "cloud" ? "☁️ ענן" : "📂 מקומי";
+  // Action button component for consistency
+  const ActionBtn = ({ onClick, title, icon, variant = "default", disabled = false }: {
+    onClick: (e: React.MouseEvent) => void; title: string; icon: React.ReactNode; variant?: "default" | "danger" | "active"; disabled?: boolean;
+  }) => (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick(e); }}
+      title={title}
+      disabled={disabled}
+      className="flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer border-none disabled:opacity-40"
+      style={{
+        width: 32, height: 32,
+        background: variant === "danger" ? "hsl(0 80% 95%)" : variant === "active" ? "hsl(43 78% 47% / 0.15)" : "hsl(220 20% 96%)",
+        color: variant === "danger" ? "hsl(0 70% 45%)" : variant === "active" ? "hsl(43 78% 40%)" : "hsl(220 30% 35%)",
+      }}
+    >
+      {icon}
+    </button>
+  );
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isCloud && rec) {
+      if (confirmDel) { onDelete(rec); setConfirmDel(false); }
+      else setConfirmDel(true);
+    } else if (onHideLocal) {
+      if (confirmDel) { onHideLocal(model.id); setConfirmDel(false); }
+      else setConfirmDel(true);
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isCloud && rec) {
+      setInlineEdit(true);
+      setInlineValue(hebrewName);
+    } else if (onEditLocalName) {
+      setInlineEdit(true);
+      setInlineValue(cleanDisplayName);
+    }
+  };
+
+  const handleSaveInline = () => {
+    if (isCloud) {
+      onSaveInlineName(model.id, inlineValue);
+    } else if (onEditLocalName) {
+      onEditLocalName(model.id, inlineValue);
+    }
+    setInlineEdit(false);
+  };
 
   // ── GRID VIEW ──
   if (viewMode === "grid") {
     return (
       <div
-        className="rounded-xl transition-all overflow-hidden flex flex-col"
+        className="rounded-xl transition-all overflow-hidden flex flex-col group"
         style={{
-          border: isActive ? "1.5px solid hsl(43 78% 47%)" : "1px solid hsl(43 60% 55% / 0.3)",
-          background: isActive ? "hsl(43 78% 47% / 0.08)" : "hsl(0 0% 100%)",
-          boxShadow: isActive ? "0 2px 12px hsl(43 78% 47% / 0.15)" : "0 1px 3px rgba(0,0,0,0.04)",
+          border: isActive ? "2px solid hsl(43 78% 47%)" : "1px solid hsl(43 60% 55% / 0.25)",
+          background: "hsl(0 0% 100%)",
+          boxShadow: isActive ? "0 4px 16px hsl(43 78% 47% / 0.18)" : "0 1px 4px rgba(0,0,0,0.06)",
         }}
       >
         {/* Thumbnail area */}
         <div
           onClick={() => onSelect(model.url)}
-          className="aspect-square w-full relative flex items-center justify-center overflow-hidden cursor-pointer"
-          style={{ background: isActive ? "hsl(43 78% 47% / 0.05)" : "hsl(220 20% 96%)" }}
+          className="aspect-[4/3] w-full relative flex items-center justify-center overflow-hidden cursor-pointer"
+          style={{ background: "hsl(220 20% 96%)" }}
         >
           {thumb ? (
             <img src={thumb} alt={cleanDisplayName} className="w-full h-full object-cover" />
           ) : (
-            <div className="flex flex-col items-center justify-center gap-1">
-              <span className="text-4xl opacity-60">{mediaIcon}</span>
-              {model.source === "cloud" && rec && !isGenerating && (
+            <div className="flex flex-col items-center justify-center gap-2">
+              <span className="text-4xl opacity-50">{mediaIcon}</span>
+              {isCloud && rec && !isGenerating && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onGenerateThumbnail(rec); }}
-                  className="text-[8px] px-1.5 py-0.5 rounded-md font-semibold transition-colors whitespace-nowrap cursor-pointer border-none"
+                  className="text-[9px] px-2 py-1 rounded-lg font-bold transition-colors cursor-pointer border-none"
                   style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}
-                >📸 צור תמונה</button>
+                >
+                  <Camera size={10} className="inline mr-1" />צור תמונה
+                </button>
               )}
               {isGenerating && (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "hsl(0 0% 100% / 0.7)" }}>
-                  <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: "hsl(43 78% 47%)", borderTopColor: "transparent" }} />
+                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "hsl(0 0% 100% / 0.75)" }}>
+                  <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "hsl(43 78% 47%)", borderTopColor: "transparent" }} />
                 </div>
               )}
             </div>
           )}
-          {isActive && (
-            <div className="absolute bottom-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold animate-pulse" style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}>
-              ▶ פעיל
-            </div>
-          )}
-          <div className="absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold" style={{
-            background: model.source === "cloud" ? "hsl(210 70% 50% / 0.85)" : "hsl(43 78% 47% / 0.85)",
+          {/* Source badge */}
+          <div className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-md font-bold" style={{
+            background: isCloud ? "hsl(210 70% 50% / 0.9)" : "hsl(43 78% 47% / 0.9)",
             color: "white",
           }}>
-            {model.source === "cloud" ? "☁️" : "📂"}
+            {isCloud ? "☁️" : "📂"}
           </div>
           {hasMash && (
-            <div className="absolute top-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold" style={{ background: "hsl(43 78% 47% / 0.85)", color: "hsl(220 40% 13%)" }}>
+            <div className="absolute top-2 left-2 text-[9px] px-1.5 py-0.5 rounded-md font-bold" style={{ background: "hsl(150 50% 40% / 0.9)", color: "white" }}>
               🧬
             </div>
           )}
+          {isActive && (
+            <div className="absolute bottom-2 left-2 text-[9px] px-2 py-0.5 rounded-md font-bold animate-pulse" style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}>
+              ▶ פעיל
+            </div>
+          )}
+
+          {/* Preview overlay on hover */}
+          {thumb && (
+            <div
+              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              style={{ background: "hsl(220 40% 13% / 0.4)" }}
+              onClick={(e) => { e.stopPropagation(); setShowPreview(true); }}
+            >
+              <Eye size={28} color="white" />
+            </div>
+          )}
         </div>
-        {/* Info + actions */}
-        <div className="p-2.5 flex flex-col gap-1 min-h-[56px]">
-          <div className="text-[11px] font-bold truncate leading-tight cursor-pointer" dir="rtl" onClick={() => onSelect(model.url)} style={{ color: "hsl(220 40% 13%)" }}>
+
+        {/* Info */}
+        <div className="p-2.5 flex flex-col gap-1">
+          <div className="text-[11px] font-bold truncate leading-tight" dir="rtl" style={{ color: "hsl(220 40% 13%)" }}>
             {hebrewName || cleanDisplayName}
           </div>
           {hebrewName && (
@@ -123,63 +188,101 @@ export default function ModelCard({
               {cleanDisplayName}
             </div>
           )}
-          <div className="flex items-center justify-between mt-auto">
-            <span className="text-[9px]" style={{ color: "hsl(220 15% 55%)" }}>
-              {formatSize(model.fileSize)}
-            </span>
-            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-              {model.source === "cloud" && rec && (
-                <button
-                  onClick={() => { setInlineEdit(true); setInlineValue(hebrewName); }}
-                  title="ערוך שם"
-                  className="text-[11px] p-0.5 rounded bg-transparent transition-colors cursor-pointer border-none"
-                  style={{ color: "hsl(220 15% 55%)" }}
-                >✏️</button>
-              )}
-              {model.source === "cloud" && rec && (
-                <>
-                  {confirmDel ? (
-                    <div className="flex gap-0.5">
-                      <button onClick={() => onDelete(rec)} className="rounded px-1.5 py-0.5 text-[8px] font-semibold cursor-pointer border-none" style={{ background: "hsl(0 70% 55%)", color: "white" }}>מחק</button>
-                      <button onClick={() => setConfirmDel(false)} className="rounded px-1 py-0.5 text-[8px] cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>✕</button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setConfirmDel(true)}
-                      title="מחק"
-                      className="text-[11px] p-0.5 rounded bg-transparent transition-colors cursor-pointer border-none"
-                      style={{ color: "hsl(0 60% 50%)" }}
-                    >🗑️</button>
-                  )}
-                </>
-              )}
-              <button
-                onClick={() => onSelect(model.url)}
-                title={isActive ? "מודל פעיל" : "הפעל מודל"}
-                className="text-[11px] p-0.5 rounded transition-colors cursor-pointer border-none"
-                style={{ background: isActive ? "hsl(43 78% 47% / 0.2)" : "transparent", color: isActive ? "hsl(43 78% 40%)" : "hsl(220 15% 55%)" }}
-              >{isActive ? "⏸️" : "▶️"}</button>
-            </div>
+          <div className="text-[9px]" style={{ color: "hsl(220 15% 55%)" }}>
+            {formatSize(model.fileSize)}
           </div>
         </div>
-        {/* Inline edit overlay for grid */}
-        {inlineEdit && model.source === "cloud" && rec && (
-          <div className="p-2" onClick={e => e.stopPropagation()} style={{ borderTop: "1px solid hsl(43 60% 55% / 0.25)", background: "hsl(0 0% 99%)" }}>
-            <div className="flex gap-1 items-center">
+
+        {/* Action bar — always visible */}
+        <div className="flex items-center justify-between px-2 py-1.5" style={{ borderTop: "1px solid hsl(43 60% 55% / 0.2)", background: "hsl(220 20% 97%)" }} onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-1">
+            <ActionBtn onClick={() => onSelect(model.url)} title={isActive ? "מודל פעיל" : "הפעל מודל"} icon={isActive ? <Pause size={14} /> : <Play size={14} />} variant={isActive ? "active" : "default"} />
+            <ActionBtn onClick={handleEdit} title="ערוך שם" icon={<Pencil size={14} />} />
+            {isCloud && rec && (
+              <ActionBtn onClick={() => setExpanded(!expanded)} title="פרטים" icon={<ClipboardList size={14} />} variant={expanded ? "active" : "default"} />
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {confirmDel ? (
+              <div className="flex items-center gap-1">
+                <button onClick={handleDelete} className="rounded-lg px-2.5 py-1 text-[10px] font-bold cursor-pointer border-none" style={{ background: "hsl(0 70% 55%)", color: "white" }}>מחק</button>
+                <button onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }} className="rounded-lg px-2 py-1 text-[10px] cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>ביטול</button>
+              </div>
+            ) : (
+              <ActionBtn onClick={handleDelete} title={isCloud ? "מחק מהענן" : "הסתר מודל"} icon={<Trash2 size={14} />} variant="danger" />
+            )}
+          </div>
+        </div>
+
+        {/* Inline edit overlay */}
+        {inlineEdit && (
+          <div className="p-2.5" onClick={e => e.stopPropagation()} style={{ borderTop: "1px solid hsl(43 60% 55% / 0.25)", background: "hsl(0 0% 99%)" }}>
+            <div className="flex gap-1.5 items-center">
               <input
                 autoFocus
                 value={inlineValue}
                 onChange={e => setInlineValue(e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === "Enter") { onSaveInlineName(model.id, inlineValue); setInlineEdit(false); }
+                  if (e.key === "Enter") handleSaveInline();
                   if (e.key === "Escape") setInlineEdit(false);
                 }}
-                placeholder="שם בעברית..."
-                className="flex-1 rounded-md px-2 py-1 text-[10px] font-bold outline-none"
-                style={{ direction: "rtl", background: "hsl(0 0% 100%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 78% 47%)" }}
+                placeholder={isCloud ? "שם בעברית..." : "שם תצוגה..."}
+                className="flex-1 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none"
+                style={{ direction: "rtl", background: "hsl(0 0% 100%)", color: "hsl(220 40% 13%)", border: "1.5px solid hsl(43 78% 47%)" }}
               />
-              <button onClick={() => { onSaveInlineName(model.id, inlineValue); setInlineEdit(false); }} className="rounded-md px-1.5 py-1 text-[10px] font-bold cursor-pointer border-none" style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}>✓</button>
-              <button onClick={() => setInlineEdit(false)} className="rounded-md px-1.5 py-1 text-[10px] cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>✕</button>
+              <button onClick={handleSaveInline} className="rounded-lg px-2.5 py-1.5 text-xs font-bold cursor-pointer border-none" style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}>✓</button>
+              <button onClick={() => setInlineEdit(false)} className="rounded-lg px-2.5 py-1.5 text-xs cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>✕</button>
+            </div>
+          </div>
+        )}
+
+        {/* Expanded details for cloud */}
+        {expanded && rec && (
+          <div className="p-3" style={{ borderTop: "1px solid hsl(43 60% 55% / 0.25)", background: "hsl(0 0% 99%)" }}>
+            {editing ? (
+              <ModelEditForm
+                record={rec}
+                categories={categories}
+                onSave={(form) => { onSaveEdit(rec.id, form); setEditing(false); }}
+                onCancel={() => setEditing(false)}
+              />
+            ) : (
+              <div className="flex flex-col gap-2">
+                {thumb && (
+                  <div className="w-full aspect-square max-w-[180px] rounded-xl overflow-hidden mx-auto" style={{ border: "1px solid hsl(43 60% 55% / 0.3)" }}>
+                    <img src={thumb} alt={cleanDisplayName} className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <div className="text-[10px] font-semibold" style={{ color: "hsl(220 15% 55%)" }}>שם תצוגה</div>
+                    <div className="text-xs mt-0.5" style={{ color: "hsl(220 40% 13%)" }}>{rec.display_name}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-semibold" style={{ color: "hsl(220 15% 55%)" }}>🇮🇱 שם בעברית</div>
+                    <div className="text-xs mt-0.5" style={{ color: "hsl(220 40% 13%)" }}>{rec.hebrew_name || <span className="opacity-40">לא הוגדר</span>}</div>
+                  </div>
+                </div>
+                <button onClick={() => setEditing(true)} className="rounded-lg px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-colors border-none" style={{ background: "hsl(43 78% 47% / 0.12)", color: "hsl(43 78% 40%)", border: "1px solid hsl(43 78% 47% / 0.3)" }}>
+                  ✏️ ערוך פרטים
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Preview modal */}
+        {showPreview && thumb && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ background: "hsl(220 40% 13% / 0.7)" }}
+            onClick={() => setShowPreview(false)}
+          >
+            <div className="relative max-w-md w-[90%] rounded-2xl overflow-hidden shadow-2xl" style={{ border: "2px solid hsl(43 78% 47%)" }}>
+              <img src={thumb} alt={cleanDisplayName} className="w-full h-auto" />
+              <div className="absolute bottom-0 left-0 right-0 p-3 text-center" style={{ background: "linear-gradient(transparent, hsl(220 40% 13% / 0.9))" }}>
+                <div className="text-sm font-bold text-white">{hebrewName || cleanDisplayName}</div>
+              </div>
             </div>
           </div>
         )}
@@ -189,49 +292,35 @@ export default function ModelCard({
 
   // ── LIST VIEW ──
   return (
-    <div className={`rounded-xl border transition-all overflow-hidden ${
-      isActive ? "border-primary bg-primary/10 shadow-lg shadow-primary/10" : "border-border hover:border-primary/40 hover:bg-accent/30"
-    }`}>
-      {/* Main row */}
+    <div className="rounded-xl transition-all overflow-hidden group"
+      style={{
+        border: isActive ? "2px solid hsl(43 78% 47%)" : "1px solid hsl(43 60% 55% / 0.25)",
+        background: "hsl(0 0% 100%)",
+        boxShadow: isActive ? "0 4px 16px hsl(43 78% 47% / 0.18)" : "0 1px 4px rgba(0,0,0,0.06)",
+      }}
+    >
       <div className="flex items-stretch">
-        {/* Thumbnail - larger */}
+        {/* Thumbnail */}
         <div
           onClick={() => onSelect(model.url)}
-          className={`w-20 min-h-[80px] shrink-0 flex items-center justify-center cursor-pointer rounded-l-xl overflow-hidden relative ${
-            isActive ? "bg-primary" : "bg-muted"
-          }`}
+          className="w-20 min-h-[80px] shrink-0 flex items-center justify-center cursor-pointer rounded-l-xl overflow-hidden relative"
+          style={{ background: "hsl(220 20% 96%)" }}
         >
           {thumb ? (
             <img src={thumb} alt={cleanDisplayName} className="w-full h-full object-cover" />
           ) : (
-            <div className="flex flex-col items-center justify-center gap-1">
-              <span className={`text-2xl ${isActive ? "text-primary-foreground" : "text-foreground"}`}>
-                {mediaIcon}
-              </span>
-              {model.source === "cloud" && rec && !isGenerating && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onGenerateThumbnail(rec); }}
-                  className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-primary/80 text-primary-foreground text-[8px] px-1.5 py-0.5 rounded-md font-semibold hover:bg-primary transition-colors whitespace-nowrap"
-                >📸 צור תמונה</button>
-              )}
-              {isGenerating && (
-                <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-            </div>
+            <span className="text-2xl opacity-50">{mediaIcon}</span>
           )}
-          {/* Cloud/Local indicator */}
-          <div className={`absolute top-1 right-1 text-[8px] px-1 py-0.5 rounded-md font-bold ${
-            model.source === "cloud" ? "bg-blue-500/80 text-white" : "bg-amber-500/80 text-white"
-          }`}>
-            {model.source === "cloud" ? "☁️" : "📂"}
+          <div className="absolute top-1 right-1 text-[8px] px-1 py-0.5 rounded-md font-bold" style={{
+            background: isCloud ? "hsl(210 70% 50% / 0.9)" : "hsl(43 78% 47% / 0.9)",
+            color: "white",
+          }}>
+            {isCloud ? "☁️" : "📂"}
           </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0 p-2.5 flex flex-col gap-1">
-          {/* Hebrew name - editable inline */}
           {inlineEdit ? (
             <div className="flex gap-1.5 items-center" onClick={e => e.stopPropagation()}>
               <input
@@ -239,36 +328,24 @@ export default function ModelCard({
                 value={inlineValue}
                 onChange={e => setInlineValue(e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === "Enter") { onSaveInlineName(model.id, inlineValue); setInlineEdit(false); }
+                  if (e.key === "Enter") handleSaveInline();
                   if (e.key === "Escape") setInlineEdit(false);
                 }}
-                placeholder="שם בעברית..."
-                className="flex-1 bg-card border-2 border-primary rounded-md px-2 py-1 text-xs font-bold text-foreground outline-none"
-                style={{ direction: "rtl" }}
+                placeholder={isCloud ? "שם בעברית..." : "שם תצוגה..."}
+                className="flex-1 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none"
+                style={{ direction: "rtl", background: "hsl(0 0% 100%)", color: "hsl(220 40% 13%)", border: "1.5px solid hsl(43 78% 47%)" }}
               />
-              <button onClick={() => { onSaveInlineName(model.id, inlineValue); setInlineEdit(false); }} className="bg-primary text-primary-foreground rounded-md px-2 py-1 text-[10px] font-bold cursor-pointer">✓</button>
-              <button onClick={() => setInlineEdit(false)} className="text-muted-foreground border border-border rounded-md px-2 py-1 text-[10px] bg-transparent cursor-pointer">✕</button>
+              <button onClick={handleSaveInline} className="rounded-lg px-2 py-1.5 text-[10px] font-bold cursor-pointer border-none" style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}>✓</button>
+              <button onClick={() => setInlineEdit(false)} className="rounded-lg px-2 py-1.5 text-[10px] cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>✕</button>
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
-              <span
-                onClick={() => onSelect(model.url)}
-                className={`text-xs font-bold cursor-pointer truncate flex-1 ${isActive ? "text-primary" : "text-foreground"}`}
-              >
+              <span onClick={() => onSelect(model.url)} className="text-xs font-bold cursor-pointer truncate flex-1" style={{ color: isActive ? "hsl(43 78% 40%)" : "hsl(220 40% 13%)" }}>
                 {hebrewName || cleanDisplayName}
               </span>
-              {model.source === "cloud" && rec && (
-                <button
-                  onClick={e => { e.stopPropagation(); setInlineEdit(true); setInlineValue(hebrewName); }}
-                  className={`shrink-0 rounded-md cursor-pointer text-[10px] px-1.5 py-0.5 transition-colors ${
-                    hebrewName ? "bg-transparent text-muted-foreground hover:text-foreground" : "bg-primary/10 text-primary border border-dashed border-primary/50 font-semibold"
-                  }`}
-                >{hebrewName ? "✏️" : "🇮🇱 שם"}</button>
-              )}
             </div>
           )}
 
-          {/* Display name - editable */}
           {editingDisplayName ? (
             <div className="flex gap-1 items-center" onClick={e => e.stopPropagation()}>
               <input
@@ -279,85 +356,53 @@ export default function ModelCard({
                   if (e.key === "Enter") { onSaveDisplayName(model.id, displayNameValue); setEditingDisplayName(false); }
                   if (e.key === "Escape") setEditingDisplayName(false);
                 }}
-                className="flex-1 bg-card border border-border rounded-md px-2 py-0.5 text-[10px] text-foreground outline-none focus:border-primary"
-                style={{ direction: "ltr" }}
+                className="flex-1 rounded-md px-2 py-0.5 text-[10px] outline-none"
+                style={{ direction: "ltr", background: "hsl(0 0% 100%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 78% 47%)" }}
               />
-              <button onClick={() => { onSaveDisplayName(model.id, displayNameValue); setEditingDisplayName(false); }} className="text-primary text-[10px] font-bold cursor-pointer bg-transparent border-none">✓</button>
+              <button onClick={() => { onSaveDisplayName(model.id, displayNameValue); setEditingDisplayName(false); }} className="text-[10px] font-bold cursor-pointer bg-transparent border-none" style={{ color: "hsl(43 78% 40%)" }}>✓</button>
             </div>
           ) : (
             <div className="flex items-center gap-1">
-              <span
-                onClick={() => onSelect(model.url)}
-                className="text-[10px] text-muted-foreground truncate cursor-pointer flex-1"
-                style={{ direction: "ltr" }}
-              >
+              <span onClick={() => onSelect(model.url)} className="text-[10px] truncate cursor-pointer flex-1" style={{ direction: "ltr", color: "hsl(220 15% 55%)" }}>
                 {cleanDisplayName !== (hebrewName || cleanDisplayName) ? cleanDisplayName : model.displayName}
               </span>
-              {model.source === "cloud" && rec && (
-                <button
-                  onClick={e => { e.stopPropagation(); setEditingDisplayName(true); setDisplayNameValue(rec.display_name); }}
-                  className="text-[9px] text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer p-0"
-                >✏️</button>
-              )}
             </div>
           )}
 
           {/* Badges */}
           <div className="flex gap-1 flex-wrap items-center">
-            <Badge variant={model.source === "cloud" ? "default" : "secondary"} className="text-[9px] px-1.5 py-0 h-4 gap-0.5">
-              {sourceBadge}
-            </Badge>
             {catName && (
-              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5">
-                {catName.icon} {catName.name}
-              </Badge>
+              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5">{catName.icon} {catName.name}</Badge>
             )}
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 gap-0.5">
-              {mediaIcon} {model.mediaType === "glb" ? "3D" : model.mediaType === "animation" ? "אנימציה" : model.mediaType === "image" ? "תמונה" : "וידאו"}
-            </Badge>
             {hasMash && (
-              <Badge className="bg-primary/15 text-primary border-primary/35 text-[9px] px-1.5 py-0 h-4 gap-0.5 font-bold">
-                🧬 MASH
-              </Badge>
+              <Badge className="text-[9px] px-1.5 py-0 h-4 gap-0.5 font-bold" style={{ background: "hsl(43 78% 47% / 0.15)", color: "hsl(43 78% 40%)", border: "1px solid hsl(43 78% 47% / 0.35)" }}>🧬 MASH</Badge>
             )}
-            <span className="text-[9px] text-muted-foreground">
+            <span className="text-[9px]" style={{ color: "hsl(220 15% 55%)" }}>
               {formatSize(model.fileSize)} · {new Date(model.createdAt).toLocaleDateString("he-IL")}
             </span>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col justify-center gap-0.5 px-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          {model.source === "cloud" && rec ? (
-            <>
-              <button onClick={() => { setInlineEdit(true); setInlineValue(hebrewName); }} title="ערוך שם" className="text-sm p-1 rounded-md bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer border-none">✏️</button>
-              <button onClick={() => setExpanded(!expanded)} title="פרטים" className={`text-sm p-1 rounded-md bg-transparent transition-colors cursor-pointer border-none ${expanded ? "text-primary" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>📋</button>
-              {!thumb && (
-                <button onClick={() => onGenerateThumbnail(rec)} title="צור תמונה" disabled={isGenerating} className={`text-sm p-1 rounded-md bg-transparent transition-colors cursor-pointer border-none ${isGenerating ? "opacity-50" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
-                  {isGenerating ? "⏳" : "📸"}
-                </button>
-              )}
-              <button onClick={() => onReanalyze(rec)} title="ניתוח Mesh" disabled={reanalyzingId === rec.id} className={`text-sm p-1 rounded-md bg-transparent transition-colors cursor-pointer border-none ${reanalyzingId === rec.id ? "text-primary opacity-50" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
-                {reanalyzingId === rec.id ? "⏳" : "🔬"}
-              </button>
-              {confirmDel ? (
-                <div className="flex flex-col gap-0.5">
-                  <button onClick={() => onDelete(rec)} className="bg-destructive text-destructive-foreground rounded-md px-2 py-0.5 text-[9px] font-semibold cursor-pointer border-none">מחק</button>
-                  <button onClick={() => setConfirmDel(false)} className="bg-transparent text-muted-foreground border border-border rounded-md px-1.5 py-0.5 text-[9px] cursor-pointer">בטל</button>
-                </div>
-              ) : (
-                <button onClick={() => setConfirmDel(true)} title="מחק" className="text-sm p-1 rounded-md bg-transparent text-destructive hover:bg-destructive/10 transition-colors cursor-pointer border-none">🗑️</button>
-              )}
-            </>
+        {/* Actions — always visible for all models */}
+        <div className="flex flex-col justify-center gap-1 px-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+          <ActionBtn onClick={handleEdit} title="ערוך שם" icon={<Pencil size={14} />} />
+          {isCloud && rec && (
+            <ActionBtn onClick={() => setExpanded(!expanded)} title="פרטים" icon={<ClipboardList size={14} />} variant={expanded ? "active" : "default"} />
+          )}
+          {confirmDel ? (
+            <div className="flex flex-col gap-0.5">
+              <button onClick={handleDelete} className="rounded-lg px-2 py-0.5 text-[9px] font-bold cursor-pointer border-none" style={{ background: "hsl(0 70% 55%)", color: "white" }}>מחק</button>
+              <button onClick={(e) => { e.stopPropagation(); setConfirmDel(false); }} className="rounded-lg px-1.5 py-0.5 text-[9px] cursor-pointer bg-transparent" style={{ color: "hsl(220 15% 55%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>בטל</button>
+            </div>
           ) : (
-            <div className="w-7" />
+            <ActionBtn onClick={handleDelete} title={isCloud ? "מחק" : "הסתר"} icon={<Trash2 size={14} />} variant="danger" />
           )}
         </div>
       </div>
 
       {/* Expanded detail */}
       {expanded && rec && (
-        <div className="border-t border-border bg-accent/20 p-3">
+        <div className="p-3" style={{ borderTop: "1px solid hsl(43 60% 55% / 0.25)", background: "hsl(0 0% 99%)" }}>
           {editing ? (
             <ModelEditForm
               record={rec}
@@ -367,41 +412,40 @@ export default function ModelCard({
             />
           ) : (
             <div className="flex flex-col gap-2.5">
-              {/* Thumbnail preview large */}
               {thumb && (
-                <div className="w-full aspect-square max-w-[200px] rounded-xl overflow-hidden border border-border mx-auto">
+                <div className="w-full aspect-square max-w-[200px] rounded-xl overflow-hidden mx-auto" style={{ border: "1px solid hsl(43 60% 55% / 0.3)" }}>
                   <img src={thumb} alt={cleanDisplayName} className="w-full h-full object-cover" />
                 </div>
               )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <div className="text-[10px] text-muted-foreground font-semibold">שם תצוגה</div>
-                  <div className="text-xs text-foreground mt-0.5">{rec.display_name}</div>
+                  <div className="text-[10px] font-semibold" style={{ color: "hsl(220 15% 55%)" }}>שם תצוגה</div>
+                  <div className="text-xs mt-0.5" style={{ color: "hsl(220 40% 13%)" }}>{rec.display_name}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-muted-foreground font-semibold">🇮🇱 שם בעברית</div>
-                  <div className="text-xs text-foreground mt-0.5">{rec.hebrew_name || <span className="opacity-40">לא הוגדר</span>}</div>
+                  <div className="text-[10px] font-semibold" style={{ color: "hsl(220 15% 55%)" }}>🇮🇱 שם בעברית</div>
+                  <div className="text-xs mt-0.5" style={{ color: "hsl(220 40% 13%)" }}>{rec.hebrew_name || <span className="opacity-40">לא הוגדר</span>}</div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <div className="text-[10px] text-muted-foreground font-semibold">📂 קטגוריה</div>
-                  <div className="text-xs text-foreground mt-0.5">{catName ? `${catName.icon} ${catName.name}` : <span className="opacity-40">ללא</span>}</div>
+                  <div className="text-[10px] font-semibold" style={{ color: "hsl(220 15% 55%)" }}>📂 קטגוריה</div>
+                  <div className="text-xs mt-0.5" style={{ color: "hsl(220 40% 13%)" }}>{catName ? `${catName.icon} ${catName.name}` : <span className="opacity-40">ללא</span>}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-muted-foreground font-semibold">📦 גודל</div>
-                  <div className="text-xs text-foreground mt-0.5">{formatSize(rec.file_size)}</div>
+                  <div className="text-[10px] font-semibold" style={{ color: "hsl(220 15% 55%)" }}>📦 גודל</div>
+                  <div className="text-xs mt-0.5" style={{ color: "hsl(220 40% 13%)" }}>{formatSize(rec.file_size)}</div>
                 </div>
               </div>
               {rec.notes && (
                 <div>
-                  <div className="text-[10px] text-muted-foreground font-semibold">📝 הערות</div>
-                  <div className="text-xs text-foreground mt-0.5 whitespace-pre-wrap">{rec.notes}</div>
+                  <div className="text-[10px] font-semibold" style={{ color: "hsl(220 15% 55%)" }}>📝 הערות</div>
+                  <div className="text-xs mt-0.5 whitespace-pre-wrap" style={{ color: "hsl(220 40% 13%)" }}>{rec.notes}</div>
                 </div>
               )}
               {rec.mesh_parts && Array.isArray(rec.mesh_parts) && rec.mesh_parts.length > 0 && (
                 <div>
-                  <div className="text-[10px] text-muted-foreground font-semibold mb-1">🧩 חלקי Mesh ({rec.mesh_parts.length})</div>
+                  <div className="text-[10px] font-semibold mb-1" style={{ color: "hsl(220 15% 55%)" }}>🧩 חלקי Mesh ({rec.mesh_parts.length})</div>
                   <div className="flex gap-1 flex-wrap">
                     {(rec.mesh_parts as string[]).slice(0, 20).map((part, i) => (
                       <Badge key={i} variant="secondary" className="text-[10px] px-2 py-0.5">{part}</Badge>
@@ -413,11 +457,11 @@ export default function ModelCard({
                 </div>
               )}
               <div className="flex gap-2">
-                <button onClick={() => setEditing(true)} className="bg-primary/10 text-primary border border-primary/30 rounded-lg px-3 py-1.5 text-[11px] font-semibold cursor-pointer hover:bg-primary/20 transition-colors">
+                <button onClick={() => setEditing(true)} className="rounded-lg px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-colors" style={{ background: "hsl(43 78% 47% / 0.12)", color: "hsl(43 78% 40%)", border: "1px solid hsl(43 78% 47% / 0.3)" }}>
                   ✏️ ערוך פרטים
                 </button>
                 {!thumb && (
-                  <button onClick={() => onGenerateThumbnail(rec)} disabled={isGenerating} className="bg-accent text-foreground border border-border rounded-lg px-3 py-1.5 text-[11px] font-semibold cursor-pointer hover:bg-accent/80 transition-colors disabled:opacity-50">
+                  <button onClick={() => onGenerateThumbnail(rec)} disabled={isGenerating} className="rounded-lg px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-colors disabled:opacity-50" style={{ background: "hsl(220 20% 96%)", color: "hsl(220 30% 35%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>
                     {isGenerating ? "⏳ יוצר..." : "📸 צור תמונה"}
                   </button>
                 )}
