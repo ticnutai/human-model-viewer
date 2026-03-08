@@ -228,7 +228,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
     const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const fileName = `${Date.now()}_${file.name}`;
-    const item: UploadItem = { id: uploadId, file, fileName, progress: 0, status: "uploading" };
+    const item: UploadItem = { id: uploadId, file, fileName, progress: 0, status: "uploading", statusLabel: `מעלה: ${file.name}` };
     setUploads(prev => [...prev, item]);
 
     try {
@@ -240,10 +240,13 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         const xhr = new XMLHttpRequest();
         const url = `${SUPABASE_URL}/storage/v1/object/models/${fileName}`;
         xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) updateUploadItem(uploadId, { progress: Math.round((e.loaded / e.total) * 100) });
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            updateUploadItem(uploadId, { progress: pct, statusLabel: `מעלה: ${file.name} (${pct}%)` });
+          }
         });
         xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) { updateUploadItem(uploadId, { progress: 100 }); resolve(true); }
+          if (xhr.status >= 200 && xhr.status < 300) { updateUploadItem(uploadId, { progress: 100, statusLabel: `העלאה הושלמה ✓` }); resolve(true); }
           else { console.error("[Upload] failed status:", xhr.status, xhr.responseText); updateUploadItem(uploadId, { status: "error", error: `שגיאה ${xhr.status}: ${xhr.statusText}` }); resolve(false); }
         });
         xhr.addEventListener("error", () => { updateUploadItem(uploadId, { status: "error", error: "החיבור נותק" }); resolve(false); });
@@ -256,12 +259,18 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
       if (!success) return;
 
-      updateUploadItem(uploadId, { status: "analyzing" });
+      // Step 2: Analyze mesh
+      updateUploadItem(uploadId, { status: "analyzing", statusLabel: `🔬 מנתח mesh של ${file.name}...` });
       const meshNames = await analyzeGlbMeshes(file);
       const translatedMeshes = meshNames.map(translateMeshName);
+      updateUploadItem(uploadId, { statusLabel: `🔬 נמצאו ${meshNames.length} חלקים ✓` });
+
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
       const detectedType = ["glb"].includes(ext) ? "glb" : ["png","jpg","jpeg","webp","gif"].includes(ext) ? "image" : ["mp4","webm","mov"].includes(ext) ? "video" : "glb";
       const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
+
+      // Step 3: Save to database
+      updateUploadItem(uploadId, { status: "saving", statusLabel: `💾 שומר למאגר...` });
 
       let { error: insertError, data: insertData } = await supabase.from("models").insert({
         file_name: fileName, display_name: file.name.replace(/\.[^.]+$/, ""),
@@ -279,19 +288,30 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       }
 
       if (insertError) { updateUploadItem(uploadId, { status: "error", error: insertError.message }); return; }
+      updateUploadItem(uploadId, { statusLabel: `💾 נשמר בהצלחה ✓` });
 
-      // Auto-generate thumbnail for GLB files
+      // Step 4: Generate thumbnail
       if (detectedType === "glb" && insertData) {
+        updateUploadItem(uploadId, { status: "thumbnail", statusLabel: `📸 יוצר תמונה ממוזערת...` });
         try {
           const { generateThumbnailFromFile } = await import("./ThumbnailGenerator");
           const thumbBlob = await generateThumbnailFromFile(file);
-          if (thumbBlob) await uploadThumbnailBlob(thumbBlob, insertData.id);
-        } catch (e) { console.warn("Auto-thumbnail failed:", e); }
+          if (thumbBlob) {
+            await uploadThumbnailBlob(thumbBlob, insertData.id);
+            updateUploadItem(uploadId, { statusLabel: `📸 תמונה נוצרה ✓` });
+          } else {
+            updateUploadItem(uploadId, { statusLabel: `📸 לא נוצרה תמונה (ממשיך...)` });
+          }
+        } catch (e) {
+          console.warn("Auto-thumbnail failed:", e);
+          updateUploadItem(uploadId, { statusLabel: `📸 דילוג על תמונה ממוזערת` });
+        }
       }
 
-      updateUploadItem(uploadId, { status: "done" });
+      // Done!
+      updateUploadItem(uploadId, { status: "done", statusLabel: `🎉 ${file.name} — נשמר בהצלחה!` });
       await load();
-      setTimeout(() => setUploads(prev => prev.filter(u => u.id !== uploadId)), 3000);
+      setTimeout(() => setUploads(prev => prev.filter(u => u.id !== uploadId)), 4000);
     } catch (err) {
       updateUploadItem(uploadId, { status: "error", error: err instanceof Error ? err.message : "שגיאה" });
     }
