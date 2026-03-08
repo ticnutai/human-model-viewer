@@ -8,6 +8,7 @@
  */
 
 import { useMeshMappings } from "@/hooks/useMeshMappings";
+import { getOrganInfoForMesh, MESH_HEBREW } from "./ModelManager/utils";
 import {
   Canvas, useLoader, useThree, useFrame, ThreeEvent,
 } from "@react-three/fiber";
@@ -510,11 +511,50 @@ function meshDisplayName(rawName: string): string {
 
 function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers: Layer[]): MeshInfo {
   const key = getMeshKey(rawName);
+  // 1. Exact match in infoMap
   if (infoMap[key]) return infoMap[key];
+  // 2. Case-insensitive match
   const lkey = key.toLowerCase();
   for (const k of Object.keys(infoMap)) {
     if (k.toLowerCase() === lkey) return infoMap[k];
   }
+  // 3. Try rich organ detection from OrganData
+  const organInfo = getOrganInfoForMesh(key);
+  if (organInfo) {
+    const autoLayer = layers.find(l => l.meshPatterns.some(re => re.test(key)))?.id ?? "other";
+    return {
+      displayName: organInfo.englishName,
+      displayNameHe: organInfo.hebrewName,
+      layer: autoLayer,
+      facts: [],
+      factsHe: [organInfo.summary].filter(Boolean),
+      latinName: organInfo.latinName || "",
+      function: "",
+      functionHe: organInfo.summary,
+      diseases: [],
+      diseasesHe: [],
+    };
+  }
+  // 4. Try MESH_HEBREW dictionary for basic Hebrew translation
+  const cleaned = key.toLowerCase().replace(/[_\-\.]/g, " ");
+  for (const [en, he] of Object.entries(MESH_HEBREW)) {
+    if (cleaned.includes(en)) {
+      const autoLayer = layers.find(l => l.meshPatterns.some(re => re.test(key)))?.id ?? "other";
+      return {
+        displayName: en.charAt(0).toUpperCase() + en.slice(1),
+        displayNameHe: he,
+        layer: autoLayer,
+        facts: [],
+        factsHe: [],
+        latinName: "",
+        function: "",
+        functionHe: "",
+        diseases: [],
+        diseasesHe: [],
+      };
+    }
+  }
+  // 5. Fallback: auto-detect layer and use raw name
   const autoLayer = layers.find(l => l.meshPatterns.some(re => re.test(key)))?.id ?? "other";
   return {
     displayName: meshDisplayName(rawName), displayNameHe: meshDisplayName(rawName),
