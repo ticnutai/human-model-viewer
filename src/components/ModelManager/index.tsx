@@ -108,7 +108,30 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     }
   }, []);
 
-  useEffect(() => { load(); loadLocalManifest(); }, [load, loadLocalManifest]);
+  useEffect(() => {
+    load().then(() => {
+      console.log("[ModelManager] Loaded models from cloud");
+    });
+    loadLocalManifest();
+  }, [load, loadLocalManifest]);
+
+  // Auto-name models without hebrew names on first load
+  useEffect(() => {
+    if (models.length === 0) return;
+    const unnamed = models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "");
+    if (unnamed.length === 0) return;
+    let changed = false;
+    (async () => {
+      for (const m of unnamed) {
+        const detected = autoHebrewName(m.display_name, m.file_name);
+        if (detected) {
+          await supabase.from("models").update({ hebrew_name: detected }).eq("id", m.id);
+          changed = true;
+        }
+      }
+      if (changed) load();
+    })();
+  }, [models.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Upload logic ──
   const updateUploadItem = (id: string, patch: Partial<UploadItem>) => {
