@@ -681,12 +681,19 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       setBatchAnalysisProgress(prev => ({ ...prev, done: completed, currentName: name }));
       setReanalyzingId(m.id);
       try {
-        const meshNames = await analyzeGlbMeshes(m.file_url!);
-        const translated = meshNames.map(translateMeshName);
-        await supabase.from("models").update({ mesh_parts: translated }).eq("id", m.id);
-        successNames.push(`${name} (${translated.length})`);
+        const result = await analyzeGlbSmart(m.file_url!, m.id);
+        const translated = result.translatedNames.length > 0 ? result.translatedNames : result.meshNames.map(translateMeshName);
+        const updateData: Record<string, any> = { mesh_parts: translated };
+        // Auto-set hebrew_name if empty
+        if (!m.hebrew_name || m.hebrew_name.trim() === "") {
+          const autoHeb = autoHebrewName(m.display_name, m.file_name);
+          if (autoHeb) updateData.hebrew_name = autoHeb;
+        }
+        await supabase.from("models").update(updateData).eq("id", m.id);
+        successNames.push(`${name} (${translated.length} · ${result.method})`);
+        console.log(`[BatchAnalysis] ✅ ${name}: ${translated.length} meshes (${result.method}, ${result.durationMs}ms)`);
       } catch (e) {
-        console.warn(`[BatchAnalysis] Failed for ${name}:`, e);
+        console.warn(`[BatchAnalysis] ❌ Failed for ${name}:`, e);
         failed++;
       }
       completed++;
