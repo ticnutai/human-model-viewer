@@ -629,10 +629,20 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     if (!rec.file_url) return;
     setReanalyzingId(rec.id);
     try {
-      const meshNames = await analyzeGlbMeshes(rec.file_url);
-      await supabase.from("models").update({ mesh_parts: meshNames.map(translateMeshName) }).eq("id", rec.id);
+      const result = await analyzeGlbSmart(rec.file_url, rec.id);
+      const translated = result.translatedNames.length > 0 ? result.translatedNames : result.meshNames.map(translateMeshName);
+      const updateData: Record<string, any> = { mesh_parts: translated };
+      // Auto-set hebrew_name if empty
+      if (!rec.hebrew_name || rec.hebrew_name.trim() === "") {
+        const autoHeb = autoHebrewName(rec.display_name, rec.file_name);
+        if (autoHeb) updateData.hebrew_name = autoHeb;
+      }
+      await supabase.from("models").update(updateData).eq("id", rec.id);
+      console.log(`[Reanalyze] ✅ ${rec.display_name}: ${translated.length} meshes (method: ${result.method}, ${result.durationMs}ms)`);
       await load();
-    } catch {}
+    } catch (e) {
+      console.error("[Reanalyze] ❌ Failed:", e);
+    }
     setReanalyzingId(null);
   };
 
