@@ -323,6 +323,21 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     await load();
   };
 
+  // ── Auto Hebrew naming ──
+  const handleAutoNameAll = async () => {
+    const needsName = models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "");
+    if (needsName.length === 0) return;
+    setAutoNaming(true);
+    for (const m of needsName) {
+      const detected = autoHebrewName(m.display_name, m.file_name);
+      if (detected) {
+        await supabase.from("models").update({ hebrew_name: detected }).eq("id", m.id);
+      }
+    }
+    setAutoNaming(false);
+    await load();
+  };
+
   // ── Build combined model list ──
   const countForCategory = (catId: string | null) => models.filter(m => !catId || m.category_id === catId).length;
   const countForMediaType = (mt: string | null) => models.filter(m => !activeCategory || m.category_id === activeCategory).filter(m => !mt || (m.media_type || "glb") === mt).length;
