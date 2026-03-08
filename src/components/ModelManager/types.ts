@@ -55,12 +55,15 @@ export type SketchfabSearchResult = {
   thumbnails?: { images?: { url: string; width: number; height: number }[] };
 };
 
+export type UploadStatus = "uploading" | "analyzing" | "saving" | "thumbnail" | "done" | "error";
+
 export type UploadItem = {
   id: string;
   file: File;
   fileName: string;
   progress: number;
-  status: "uploading" | "analyzing" | "done" | "error";
+  status: UploadStatus;
+  statusLabel?: string;
   error?: string;
 };
 
