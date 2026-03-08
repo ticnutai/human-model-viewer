@@ -56,7 +56,7 @@ type Theme = {
 };
 
 const THEMES: Theme[] = [
-  { name: "בהיר נייבי-זהב", bg: "#ffffff", canvasBg: "#ffffff", textPrimary: "#0b1f4d", textSecondary: "#27406f", panelBg: "rgba(255,255,255,0.94)", panelBorder: "#c9a227", accent: "#0b1f4d", accentAlt: "#8b0000", accentBgHover: "rgba(11,31,77,0.08)", gradient: "#0b1f4d", hintBg: "rgba(255,255,255,0.9)" },
+  { name: "כחול-זהב כהה", bg: "hsl(222,22%,5%)", canvasBg: "#0c0f17", textPrimary: "hsl(45,30%,90%)", textSecondary: "hsl(220,12%,50%)", panelBg: "hsla(222,20%,9%,0.85)", panelBorder: "hsla(43,78%,47%,0.2)", accent: "hsl(43,78%,47%)", accentAlt: "#e05252", accentBgHover: "hsla(43,78%,47%,0.08)", gradient: "hsl(43,78%,47%)", hintBg: "hsla(222,20%,9%,0.8)" },
   { name: "כהה חם", bg: "#1a1410", canvasBg: "#1a1410", textPrimary: "#f5e6d3", textSecondary: "#a89279", panelBg: "rgba(26,20,16,0.88)", panelBorder: "#3d2e1e", accent: "#f59e0b", accentAlt: "#ef4444", accentBgHover: "rgba(245,158,11,0.12)", gradient: "#f59e0b", hintBg: "rgba(26,20,16,0.8)" },
   { name: "בהיר רפואי", bg: "#f0f4f8", canvasBg: "#e8eef4", textPrimary: "#1a2332", textSecondary: "#5a6a7a", panelBg: "rgba(255,255,255,0.9)", panelBorder: "#c8d4e0", accent: "#0077b6", accentAlt: "#d62828", accentBgHover: "rgba(0,119,182,0.08)", gradient: "#0077b6", hintBg: "rgba(255,255,255,0.85)" },
   { name: "בהיר חמים", bg: "#fdf6ee", canvasBg: "#f8f0e3", textPrimary: "#2d1f0e", textSecondary: "#8a7560", panelBg: "rgba(255,252,245,0.92)", panelBorder: "#e0d0b8", accent: "#b45309", accentAlt: "#be123c", accentBgHover: "rgba(180,83,9,0.08)", gradient: "#b45309", hintBg: "rgba(255,252,245,0.88)" },
