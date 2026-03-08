@@ -612,6 +612,8 @@ export default function InteractiveOrgans({
   focusSelected = false,
   animationSpeed = 1,
   pathologyKeys,
+  layerOpacities,
+  peelAmount = 0,
 }: {
   onSelect: (detail: OrganDetail) => void;
   selectedMesh: string | null;
@@ -621,17 +623,20 @@ export default function InteractiveOrgans({
   focusSelected?: boolean;
   animationSpeed?: number;
   pathologyKeys?: Set<string>;
+  layerOpacities?: Record<LayerType, number>;
+  peelAmount?: number;
 }) {
   const layers = visibleLayers ?? new Set<LayerType>(["skeleton", "muscles", "organs", "vessels"]);
+  const opacities = layerOpacities ?? { skeleton: 1, muscles: 1, organs: 1, vessels: 1 };
 
   return (
     <group position={[0, -0.5, 0]}>
       <BodySilhouette />
-      <LayerFadeGroup visible={layers.has("vessels")}>
+      <LayerPeelGroup visible={layers.has("vessels")} opacity={opacities.vessels} peelAmount={peelAmount} peelDirection={LAYER_PEEL_DIRS.vessels}>
         <BloodVessels />
-      </LayerFadeGroup>
+      </LayerPeelGroup>
       {ORGAN_SHAPES.map((shape, i) => (
-        <LayerFadeGroup key={`${shape.key}-${i}`} visible={layers.has(shape.category)}>
+        <LayerPeelGroup key={`${shape.key}-${i}`} visible={layers.has(shape.category)} opacity={opacities[shape.category]} peelAmount={peelAmount} peelDirection={LAYER_PEEL_DIRS[shape.category]}>
           <Float
             speed={1.5}
             rotationIntensity={0}
@@ -650,7 +655,7 @@ export default function InteractiveOrgans({
               pathologyKeys={pathologyKeys}
             />
           </Float>
-        </LayerFadeGroup>
+        </LayerPeelGroup>
       ))}
 
       {/* Global ambient particles */}
