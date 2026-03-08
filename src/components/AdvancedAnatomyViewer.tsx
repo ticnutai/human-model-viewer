@@ -7,6 +7,7 @@
  * - X-Ray, Explode, חיפוש
  */
 
+import { useMeshMappings } from "@/hooks/useMeshMappings";
 import {
   Canvas, useLoader, useThree, useFrame, ThreeEvent,
 } from "@react-three/fiber";
