@@ -89,6 +89,28 @@ const THEMES: Record<ThemeId, {
   },
 };
 
+// ─── Cloud URL resolver ──────────────────────────────────────────────────────
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const cloud = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
+
+// Map local paths to cloud storage. Empty string = no cloud version yet.
+const CLOUD_MAP: Record<string, string> = {
+  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb": "",
+  "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb": "",
+  "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb": "",
+  "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb": "",
+  "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb": "",
+  "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb": "",
+  "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb": "",
+  "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb": "",
+};
+
+function resolveModelPath(localPath: string): string {
+  const cloudPath = CLOUD_MAP[localPath];
+  if (cloudPath) return cloudPath; // Cloud version available
+  return localPath; // fallback to local
+}
+
 // ─── Model paths & metadata ──────────────────────────────────────────────────
 
 const MODEL_META: Record<ModelId, {
@@ -97,7 +119,7 @@ const MODEL_META: Record<ModelId, {
   hasAnimation: boolean; description: string;
 }> = {
   skull: {
-    path: "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb",
+    path: resolveModelPath("/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb"),
     titleHe: "גולגולת מתפרקת", titleEn: "Exploding Skull", icon: "💀",
     hasAnimation: true, description: "25 עצמות הגולגולת עם אנימציית פירוק",
     layers: [
