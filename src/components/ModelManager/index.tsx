@@ -350,6 +350,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const handleImportSketchfab = async (model: SketchfabSearchResult) => {
     const token = getSavedSketchfabToken();
     if (!token) { setSketchfabError("לא נמצא API token."); return; }
+    // Duplicate check by sketchfab uid
+    const dup = isDuplicate(`sketchfab_${model.uid}.glb`);
+    if (dup) {
+      setSketchfabError(`⚠️ כפילות: "${dup.hebrew_name || dup.display_name}" כבר קיים במאגר. לא מייבא.`);
+      return;
+    }
     setImportingUid(model.uid); setSketchfabError(null);
     try {
       const dlRes = await fetch(`https://api.sketchfab.com/v3/models/${model.uid}/download`, { headers: { Authorization: `Token ${token}`, Accept: "application/json" } });
