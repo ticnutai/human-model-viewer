@@ -54,6 +54,11 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [sketchfabNextUrl, setSketchfabNextUrl] = useState<string | null>(null);
   const [sketchfabLoadingMore, setSketchfabLoadingMore] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(true);
+  // Multi-select for batch analysis
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  const [batchAnalyzing, setBatchAnalyzing] = useState(false);
+  const [batchAnalysisProgress, setBatchAnalysisProgress] = useState({ done: 0, total: 0 });
 
   // ── Data loading using direct fetch (bypasses supabase-js client hang) ──
   const load = useCallback(async (retryCount = 0) => {
@@ -628,6 +633,50 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     setReanalyzingId(null);
   };
 
+  // ── Multi-select & Batch analysis ──
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // selectAllVisible defined after combinedModels
+
+  const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false); };
+
+  const handleBatchAnalyze = async (targetIds: string[]) => {
+    const targets = models.filter(m => targetIds.includes(m.id) && m.file_url);
+    if (targets.length === 0) return;
+    setBatchAnalyzing(true);
+    setBatchAnalysisProgress({ done: 0, total: targets.length });
+    let completed = 0;
+    for (const m of targets) {
+      setReanalyzingId(m.id);
+      try {
+        const meshNames = await analyzeGlbMeshes(m.file_url!);
+        await supabase.from("models").update({ mesh_parts: meshNames.map(translateMeshName) }).eq("id", m.id);
+      } catch (e) { console.warn(`[BatchAnalysis] Failed for ${m.display_name}:`, e); }
+      completed++;
+      setBatchAnalysisProgress({ done: completed, total: targets.length });
+    }
+    setReanalyzingId(null);
+    setBatchAnalyzing(false);
+    setBatchAnalysisProgress({ done: 0, total: 0 });
+    clearSelection();
+    await load();
+  };
+
+  const handleAnalyzeAll = () => {
+    const allCloudIds = models.filter(m => m.file_url).map(m => m.id);
+    handleBatchAnalyze(allCloudIds);
+  };
+
+  const handleAnalyzeSelected = () => {
+    handleBatchAnalyze(Array.from(selectedIds));
+  };
+
   const handleAddCategory = async (name: string, icon: string) => {
     await supabase.from("model_categories").insert({ name, icon, sort_order: categories.length });
     await load();
@@ -701,6 +750,11 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   });
 
   const modelsWithoutThumb = models.filter(m => !m.thumbnail_url && m.file_url && (m.media_type || "glb") === "glb").length;
+
+  const selectAllVisible = () => {
+    const cloudIds = combinedModels.filter(m => m.source === "cloud" && m.record?.file_url).map(m => m.id);
+    setSelectedIds(new Set(cloudIds));
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }}>
@@ -841,6 +895,52 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         />
       </div>
 
+      {/* Batch analysis toolbar */}
+      <div className="px-2 pt-1.5 pb-1 flex items-center gap-1 flex-wrap" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.15)" }}>
+        <button
+          onClick={() => { setSelectMode(s => !s); if (selectMode) clearSelection(); }}
+          className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors"
+          style={{
+            background: selectMode ? "hsl(220 50% 50% / 0.15)" : "transparent",
+            color: selectMode ? "hsl(220 50% 40%)" : "hsl(220 15% 55%)",
+            border: `1px solid ${selectMode ? "hsl(220 50% 50%)" : "hsl(43 60% 55% / 0.3)"}`,
+          }}
+        >
+          {selectMode ? "✖ בטל בחירה" : "☑ בחירה מרובה"}
+        </button>
+        {selectMode && (
+          <>
+            <button
+              onClick={selectAllVisible}
+              className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors"
+              style={{ background: "hsl(220 50% 50% / 0.08)", color: "hsl(220 50% 40%)", border: "1px solid hsl(220 50% 50% / 0.3)" }}
+            >
+              ✅ בחר הכל ({combinedModels.filter(m => m.source === "cloud").length})
+            </button>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleAnalyzeSelected}
+                disabled={batchAnalyzing}
+                className="text-[10px] rounded-lg px-2 py-1 font-bold cursor-pointer transition-colors disabled:opacity-50"
+                style={{ background: "hsl(280 60% 50% / 0.12)", color: "hsl(280 60% 40%)", border: "1px solid hsl(280 60% 50% / 0.3)" }}
+              >
+                {batchAnalyzing ? `⏳ מנתח ${batchAnalysisProgress.done}/${batchAnalysisProgress.total}...` : `🔬 נתח נבחרים (${selectedIds.size})`}
+              </button>
+            )}
+          </>
+        )}
+        {!selectMode && (
+          <button
+            onClick={handleAnalyzeAll}
+            disabled={batchAnalyzing}
+            className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors disabled:opacity-50"
+            style={{ background: "hsl(280 60% 50% / 0.08)", color: "hsl(280 60% 40%)", border: "1px solid hsl(280 60% 50% / 0.3)" }}
+          >
+            {batchAnalyzing ? `⏳ מנתח ${batchAnalysisProgress.done}/${batchAnalysisProgress.total}...` : `🔬 נתח הכל (${models.filter(m => m.file_url).length})`}
+          </button>
+        )}
+      </div>
+
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto sidebar-scroll">
         {/* DB error */}
@@ -890,25 +990,40 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               </div>
             )}
             {combinedModels.map(model => (
-              <ModelCard
-                key={model.id}
-                model={model}
-                isActive={currentModelUrl === model.url || currentModelUrl.includes(model.url.replace(`${SUPABASE_URL}/storage/v1/object/public/`, ""))}
-                categories={categories}
-                onSelect={onSelectModel}
-                onDelete={handleDelete}
-                onHideLocal={handleHideLocal}
-                onSaveEdit={handleSaveEdit}
-                onSaveInlineName={handleSaveInlineName}
-                onSaveDisplayName={handleSaveDisplayName}
-                onEditLocalName={handleEditLocalName}
-                onReanalyze={handleReanalyze}
-                onGenerateThumbnail={handleGenerateThumbnail}
-                reanalyzingId={reanalyzingId}
-                generatingThumbId={generatingThumbId}
-                viewMode={viewMode}
-                isBackgroundProcessing={bgProcessingIds.has(model.id.replace("local:", ""))}
-              />
+              <div key={model.id} className="relative">
+                {selectMode && model.source === "cloud" && (
+                  <button
+                    onClick={() => toggleSelect(model.id)}
+                    className="absolute top-1 right-1 z-10 w-5 h-5 rounded flex items-center justify-center cursor-pointer border-none text-xs"
+                    style={{
+                      background: selectedIds.has(model.id) ? "hsl(220 50% 50%)" : "hsl(0 0% 100% / 0.9)",
+                      color: selectedIds.has(model.id) ? "white" : "hsl(220 15% 55%)",
+                      border: `1.5px solid ${selectedIds.has(model.id) ? "hsl(220 50% 50%)" : "hsl(220 15% 70%)"}`,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    {selectedIds.has(model.id) ? "✓" : ""}
+                  </button>
+                )}
+                <ModelCard
+                  model={model}
+                  isActive={currentModelUrl === model.url || currentModelUrl.includes(model.url.replace(`${SUPABASE_URL}/storage/v1/object/public/`, ""))}
+                  categories={categories}
+                  onSelect={onSelectModel}
+                  onDelete={handleDelete}
+                  onHideLocal={handleHideLocal}
+                  onSaveEdit={handleSaveEdit}
+                  onSaveInlineName={handleSaveInlineName}
+                  onSaveDisplayName={handleSaveDisplayName}
+                  onEditLocalName={handleEditLocalName}
+                  onReanalyze={handleReanalyze}
+                  onGenerateThumbnail={handleGenerateThumbnail}
+                  reanalyzingId={reanalyzingId}
+                  generatingThumbId={generatingThumbId}
+                  viewMode={viewMode}
+                  isBackgroundProcessing={bgProcessingIds.has(model.id.replace("local:", ""))}
+                />
+              </div>
             ))}
           </div>
         </div>
