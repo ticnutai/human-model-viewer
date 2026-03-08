@@ -259,23 +259,17 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
       if (!success) return;
 
-      // Step 2: Analyze mesh
-      updateUploadItem(uploadId, { status: "analyzing", statusLabel: `🔬 מנתח mesh של ${file.name}...` });
-      const meshNames = await analyzeGlbMeshes(file);
-      const translatedMeshes = meshNames.map(translateMeshName);
-      updateUploadItem(uploadId, { statusLabel: `🔬 נמצאו ${meshNames.length} חלקים ✓` });
-
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
       const detectedType = ["glb"].includes(ext) ? "glb" : ["png","jpg","jpeg","webp","gif"].includes(ext) ? "image" : ["mp4","webm","mov"].includes(ext) ? "video" : "glb";
       const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
 
-      // Step 3: Save to database
+      // Step 2: Save to database FIRST (don't block on analysis)
       updateUploadItem(uploadId, { status: "saving", statusLabel: `💾 שומר למאגר...` });
 
       let { error: insertError, data: insertData } = await supabase.from("models").insert({
         file_name: fileName, display_name: file.name.replace(/\.[^.]+$/, ""),
         category_id: activeCategory || categories[0]?.id || null,
-        file_size: file.size, file_url: fileUrl, mesh_parts: translatedMeshes, media_type: detectedType,
+        file_size: file.size, file_url: fileUrl, mesh_parts: [], media_type: detectedType,
       }).select().single();
 
       if (insertError?.code === "42703" || insertError?.message?.includes("mesh_parts") || insertError?.message?.includes("media_type")) {
@@ -290,27 +284,42 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       if (insertError) { updateUploadItem(uploadId, { status: "error", error: insertError.message }); return; }
       updateUploadItem(uploadId, { statusLabel: `💾 נשמר בהצלחה ✓` });
 
-      // Step 4: Generate thumbnail
-      if (detectedType === "glb" && insertData) {
-        updateUploadItem(uploadId, { status: "thumbnail", statusLabel: `📸 יוצר תמונה ממוזערת...` });
-        try {
-          const { generateThumbnailFromFile } = await import("./ThumbnailGenerator");
-          const thumbBlob = await generateThumbnailFromFile(file);
-          if (thumbBlob) {
-            await uploadThumbnailBlob(thumbBlob, insertData.id);
-            updateUploadItem(uploadId, { statusLabel: `📸 תמונה נוצרה ✓` });
-          } else {
-            updateUploadItem(uploadId, { statusLabel: `📸 לא נוצרה תמונה (ממשיך...)` });
-          }
-        } catch (e) {
-          console.warn("Auto-thumbnail failed:", e);
-          updateUploadItem(uploadId, { statusLabel: `📸 דילוג על תמונה ממוזערת` });
-        }
-      }
-
-      // Done!
+      // Step 3: Mark as done immediately — user sees success
       updateUploadItem(uploadId, { status: "done", statusLabel: `🎉 ${file.name} — נשמר בהצלחה!` });
       await load();
+
+      // Step 4: Background tasks (mesh analysis + thumbnail) — non-blocking
+      if (insertData) {
+        const modelId = insertData.id;
+        // Run analysis and thumbnail in background without blocking the UI
+        (async () => {
+          try {
+            // Mesh analysis
+            const meshNames = await analyzeGlbMeshes(file);
+            if (meshNames.length > 0) {
+              const translatedMeshes = meshNames.map(translateMeshName);
+              await supabase.from("models").update({ mesh_parts: translatedMeshes }).eq("id", modelId);
+              console.log(`[Upload] Mesh analysis done for ${file.name}: ${meshNames.length} parts`);
+            }
+          } catch (e) { console.warn("[Upload] Background mesh analysis failed:", e); }
+
+          try {
+            // Thumbnail generation
+            if (detectedType === "glb") {
+              const { generateThumbnailFromFile } = await import("./ThumbnailGenerator");
+              const thumbBlob = await generateThumbnailFromFile(file);
+              if (thumbBlob) {
+                await uploadThumbnailBlob(thumbBlob, modelId);
+                console.log(`[Upload] Thumbnail generated for ${file.name}`);
+              }
+            }
+          } catch (e) { console.warn("[Upload] Background thumbnail failed:", e); }
+
+          // Refresh the list after background tasks complete
+          load();
+        })();
+      }
+
       setTimeout(() => setUploads(prev => prev.filter(u => u.id !== uploadId)), 4000);
     } catch (err) {
       updateUploadItem(uploadId, { status: "error", error: err instanceof Error ? err.message : "שגיאה" });
