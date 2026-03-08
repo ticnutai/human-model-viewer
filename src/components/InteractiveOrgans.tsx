@@ -602,14 +602,19 @@ function OrganMesh({
         {shape.geometry === "capsule" && <capsuleGeometry args={[0.5, 1, 8, 16]} />}
         {shape.geometry === "box" && <boxGeometry args={[1, 1, 1]} />}
         {shape.geometry === "torus" && <torusGeometry args={[1, 0.3, 16, 32]} />}
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           color={color}
           emissive={color}
           emissiveIntensity={0.08}
           transparent
           opacity={0.75}
-          roughness={0.3}
-          metalness={0.15}
+          roughness={0.35}
+          metalness={0.05}
+          clearcoat={0.6}
+          clearcoatRoughness={0.3}
+          sheen={0.5}
+          sheenRoughness={0.4}
+          sheenColor={shape.hoverColor}
         />
       </mesh>
 
