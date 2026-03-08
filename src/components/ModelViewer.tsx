@@ -427,7 +427,7 @@ const ModelViewer = () => {
   const [showViewPopup, setShowViewPopup] = useState(false);
   const [showHintTooltip, setShowHintTooltip] = useState(false);
   const [showOrganSidebar, setShowOrganSidebar] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "info">("organs");
+  const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "gallery" | "info">("organs");
   const [showLayerPanel, setShowLayerPanel] = useState(true);
   const [exploredOrgans, setExploredOrgans] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem("anatomy-explored") || "[]")); } catch { return new Set(); }
