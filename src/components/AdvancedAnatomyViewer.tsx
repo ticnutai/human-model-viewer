@@ -354,7 +354,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   muscles_f: {
-    path: "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb",
+    path: resolveModelPath("/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb"),
     titleHe: "מערכת שרירים נשית", titleEn: "Female Muscular System", icon: "💪",
     hasAnimation: false, description: "מערכת השרירים של הגוף הנשי",
     layers: [
