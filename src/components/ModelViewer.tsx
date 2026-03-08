@@ -68,16 +68,18 @@ function SearchableModelPicker({ lang, cloudModels, modelUrl, bodyModelUrl, onSe
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const cloudUrl = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
+
   const LOCAL_MODELS = useMemo(() => [
-    { url: "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb", en: "Front Body Anatomy", he: "גוף קדמי" },
-    { url: "/models/sketchfab/human-anatomy-faf0f3eaec554bcf854be2038993024f/model.glb", en: "Human Anatomy", he: "אנטומיה כללית" },
-    { url: "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb", en: "Male Torso", he: "טורסו גברי" },
-    { url: "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb", en: "Heart in Thorax", he: "לב בחזה" },
-    { url: "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb", en: "Male Muscular", he: "מערכת שרירים גברית" },
-    { url: "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb", en: "Female Muscular", he: "מערכת שרירים נשית" },
-    { url: "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb", en: "Male Skeleton", he: "שלד גברי" },
-    { url: "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb", en: "Female Skeleton", he: "שלד נשי" },
-  ], []);
+    { url: cloudUrl("sketchfab_15f7ed2eefb244dc94d32b6a7d989355.glb"), en: "Front Body Anatomy", he: "גוף קדמי" },
+    { url: cloudUrl("sketchfab_22ebd4abce9440639563807e72e5f8d1.glb"), en: "Heart in Thorax", he: "לב בחזה" },
+    { url: cloudUrl("sketchfab_991eb96938be4d0d8fadee241a1063d3.glb"), en: "Male Muscular", he: "מערכת שרירים גברית" },
+    { url: cloudUrl("sketchfab_9a596b6c24b344bfbe6bb5246290df0e.glb"), en: "Female Muscular", he: "מערכת שרירים נשית" },
+    { url: cloudUrl("sketchfab_665890c542be433fb18ef235cf987cef.glb"), en: "Male Skeleton", he: "שלד גברי" },
+    { url: cloudUrl("sketchfab_5f28b52cab3e439490727e0aede55a6b.glb"), en: "Female Skeleton", he: "שלד נשי" },
+    { url: cloudUrl("sketchfab_3f8072336ce94d18b3d0d055a1ece089.glb"), en: "Realistic Heart", he: "לב מפורט" },
+    { url: cloudUrl("sketchfab_a8c1612518af4bfe88e1c0a719bec463.glb"), en: "Thorax: Heart & Kidney", he: "חזה: לב וכליה" },
+  ].filter(m => m.url), []);
 
   const q = search.toLowerCase();
 
