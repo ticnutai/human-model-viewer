@@ -556,7 +556,30 @@ const ModelViewer = () => {
             </button>
           </div>
 
-          {/* Layer toggles */}
+          {/* Body base model picker (only in interactive mode) */}
+          {useInteractive && (
+            <>
+              <div className="h-px bg-border" />
+              <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "🧬 Body Model" : "🧬 מודל בסיס"}</div>
+              <select
+                value={bodyModelUrl || ""}
+                onChange={e => setBodyModelUrl(e.target.value || undefined)}
+                className="w-full rounded-lg border border-border bg-background text-foreground text-[10px] px-2 py-1.5 cursor-pointer"
+              >
+                <option value="">{lang === "en" ? "Default (Z-Anatomy)" : "ברירת מחדל (Z-Anatomy)"}</option>
+                <option value="/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb">{lang === "en" ? "Front Body Anatomy" : "גוף קדמי"}</option>
+                <option value="/models/sketchfab/human-anatomy-faf0f3eaec554bcf854be2038993024f/model.glb">{lang === "en" ? "Human Anatomy" : "אנטומיה כללית"}</option>
+                <option value="/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb">{lang === "en" ? "Male Torso" : "טורסו גברי"}</option>
+                <option value="/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb">{lang === "en" ? "Heart in Thorax" : "לב בחזה"}</option>
+                <option value="/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb">{lang === "en" ? "Male Muscular" : "מערכת שרירים גברית"}</option>
+                <option value="/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb">{lang === "en" ? "Female Muscular" : "מערכת שרירים נשית"}</option>
+                <option value="/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb">{lang === "en" ? "Male Skeleton" : "שלד גברי"}</option>
+                <option value="/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb">{lang === "en" ? "Female Skeleton" : "שלד נשי"}</option>
+                <option value={modelUrl}>{lang === "en" ? "Current GLB Model" : "מודל GLB נוכחי"}</option>
+              </select>
+            </>
+          )}
+
           <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "🧩 Layers" : "🧩 שכבות"}</div>
           <div className="flex flex-col gap-1">
             {LAYER_DEFS.map(layer => {
