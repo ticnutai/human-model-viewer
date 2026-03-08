@@ -392,7 +392,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   torso: {
-    path: "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb",
+    path: resolveModelPath("/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb"),
     titleHe: "פלג גוף גברי", titleEn: "Male Torso Anatomy", icon: "🧍",
     hasAnimation: false, description: "פלג גוף גברי עם כל האיברים הפנימיים",
     layers: [
