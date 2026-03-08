@@ -37,24 +37,32 @@ export function translateMeshName(name: string): string {
 
 export async function analyzeGlbMeshes(urlOrFile: string | File): Promise<string[]> {
   const loader = new GLTFLoader();
+  const TIMEOUT_MS = 15_000;
   return new Promise((resolve) => {
+    let resolved = false;
+    const safeResolve = (val: string[]) => { if (!resolved) { resolved = true; resolve(val); } };
+    const timer = setTimeout(() => { console.warn("[analyzeGlbMeshes] timeout after", TIMEOUT_MS, "ms"); safeResolve([]); }, TIMEOUT_MS);
     const onLoad = (gltf: any) => {
+      clearTimeout(timer);
       const names: string[] = [];
-      gltf.scene.traverse((child: THREE.Object3D) => {
-        if ((child as THREE.Mesh).isMesh && child.name) names.push(child.name);
-      });
-      resolve(names);
+      try {
+        gltf.scene.traverse((child: THREE.Object3D) => {
+          if ((child as THREE.Mesh).isMesh && child.name) names.push(child.name);
+        });
+      } catch (e) { console.warn("[analyzeGlbMeshes] traverse error:", e); }
+      safeResolve(names);
     };
-    const onError = () => resolve([]);
+    const onError = (err: any) => { clearTimeout(timer); console.warn("[analyzeGlbMeshes] load error:", err); safeResolve([]); };
     if (typeof urlOrFile === "string") {
       loader.load(urlOrFile, onLoad, undefined, onError);
     } else {
       const reader = new FileReader();
       reader.onload = (e) => {
         const buffer = e.target?.result as ArrayBuffer;
-        loader.parse(buffer, "", onLoad, onError);
+        try { loader.parse(buffer, "", onLoad, onError); }
+        catch (parseErr) { clearTimeout(timer); console.warn("[analyzeGlbMeshes] parse exception:", parseErr); safeResolve([]); }
       };
-      reader.onerror = () => resolve([]);
+      reader.onerror = () => { clearTimeout(timer); safeResolve([]); };
       reader.readAsArrayBuffer(urlOrFile);
     }
   });
