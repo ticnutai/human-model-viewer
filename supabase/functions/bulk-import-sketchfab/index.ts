@@ -136,10 +136,14 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Import sequentially to avoid memory issues
+    // Import sequentially with delay to respect rate limits
     const results = [];
-    for (const item of models) {
-      const result = await importOne(supabase, supabaseUrl, sketchfabToken, item);
+    for (let i = 0; i < models.length; i++) {
+      if (i > 0) {
+        // Wait 5 seconds between requests to avoid 429
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+      const result = await importOne(supabase, supabaseUrl, sketchfabToken, models[i]);
       results.push(result);
     }
 
