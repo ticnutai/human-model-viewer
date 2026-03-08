@@ -7,6 +7,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 import { getBestOrganDetail, getFallbackDetail, getOrganHintFromUrl, detectOrganByColor, ORGAN_DETAILS, getLocalizedOrganName, getLocalizedOrganSystem, searchOrgansByDisease } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
+import { supabase } from "@/integrations/supabase/client";
 
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
 import OrganDialog from "./OrganDialog";
@@ -312,7 +313,13 @@ const ModelViewer = () => {
   const [layerOpacities, setLayerOpacities] = useState<Record<LayerType, number>>({ skeleton: 1, muscles: 1, organs: 1, vessels: 1 });
   const [peelAmount, setPeelAmount] = useState(0);
   const [bodyModelUrl, setBodyModelUrl] = useState<string | undefined>(undefined);
+  const [cloudModels, setCloudModels] = useState<{ id: string; display_name: string; hebrew_name: string | null; file_url: string | null }[]>([]);
 
+  // Fetch cloud models for body model picker
+  useEffect(() => {
+    supabase.from("models").select("id, display_name, hebrew_name, file_url").order("display_name")
+      .then(({ data }) => { if (data) setCloudModels(data); });
+  }, []);
   const t = THEMES[themeIdx];
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
   const lessonSequence = useMemo(() => Object.keys(ORGAN_DETAILS), []);
@@ -567,14 +574,21 @@ const ModelViewer = () => {
                 className="w-full rounded-lg border border-border bg-background text-foreground text-[10px] px-2 py-1.5 cursor-pointer"
               >
                 <option value="">{lang === "en" ? "Default (Z-Anatomy)" : "ברירת מחדל (Z-Anatomy)"}</option>
-                <option value="/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb">{lang === "en" ? "Front Body Anatomy" : "גוף קדמי"}</option>
-                <option value="/models/sketchfab/human-anatomy-faf0f3eaec554bcf854be2038993024f/model.glb">{lang === "en" ? "Human Anatomy" : "אנטומיה כללית"}</option>
-                <option value="/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb">{lang === "en" ? "Male Torso" : "טורסו גברי"}</option>
-                <option value="/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb">{lang === "en" ? "Heart in Thorax" : "לב בחזה"}</option>
-                <option value="/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb">{lang === "en" ? "Male Muscular" : "מערכת שרירים גברית"}</option>
-                <option value="/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb">{lang === "en" ? "Female Muscular" : "מערכת שרירים נשית"}</option>
-                <option value="/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb">{lang === "en" ? "Male Skeleton" : "שלד גברי"}</option>
-                <option value="/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb">{lang === "en" ? "Female Skeleton" : "שלד נשי"}</option>
+                <optgroup label={lang === "en" ? "☁️ Cloud Models" : "☁️ מודלים מהענן"}>
+                  {cloudModels.map(m => (
+                    <option key={m.id} value={m.file_url || ""}>{m.hebrew_name || m.display_name}</option>
+                  ))}
+                </optgroup>
+                <optgroup label={lang === "en" ? "📁 Local Models" : "📁 מודלים מקומיים"}>
+                  <option value="/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb">{lang === "en" ? "Front Body Anatomy" : "גוף קדמי"}</option>
+                  <option value="/models/sketchfab/human-anatomy-faf0f3eaec554bcf854be2038993024f/model.glb">{lang === "en" ? "Human Anatomy" : "אנטומיה כללית"}</option>
+                  <option value="/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb">{lang === "en" ? "Male Torso" : "טורסו גברי"}</option>
+                  <option value="/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb">{lang === "en" ? "Heart in Thorax" : "לב בחזה"}</option>
+                  <option value="/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb">{lang === "en" ? "Male Muscular" : "מערכת שרירים גברית"}</option>
+                  <option value="/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb">{lang === "en" ? "Female Muscular" : "מערכת שרירים נשית"}</option>
+                  <option value="/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb">{lang === "en" ? "Male Skeleton" : "שלד גברי"}</option>
+                  <option value="/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb">{lang === "en" ? "Female Skeleton" : "שלד נשי"}</option>
+                </optgroup>
                 <option value={modelUrl}>{lang === "en" ? "Current GLB Model" : "מודל GLB נוכחי"}</option>
               </select>
             </>
