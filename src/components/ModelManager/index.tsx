@@ -9,6 +9,7 @@ import ModelCard from "./ModelCard";
 import SketchfabSearch from "./SketchfabSearch";
 import { generateThumbnailFromUrl } from "./ThumbnailGenerator";
 import MeshLayerManager from "./MeshLayerManager";
+import MeshMappingManager from "./MeshMappingManager";
 import {
   translateMeshName, analyzeGlbMeshes, buildRelevance,
   normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken, autoHebrewName,
@@ -41,7 +42,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [autoNaming, setAutoNaming] = useState(false);
-  const [managerTab, setManagerTab] = useState<"models" | "meshmap">("models");
+  const [managerTab, setManagerTab] = useState<"models" | "meshmap" | "allmappings">("models");
 
   // Sketchfab
   const [sketchfabResults, setSketchfabResults] = useState<SketchfabSearchResult[]>([]);
@@ -557,7 +558,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       <div className="flex" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
         <button
           onClick={() => setManagerTab("models")}
-          className="flex-1 text-[11px] font-bold py-2 cursor-pointer border-none transition-colors"
+          className="flex-1 text-[10px] font-bold py-2 cursor-pointer border-none transition-colors"
           style={{
             background: managerTab === "models" ? "hsl(43 78% 47% / 0.1)" : "transparent",
             color: managerTab === "models" ? "hsl(43 78% 35%)" : "hsl(220 15% 55%)",
@@ -568,18 +569,33 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         </button>
         <button
           onClick={() => setManagerTab("meshmap")}
-          className="flex-1 text-[11px] font-bold py-2 cursor-pointer border-none transition-colors"
+          className="flex-1 text-[10px] font-bold py-2 cursor-pointer border-none transition-colors"
           style={{
             background: managerTab === "meshmap" ? "hsl(220 50% 50% / 0.1)" : "transparent",
             color: managerTab === "meshmap" ? "hsl(220 50% 40%)" : "hsl(220 15% 55%)",
             borderBottom: managerTab === "meshmap" ? "2px solid hsl(220 50% 50%)" : "2px solid transparent",
           }}
         >
-          🗺️ מיפוי Mesh
+          🗺️ מיפוי
+        </button>
+        <button
+          onClick={() => setManagerTab("allmappings")}
+          className="flex-1 text-[10px] font-bold py-2 cursor-pointer border-none transition-colors"
+          style={{
+            background: managerTab === "allmappings" ? "hsl(145 50% 45% / 0.1)" : "transparent",
+            color: managerTab === "allmappings" ? "hsl(145 50% 35%)" : "hsl(220 15% 55%)",
+            borderBottom: managerTab === "allmappings" ? "2px solid hsl(145 50% 45%)" : "2px solid transparent",
+          }}
+        >
+          📋 כל הרשומות
         </button>
       </div>
 
-      {managerTab === "meshmap" ? (
+      {managerTab === "allmappings" ? (
+        <div className="flex-1 overflow-hidden">
+          <MeshMappingManager />
+        </div>
+      ) : managerTab === "meshmap" ? (
         <div className="flex-1 overflow-y-auto sidebar-scroll">
           <MeshLayerManager models={models} />
         </div>
