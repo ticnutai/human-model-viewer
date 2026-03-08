@@ -366,7 +366,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   muscles_m: {
-    path: "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb",
+    path: resolveModelPath("/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb"),
     titleHe: "מערכת שרירים גברית", titleEn: "Male Muscular System", icon: "💪",
     hasAnimation: false, description: "מערכת השרירים של הגוף הגברי",
     layers: [
