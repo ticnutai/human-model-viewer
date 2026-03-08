@@ -551,68 +551,71 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         />
       </div>
 
-      {/* DB error */}
-      {catLoadError && (
-        <div className="text-[11px] rounded-xl px-2.5 py-1.5 mx-2 mt-2" style={{ color: "hsl(0 70% 45%)", background: "hsl(0 80% 95%)", border: "1px solid hsl(0 70% 80%)" }}>
-          ⚠️ שגיאה: {catLoadError} — <button onClick={() => void load()} className="font-bold underline bg-transparent border-none cursor-pointer text-[11px] p-0" style={{ color: "hsl(43 78% 42%)" }}>נסה שוב</button>
-        </div>
-      )}
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto sidebar-scroll">
+        {/* DB error */}
+        {catLoadError && (
+          <div className="text-[11px] rounded-xl px-2.5 py-1.5 mx-2 mt-2" style={{ color: "hsl(0 70% 45%)", background: "hsl(0 80% 95%)", border: "1px solid hsl(0 70% 80%)" }}>
+            ⚠️ שגיאה: {catLoadError} — <button onClick={() => void load()} className="font-bold underline bg-transparent border-none cursor-pointer text-[11px] p-0" style={{ color: "hsl(43 78% 42%)" }}>נסה שוב</button>
+          </div>
+        )}
 
-      {/* Sketchfab search */}
-      {showSketchfab && (
-        <div className="px-2 pt-2">
-          <SketchfabSearch
-            onSearch={handleSketchfabSearch}
-            onImport={handleImportSketchfab}
-            results={sketchfabResults}
-            searching={sketchfabSearching}
-            error={sketchfabError}
-            importingUid={importingUid}
-            uploads={uploads}
-          />
-        </div>
-      )}
-
-      {/* Upload zone */}
-      <UploadZone
-        uploads={uploads}
-        onUpload={handleUpload}
-        onCancel={(id) => setUploads(prev => prev.filter(u => u.id !== id))}
-        onDropFiles={handleDropFiles}
-      />
-
-      {/* Model list */}
-      <div className="flex-1 overflow-y-auto sidebar-scroll px-2 pt-2">
-        <div className={viewMode === "grid"
-          ? "grid grid-cols-2 gap-2 pb-2"
-          : "flex flex-col gap-2 pb-2"
-        }>
-          {combinedModels.length === 0 && (
-            <div className={`text-center text-sm py-8 opacity-70 ${viewMode === "grid" ? "col-span-2" : ""}`} style={{ color: "hsl(220 15% 55%)" }}>
-              <span className="text-2xl block mb-2">📭</span>
-              {searchQuery ? "לא נמצאו תוצאות" : "אין מודלים בקטגוריה זו"}
-            </div>
-          )}
-          {combinedModels.map(model => (
-            <ModelCard
-              key={model.id}
-              model={model}
-              isActive={currentModelUrl === model.url || currentModelUrl.includes(model.url.replace(`${SUPABASE_URL}/storage/v1/object/public/`, ""))}
-              categories={categories}
-              onSelect={onSelectModel}
-              onDelete={handleDelete}
-              onHideLocal={handleHideLocal}
-              onSaveEdit={handleSaveEdit}
-              onSaveInlineName={handleSaveInlineName}
-              onSaveDisplayName={handleSaveDisplayName}
-              onEditLocalName={handleEditLocalName}
-              onReanalyze={handleReanalyze}
-              onGenerateThumbnail={handleGenerateThumbnail}
-              reanalyzingId={reanalyzingId}
-              generatingThumbId={generatingThumbId}
-              viewMode={viewMode}
+        {/* Sketchfab search */}
+        {showSketchfab && (
+          <div className="px-2 pt-2">
+            <SketchfabSearch
+              onSearch={handleSketchfabSearch}
+              onImport={handleImportSketchfab}
+              results={sketchfabResults}
+              searching={sketchfabSearching}
+              error={sketchfabError}
+              importingUid={importingUid}
+              uploads={uploads}
             />
-          ))}
+          </div>
+        )}
+
+        {/* Upload zone */}
+        <UploadZone
+          uploads={uploads}
+          onUpload={handleUpload}
+          onCancel={(id) => setUploads(prev => prev.filter(u => u.id !== id))}
+          onDropFiles={handleDropFiles}
+        />
+
+        {/* Model list */}
+        <div className="px-2 pt-2 pb-2">
+          <div className={viewMode === "grid"
+            ? "grid grid-cols-2 gap-2"
+            : "flex flex-col gap-2"
+          }>
+            {combinedModels.length === 0 && (
+              <div className={`text-center text-sm py-8 opacity-70 ${viewMode === "grid" ? "col-span-2" : ""}`} style={{ color: "hsl(220 15% 55%)" }}>
+                <span className="text-2xl block mb-2">📭</span>
+                {searchQuery ? "לא נמצאו תוצאות" : "אין מודלים בקטגוריה זו"}
+              </div>
+            )}
+            {combinedModels.map(model => (
+              <ModelCard
+                key={model.id}
+                model={model}
+                isActive={currentModelUrl === model.url || currentModelUrl.includes(model.url.replace(`${SUPABASE_URL}/storage/v1/object/public/`, ""))}
+                categories={categories}
+                onSelect={onSelectModel}
+                onDelete={handleDelete}
+                onHideLocal={handleHideLocal}
+                onSaveEdit={handleSaveEdit}
+                onSaveInlineName={handleSaveInlineName}
+                onSaveDisplayName={handleSaveDisplayName}
+                onEditLocalName={handleEditLocalName}
+                onReanalyze={handleReanalyze}
+                onGenerateThumbnail={handleGenerateThumbnail}
+                reanalyzingId={reanalyzingId}
+                generatingThumbId={generatingThumbId}
+                viewMode={viewMode}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
