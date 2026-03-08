@@ -48,7 +48,154 @@ const readAsciiPrefix = async (url: string, length = 96) => {
 const isLikelyGitLfsPointer = (prefix: string) => prefix.startsWith("version https://git-lfs.github.com/spec/v1");
 const isLikelyGlbMagic = (prefix: string) => prefix.startsWith("glTF");
 
-type Theme = {
+/* ── Searchable Model Picker ── */
+function SearchableModelPicker({ lang, cloudModels, modelUrl, bodyModelUrl, onSelect }: {
+  lang: string;
+  cloudModels: { id: string; display_name: string; hebrew_name: string | null; file_url: string | null }[];
+  modelUrl: string;
+  bodyModelUrl: string | undefined;
+  onSelect: (url: string | undefined) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const LOCAL_MODELS = useMemo(() => [
+    { url: "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb", en: "Front Body Anatomy", he: "גוף קדמי" },
+    { url: "/models/sketchfab/human-anatomy-faf0f3eaec554bcf854be2038993024f/model.glb", en: "Human Anatomy", he: "אנטומיה כללית" },
+    { url: "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb", en: "Male Torso", he: "טורסו גברי" },
+    { url: "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb", en: "Heart in Thorax", he: "לב בחזה" },
+    { url: "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb", en: "Male Muscular", he: "מערכת שרירים גברית" },
+    { url: "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb", en: "Female Muscular", he: "מערכת שרירים נשית" },
+    { url: "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb", en: "Male Skeleton", he: "שלד גברי" },
+    { url: "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb", en: "Female Skeleton", he: "שלד נשי" },
+  ], []);
+
+  const q = search.toLowerCase();
+
+  const filteredCloud = useMemo(() => cloudModels.filter(m =>
+    !q || (m.display_name?.toLowerCase().includes(q)) || (m.hebrew_name?.toLowerCase().includes(q))
+  ), [cloudModels, q]);
+
+  const filteredLocal = useMemo(() => LOCAL_MODELS.filter(m =>
+    !q || m.en.toLowerCase().includes(q) || m.he.includes(search)
+  ), [LOCAL_MODELS, q, search]);
+
+  const selectedLabel = useMemo(() => {
+    if (!bodyModelUrl) return lang === "en" ? "Default (Z-Anatomy)" : "ברירת מחדל (Z-Anatomy)";
+    const cloud = cloudModels.find(m => m.file_url === bodyModelUrl);
+    if (cloud) return cloud.hebrew_name || cloud.display_name;
+    const local = LOCAL_MODELS.find(m => m.url === bodyModelUrl);
+    if (local) return lang === "en" ? local.en : local.he;
+    if (bodyModelUrl === modelUrl) return lang === "en" ? "Current GLB Model" : "מודל GLB נוכחי";
+    return bodyModelUrl.split("/").pop() || "Model";
+  }, [bodyModelUrl, cloudModels, LOCAL_MODELS, modelUrl, lang]);
+
+  const handleSelect = (url: string | undefined) => {
+    onSelect(url);
+    setOpen(false);
+    setSearch("");
+  };
+
+  return (
+    <>
+      <div className="h-px bg-border" />
+      <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "🧬 Body Model" : "🧬 מודל בסיס"}</div>
+      <div ref={wrapperRef} className="relative">
+        <button
+          onClick={() => setOpen(!open)}
+          className="w-full rounded-lg border border-border bg-background text-foreground text-[10px] px-2 py-1.5 cursor-pointer text-start truncate hover:border-primary/50 transition-colors"
+        >
+          {selectedLabel}
+          <span className="float-end">{open ? "▲" : "▼"}</span>
+        </button>
+        {open && (
+          <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden" style={{ maxHeight: 260 }}>
+            <div className="p-1.5 border-b border-border">
+              <input
+                autoFocus
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={lang === "en" ? "🔍 Search models..." : "🔍 חיפוש מודלים..."}
+                className="w-full rounded-md border border-border bg-background text-foreground text-[10px] px-2 py-1 outline-none focus:border-primary/50"
+              />
+            </div>
+            <div className="overflow-y-auto" style={{ maxHeight: 210 }}>
+              {/* Default option */}
+              <button
+                onClick={() => handleSelect(undefined)}
+                className={`w-full text-start text-[10px] px-2.5 py-1.5 hover:bg-accent/50 transition-colors ${!bodyModelUrl ? "bg-primary/15 text-primary font-bold" : "text-foreground"}`}
+              >
+                {lang === "en" ? "✨ Default (Z-Anatomy)" : "✨ ברירת מחדל (Z-Anatomy)"}
+              </button>
+
+              {/* Cloud models */}
+              {filteredCloud.length > 0 && (
+                <>
+                  <div className="px-2.5 py-1 text-[9px] font-bold text-muted-foreground bg-muted/30">
+                    {lang === "en" ? "☁️ Cloud Models" : "☁️ מודלים מהענן"} ({filteredCloud.length})
+                  </div>
+                  {filteredCloud.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => handleSelect(m.file_url || "")}
+                      className={`w-full text-start text-[10px] px-2.5 py-1.5 hover:bg-accent/50 transition-colors ${bodyModelUrl === m.file_url ? "bg-primary/15 text-primary font-bold" : "text-foreground"}`}
+                    >
+                      {m.hebrew_name || m.display_name}
+                    </button>
+                  ))}
+                </>
+              )}
+
+              {/* Local models */}
+              {filteredLocal.length > 0 && (
+                <>
+                  <div className="px-2.5 py-1 text-[9px] font-bold text-muted-foreground bg-muted/30">
+                    {lang === "en" ? "📁 Local Models" : "📁 מודלים מקומיים"} ({filteredLocal.length})
+                  </div>
+                  {filteredLocal.map(m => (
+                    <button
+                      key={m.url}
+                      onClick={() => handleSelect(m.url)}
+                      className={`w-full text-start text-[10px] px-2.5 py-1.5 hover:bg-accent/50 transition-colors ${bodyModelUrl === m.url ? "bg-primary/15 text-primary font-bold" : "text-foreground"}`}
+                    >
+                      {lang === "en" ? m.en : m.he}
+                    </button>
+                  ))}
+                </>
+              )}
+
+              {/* Current GLB */}
+              <button
+                onClick={() => handleSelect(modelUrl)}
+                className={`w-full text-start text-[10px] px-2.5 py-1.5 hover:bg-accent/50 transition-colors ${bodyModelUrl === modelUrl ? "bg-primary/15 text-primary font-bold" : "text-foreground"}`}
+              >
+                {lang === "en" ? "📦 Current GLB Model" : "📦 מודל GLB נוכחי"}
+              </button>
+
+              {/* No results */}
+              {filteredCloud.length === 0 && filteredLocal.length === 0 && q && (
+                <div className="px-2.5 py-3 text-[10px] text-muted-foreground text-center">
+                  {lang === "en" ? "No models found" : "לא נמצאו מודלים"}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+
   name: string; bg: string; canvasBg: string;
   textPrimary: string; textSecondary: string;
   panelBg: string; panelBorder: string;
