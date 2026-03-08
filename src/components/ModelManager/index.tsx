@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import SketchfabSearch from "./SketchfabSearch";
 import { generateThumbnailFromUrl } from "./ThumbnailGenerator";
 import MeshLayerManager from "./MeshLayerManager";
 import MeshMappingManager from "./MeshMappingManager";
+import { analyzeGlbSmart } from "./SmartAnalysis";
 import {
   translateMeshName, analyzeGlbMeshes, buildRelevance,
   normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken, autoHebrewName,
