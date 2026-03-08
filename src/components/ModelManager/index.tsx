@@ -522,7 +522,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       />
 
       {/* Model list */}
-      <ScrollArea className="max-h-[500px] px-2 pt-2">
+      <div className="flex-1 overflow-y-auto sidebar-scroll px-2 pt-2">
         <div className={viewMode === "grid"
           ? "grid grid-cols-2 gap-2 pb-2"
           : "flex flex-col gap-2 pb-2"
