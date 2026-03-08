@@ -543,20 +543,28 @@ const ModelViewer = () => {
     cameraTargetRef.current = pos; cameraLookAtRef.current = lookAt || null; setRenderKey(k => k + 1);
   }, []);
 
+  // Known local-to-cloud path mappings for models that have different UIDs in cloud
+  const LOCAL_TO_CLOUD: Record<string, string> = useMemo(() => ({
+    "252887e2e755427c90d9e3d0c6d3025f": cloudUrl("sketchfab_5a2c779eb9524a5081cb1e6297d15e83.glb"), // exploding skull → Hans anatomy
+    "76115e69f3304172835cfce7cc6714a8": cloudUrl("1772810475142_sketchfab_76115e69f3304172835cfce7cc6714a8.glb"), // CT head
+    "56ffcd2330ae4b7ea6c7b8a08c82b4b7": cloudUrl("1772810249701_sketchfab_56ffcd2330ae4b7ea6c7b8a08c82b4b7.glb"), // organs mkhasant
+  }), []);
+
   const tryResolveToCloud = useCallback((localUrl: string): string | null => {
-    // Extract Sketchfab UID from local path like /models/sketchfab/xxx-<uid>/model.glb
     const uidMatch = localUrl.match(/([a-f0-9]{32})(?:\/|\.)/i);
     if (!uidMatch) return null;
     const uid = uidMatch[1];
-    // Check if we have this model in cloud
+    // Check known mappings first
+    if (LOCAL_TO_CLOUD[uid]) return LOCAL_TO_CLOUD[uid];
+    // Check if we have this model in cloud DB
     const cloudModel = cloudModels.find(m =>
       m.file_url?.includes(uid) || m.display_name?.includes(uid)
     );
     if (cloudModel?.file_url) return cloudModel.file_url;
-    // Try constructing cloud URL directly
-    const slug = `sketchfab_${uid}.glb`;
-    return cloudUrl(slug) || null;
-  }, [cloudModels]);
+    // Try constructing cloud URL — but only if there's a matching DB record
+    // Don't blindly construct URLs that may 400
+    return null;
+  }, [cloudModels, LOCAL_TO_CLOUD]);
 
   const handleSelectModel = useCallback(async (url: string) => {
     setModelLoadWarning(null); setGlbScanResult(null); setShowGlbReport(false); setGlbBadgeHidden(false);
