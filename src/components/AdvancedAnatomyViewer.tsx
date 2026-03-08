@@ -690,21 +690,55 @@ const THEME_STORAGE_KEY = "advanced-anatomy-theme";
 
 export default function AdvancedAnatomyViewer() {
   const navigate = useNavigate();
-  const [modelId, setModelId] = useState<ModelId>("skull");
+  const [modelId, setModelId] = useState<ModelId | "cloud">("skull");
+  const [cloudModelUrl, setCloudModelUrl] = useState<string | null>(null);
+  const [cloudModelMeta, setCloudModelMeta] = useState<{ titleHe: string; titleEn: string; icon: string; description: string } | null>(null);
   const [themeId, setThemeId] = useState<ThemeId>(() => {
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
     return (saved && saved in THEMES) ? saved as ThemeId : "dark";
   });
   const [showSettings, setShowSettings] = useState(false);
   const theme = THEMES[themeId];
-  const baseMeta = MODEL_META[modelId];
+
+  // Cloud models from DB
+  const [cloudModels, setCloudModels] = useState<{ id: string; display_name: string; hebrew_name: string | null; file_url: string | null; mesh_parts: any; category_id: string | null }[]>([]);
+  const [cloudCategories, setCloudCategories] = useState<{ id: string; name: string; icon: string | null }[]>([]);
+
+  useEffect(() => {
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const headers = { apikey, Authorization: `Bearer ${apikey}`, Accept: "application/json" };
+    Promise.all([
+      fetch(`${baseUrl}/rest/v1/models?select=id,display_name,hebrew_name,file_url,mesh_parts,category_id&order=created_at.desc`, { headers }).then(r => r.json()),
+      fetch(`${baseUrl}/rest/v1/model_categories?select=id,name,icon&order=sort_order`, { headers }).then(r => r.json()),
+    ]).then(([mods, cats]) => {
+      if (Array.isArray(mods)) setCloudModels(mods);
+      if (Array.isArray(cats)) setCloudCategories(cats);
+    }).catch(console.error);
+  }, []);
+
+  // Determine the actual meta to use
+  const isCloudModel = modelId === "cloud";
+  const baseMeta = isCloudModel
+    ? {
+        path: cloudModelUrl || "",
+        titleHe: cloudModelMeta?.titleHe || "מודל ענן",
+        titleEn: cloudModelMeta?.titleEn || "Cloud Model",
+        icon: cloudModelMeta?.icon || "☁️",
+        hasAnimation: false,
+        description: cloudModelMeta?.description || "",
+        layers: [
+          { id: "all", label: "All Parts", labelHe: "כל החלקים", color: "#88aacc", icon: "🔬", meshPatterns: [/.*/] },
+        ] as Layer[],
+        infoMap: {} as Record<string, MeshInfo>,
+      }
+    : MODEL_META[modelId as ModelId];
 
   // Fetch cloud mesh mappings and merge with hardcoded data
-  const { mappings: cloudMappings, loading: cloudLoading } = useMeshMappings(modelId);
+  const { mappings: cloudMappings, loading: cloudLoading } = useMeshMappings(isCloudModel ? undefined : modelId);
 
   const meta = useMemo(() => {
     if (cloudMappings.size === 0) return baseMeta;
-    // Merge cloud data into infoMap
     const mergedInfoMap = { ...baseMeta.infoMap };
     cloudMappings.forEach((cm, meshKey) => {
       const factsData = cm.facts || {};
@@ -742,7 +776,7 @@ export default function AdvancedAnatomyViewer() {
   useEffect(() => {
     setLoadedMeshKeys([]); setHiddenLayers(new Set()); setHiddenMeshes(new Set());
     setSelectedMesh(null); setExplodeAmount(0); setAnimTime(null); setSearchQuery("");
-  }, [modelId]);
+  }, [modelId, cloudModelUrl]);
 
   const meshKeysByLayer = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -789,7 +823,21 @@ export default function AdvancedAnatomyViewer() {
   const skullAnimTime = meta.hasAnimation ? animTime ?? explodeAmount : null;
   const manualExplode = meta.hasAnimation ? 0 : explodeAmount;
 
-  // Model grouping
+  // Select a cloud model
+  const selectCloudModel = (mod: typeof cloudModels[0]) => {
+    if (!mod.file_url) return;
+    setModelId("cloud");
+    setCloudModelUrl(mod.file_url);
+    const meshParts = Array.isArray(mod.mesh_parts) ? mod.mesh_parts : [];
+    setCloudModelMeta({
+      titleHe: mod.hebrew_name || mod.display_name,
+      titleEn: mod.display_name,
+      icon: "☁️",
+      description: `${meshParts.length} חלקים • מודל ענן`,
+    });
+  };
+
+  // Model grouping (hardcoded + cloud)
   const modelGroups: { label: string; models: ModelId[] }[] = [
     { label: "🧠 ראש", models: ["skull"] },
     { label: "🫀 בית החזה", models: ["thorax", "heart"] },
@@ -797,6 +845,22 @@ export default function AdvancedAnatomyViewer() {
     { label: "🦴 שלד", models: ["skeleton_f", "skeleton_m"] },
     { label: "💪 שרירים", models: ["muscles_f", "muscles_m"] },
   ];
+
+  // Group cloud models by category
+  const cloudModelsByCategory = useMemo(() => {
+    const uncategorized: typeof cloudModels = [];
+    const byCategory: Record<string, typeof cloudModels> = {};
+    for (const mod of cloudModels) {
+      if (!mod.file_url) continue;
+      if (mod.category_id) {
+        if (!byCategory[mod.category_id]) byCategory[mod.category_id] = [];
+        byCategory[mod.category_id].push(mod);
+      } else {
+        uncategorized.push(mod);
+      }
+    }
+    return { byCategory, uncategorized };
+  }, [cloudModels]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden" dir="rtl"
@@ -874,13 +938,13 @@ export default function AdvancedAnatomyViewer() {
                 {group.models.map(id => {
                   const m = MODEL_META[id];
                   return (
-                    <button key={id} onClick={() => setModelId(id)}
+                    <button key={id} onClick={() => { setModelId(id); setCloudModelUrl(null); }}
                       className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] cursor-pointer border transition-all"
                       style={{
-                        background: modelId === id ? theme.accentBg : "transparent",
-                        borderColor: modelId === id ? theme.accent : theme.border,
-                        color: modelId === id ? theme.accent : theme.textDim,
-                        fontWeight: modelId === id ? 600 : 400,
+                        background: modelId === id && !isCloudModel ? theme.accentBg : "transparent",
+                        borderColor: modelId === id && !isCloudModel ? theme.accent : theme.border,
+                        color: modelId === id && !isCloudModel ? theme.accent : theme.textDim,
+                        fontWeight: modelId === id && !isCloudModel ? 600 : 400,
                       }}>
                       <span>{m.icon}</span>
                       <span>{m.titleHe}</span>
@@ -890,6 +954,57 @@ export default function AdvancedAnatomyViewer() {
               </div>
             </div>
           ))}
+
+          {/* Cloud models */}
+          {cloudModels.length > 0 && (
+            <div className="mb-2">
+              <div className="text-[10px] font-bold mb-1" style={{ color: theme.textDim }}>☁️ מודלים מהענן ({cloudModels.filter(m => m.file_url).length})</div>
+              {cloudCategories.map(cat => {
+                const catModels = cloudModelsByCategory.byCategory[cat.id];
+                if (!catModels?.length) return null;
+                return (
+                  <div key={cat.id} className="mb-1.5">
+                    <div className="text-[9px] font-semibold mb-0.5" style={{ color: theme.textDim }}>{cat.icon || "📁"} {cat.name}</div>
+                    <div className="flex gap-1 flex-wrap">
+                      {catModels.map(mod => (
+                        <button key={mod.id} onClick={() => selectCloudModel(mod)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all"
+                          style={{
+                            background: isCloudModel && cloudModelUrl === mod.file_url ? theme.accentBg : "transparent",
+                            borderColor: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.border,
+                            color: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.textDim,
+                            fontWeight: isCloudModel && cloudModelUrl === mod.file_url ? 600 : 400,
+                          }}>
+                          <span>☁️</span>
+                          <span className="truncate max-w-[120px]">{mod.hebrew_name || mod.display_name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {cloudModelsByCategory.uncategorized.length > 0 && (
+                <div className="mb-1.5">
+                  <div className="text-[9px] font-semibold mb-0.5" style={{ color: theme.textDim }}>📂 ללא קטגוריה</div>
+                  <div className="flex gap-1 flex-wrap">
+                    {cloudModelsByCategory.uncategorized.map(mod => (
+                      <button key={mod.id} onClick={() => selectCloudModel(mod)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all"
+                        style={{
+                          background: isCloudModel && cloudModelUrl === mod.file_url ? theme.accentBg : "transparent",
+                          borderColor: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.border,
+                          color: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.textDim,
+                          fontWeight: isCloudModel && cloudModelUrl === mod.file_url ? 600 : 400,
+                        }}>
+                        <span>☁️</span>
+                        <span className="truncate max-w-[120px]">{mod.hebrew_name || mod.display_name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Search */}
@@ -1015,7 +1130,7 @@ export default function AdvancedAnatomyViewer() {
             <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
             <Suspense fallback={null}>
               <ModelScene
-                key={modelId}
+                key={isCloudModel ? cloudModelUrl : modelId}
                 url={meta.path}
                 hiddenMeshes={hiddenMeshes}
                 xRayMeshes={xRayMeshes}
