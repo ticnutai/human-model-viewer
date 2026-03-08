@@ -432,7 +432,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     };
   });
 
-  const combinedBase: ListModel[] = [...cloudListModels, ...(activeCategory || activeMediaType ? [] : localModels)];
+  const visibleLocalModels = localModels.filter(m => !hiddenLocalIds.includes(m.id)).map(m => localNameOverrides[m.id] ? { ...m, displayName: localNameOverrides[m.id] } : m);
+  const combinedBase: ListModel[] = [...cloudListModels, ...(activeCategory || activeMediaType ? [] : visibleLocalModels)];
   
   // Apply search filter
   const searchFiltered = searchQuery.trim()
