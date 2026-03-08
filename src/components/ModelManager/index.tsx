@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import CategoryTabs from "./CategoryTabs";
 import MediaFilter from "./MediaFilter";
 import UploadZone from "./UploadZone";
 import ModelCard from "./ModelCard";
 import SketchfabSearch from "./SketchfabSearch";
+import { generateThumbnailFromUrl } from "./ThumbnailGenerator";
 import {
   translateMeshName, analyzeGlbMeshes, buildRelevance,
   normalizeDisplayNameFromPath, modelHasMash, getSavedSketchfabToken,
@@ -19,7 +21,7 @@ import { SUPABASE_URL, SKETCHFAB_TOKEN_STORAGE_KEY } from "./types";
 interface ModelManagerProps {
   onSelectModel: (url: string) => void | Promise<void>;
   currentModelUrl: string;
-  theme?: any; // backward compat — ignored
+  theme?: any;
 }
 
 export default function ModelManager({ onSelectModel, currentModelUrl }: ModelManagerProps) {
@@ -33,12 +35,16 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [sortMode, setSortMode] = useState<SortMode>("all");
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [reanalyzingId, setReanalyzingId] = useState<string | null>(null);
+  const [generatingThumbId, setGeneratingThumbId] = useState<string | null>(null);
+  const [batchGenerating, setBatchGenerating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Sketchfab
   const [sketchfabResults, setSketchfabResults] = useState<SketchfabSearchResult[]>([]);
   const [sketchfabSearching, setSketchfabSearching] = useState(false);
   const [sketchfabError, setSketchfabError] = useState<string | null>(null);
   const [importingUid, setImportingUid] = useState<string | null>(null);
+  const [showSketchfab, setShowSketchfab] = useState(false);
 
   // ── Data loading ──
   const load = useCallback(async () => {
@@ -107,6 +113,17 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     setUploads(prev => prev.map(u => u.id === id ? { ...u, ...patch } : u));
   };
 
+  const uploadThumbnailBlob = async (blob: Blob, modelId: string): Promise<string | null> => {
+    const thumbFileName = `thumb_${modelId}_${Date.now()}.png`;
+    const { error: uploadError } = await supabase.storage.from("models").upload(thumbFileName, blob, {
+      contentType: "image/png", upsert: true,
+    });
+    if (uploadError) { console.error("Thumbnail upload error:", uploadError); return null; }
+    const thumbUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${thumbFileName}`;
+    await supabase.from("models").update({ thumbnail_url: thumbUrl }).eq("id", modelId);
+    return thumbUrl;
+  };
+
   const uploadSingleFile = async (file: File) => {
     const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const fileName = `${Date.now()}_${file.name}`;
@@ -141,21 +158,31 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       const detectedType = ["glb"].includes(ext) ? "glb" : ["png","jpg","jpeg","webp","gif"].includes(ext) ? "image" : ["mp4","webm","mov"].includes(ext) ? "video" : "glb";
       const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
 
-      let { error: insertError } = await supabase.from("models").insert({
+      let { error: insertError, data: insertData } = await supabase.from("models").insert({
         file_name: fileName, display_name: file.name.replace(/\.[^.]+$/, ""),
         category_id: activeCategory || categories[0]?.id || null,
         file_size: file.size, file_url: fileUrl, mesh_parts: translatedMeshes, media_type: detectedType,
-      });
+      }).select().single();
 
       if (insertError?.code === "42703" || insertError?.message?.includes("mesh_parts") || insertError?.message?.includes("media_type")) {
-        const { error: fallbackError } = await supabase.from("models").insert({
+        const fallback = await supabase.from("models").insert({
           file_name: fileName, display_name: file.name.replace(/\.[^.]+$/, ""),
           category_id: activeCategory || categories[0]?.id || null, file_size: file.size, file_url: fileUrl,
-        });
-        insertError = fallbackError ?? null;
+        }).select().single();
+        insertError = fallback.error ?? null;
+        insertData = fallback.data;
       }
 
       if (insertError) { updateUploadItem(uploadId, { status: "error", error: insertError.message }); return; }
+
+      // Auto-generate thumbnail for GLB files
+      if (detectedType === "glb" && insertData) {
+        try {
+          const { generateThumbnailFromFile } = await import("./ThumbnailGenerator");
+          const thumbBlob = await generateThumbnailFromFile(file);
+          if (thumbBlob) await uploadThumbnailBlob(thumbBlob, insertData.id);
+        } catch (e) { console.warn("Auto-thumbnail failed:", e); }
+      }
 
       updateUploadItem(uploadId, { status: "done" });
       await load();
@@ -173,6 +200,34 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   };
 
   const handleDropFiles = (files: File[]) => { files.forEach(f => void uploadSingleFile(f)); };
+
+  // ── Thumbnail generation ──
+  const handleGenerateThumbnail = async (rec: ModelRecord) => {
+    if (!rec.file_url) return;
+    setGeneratingThumbId(rec.id);
+    try {
+      const blob = await generateThumbnailFromUrl(rec.file_url);
+      if (blob) await uploadThumbnailBlob(blob, rec.id);
+      await load();
+    } catch (e) { console.warn("Thumbnail gen failed:", e); }
+    setGeneratingThumbId(null);
+  };
+
+  const handleBatchGenerateThumbnails = async () => {
+    const modelsWithoutThumb = models.filter(m => !m.thumbnail_url && m.file_url && (m.media_type || "glb") === "glb");
+    if (modelsWithoutThumb.length === 0) return;
+    setBatchGenerating(true);
+    for (const m of modelsWithoutThumb) {
+      setGeneratingThumbId(m.id);
+      try {
+        const blob = await generateThumbnailFromUrl(m.file_url!);
+        if (blob) await uploadThumbnailBlob(blob, m.id);
+      } catch {}
+    }
+    setGeneratingThumbId(null);
+    setBatchGenerating(false);
+    await load();
+  };
 
   // ── Sketchfab ──
   const collectDownloadUrls = (node: unknown, bag: string[] = []): string[] => {
@@ -238,6 +293,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     await load();
   };
 
+  const handleSaveDisplayName = async (modelId: string, name: string) => {
+    if (!name.trim()) return;
+    await supabase.from("models").update({ display_name: name.trim() }).eq("id", modelId);
+    await load();
+  };
+
   const handleReanalyze = async (rec: ModelRecord) => {
     if (!rec.file_url) return;
     setReanalyzingId(rec.id);
@@ -279,7 +340,18 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   });
 
   const combinedBase: ListModel[] = [...cloudListModels, ...(activeCategory || activeMediaType ? [] : localModels)];
-  const combinedModels = [...combinedBase].filter(m => !filterMash || modelHasMash(m)).sort((a, b) => {
+  
+  // Apply search filter
+  const searchFiltered = searchQuery.trim()
+    ? combinedBase.filter(m => {
+        const q = searchQuery.toLowerCase();
+        return m.displayName.toLowerCase().includes(q) ||
+          (m.record?.hebrew_name || "").toLowerCase().includes(q) ||
+          (m.record?.notes || "").toLowerCase().includes(q);
+      })
+    : combinedBase;
+
+  const combinedModels = [...searchFiltered].filter(m => !filterMash || modelHasMash(m)).sort((a, b) => {
     if (sortMode === "name") return a.displayName.localeCompare(b.displayName, "he");
     if (sortMode === "downloads") return (b.downloads - a.downloads) || (b.likes - a.likes);
     if (sortMode === "recommended") return (b.recommendedScore - a.recommendedScore) || (b.likes - a.likes);
@@ -291,8 +363,40 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
+  const modelsWithoutThumb = models.filter(m => !m.thumbnail_url && m.file_url && (m.media_type || "glb") === "glb").length;
+
   return (
     <div className="flex flex-col gap-0" style={{ direction: "rtl" }}>
+      {/* Header stats */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-accent/10">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-foreground">📦 מאגר מודלים</span>
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+            {models.length} בענן
+          </Badge>
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+            {localModels.length} מקומיים
+          </Badge>
+        </div>
+        <div className="flex items-center gap-1">
+          {modelsWithoutThumb > 0 && (
+            <button
+              onClick={handleBatchGenerateThumbnails}
+              disabled={batchGenerating}
+              className="text-[10px] bg-primary/10 text-primary border border-primary/30 rounded-lg px-2 py-1 font-semibold cursor-pointer hover:bg-primary/20 transition-colors disabled:opacity-50"
+            >
+              {batchGenerating ? `⏳ יוצר תמונות...` : `📸 צור תמונות (${modelsWithoutThumb})`}
+            </button>
+          )}
+          <button
+            onClick={() => setShowSketchfab(s => !s)}
+            className={`text-[10px] border rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors ${
+              showSketchfab ? "bg-primary/10 border-primary text-primary" : "bg-transparent border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >🔎 Sketchfab</button>
+        </div>
+      </div>
+
       {/* Categories */}
       <CategoryTabs
         categories={categories}
@@ -315,6 +419,17 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         countForMediaType={countForMediaType}
       />
 
+      {/* Search bar */}
+      <div className="px-2 pt-2">
+        <input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="🔍 חפש מודל לפי שם, תיאור..."
+          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs text-foreground outline-none focus:border-primary transition-colors"
+          style={{ direction: "rtl" }}
+        />
+      </div>
+
       {/* DB error */}
       {catLoadError && (
         <div className="text-[11px] text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-2.5 py-1.5 mx-2 mt-2">
@@ -322,18 +437,20 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         </div>
       )}
 
-      {/* Sketchfab search */}
-      <div className="px-2 pt-2">
-        <SketchfabSearch
-          onSearch={handleSketchfabSearch}
-          onImport={handleImportSketchfab}
-          results={sketchfabResults}
-          searching={sketchfabSearching}
-          error={sketchfabError}
-          importingUid={importingUid}
-          uploads={uploads}
-        />
-      </div>
+      {/* Sketchfab search - collapsible */}
+      {showSketchfab && (
+        <div className="px-2 pt-2">
+          <SketchfabSearch
+            onSearch={handleSketchfabSearch}
+            onImport={handleImportSketchfab}
+            results={sketchfabResults}
+            searching={sketchfabSearching}
+            error={sketchfabError}
+            importingUid={importingUid}
+            uploads={uploads}
+          />
+        </div>
+      )}
 
       {/* Upload zone */}
       <UploadZone
@@ -349,7 +466,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           {combinedModels.length === 0 && (
             <div className="text-center text-muted-foreground text-sm py-8 opacity-70">
               <span className="text-2xl block mb-2">📭</span>
-              אין מודלים בקטגוריה זו
+              {searchQuery ? "לא נמצאו תוצאות" : "אין מודלים בקטגוריה זו"}
             </div>
           )}
           {combinedModels.map(model => (
@@ -362,8 +479,11 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               onDelete={handleDelete}
               onSaveEdit={handleSaveEdit}
               onSaveInlineName={handleSaveInlineName}
+              onSaveDisplayName={handleSaveDisplayName}
               onReanalyze={handleReanalyze}
+              onGenerateThumbnail={handleGenerateThumbnail}
               reanalyzingId={reanalyzingId}
+              generatingThumbId={generatingThumbId}
             />
           ))}
         </div>
