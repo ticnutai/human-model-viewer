@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { getBestOrganDetail, getFallbackDetail, getOrganHintFromUrl, detectOrganByColor, ORGAN_DETAILS, getLocalizedOrganName, getLocalizedOrganSystem, searchOrgansByDisease } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
 import { supabase } from "@/integrations/supabase/client";
-import { useMeshMappings } from "@/hooks/useMeshMappings";
+import { useMeshMappings, useCloudLayers } from "@/hooks/useMeshMappings";
 
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
 import OrganDialog from "./OrganDialog";
@@ -472,6 +472,51 @@ const ModelViewer = () => {
   // Fetch all cloud mesh mappings for enriching organ info
   const { allMappings: cloudMeshData } = useMeshMappings();
 
+  // Fetch cloud layer definitions and organ shapes
+  const { cloudLayers, cloudShapes, loading: cloudLayersLoading } = useCloudLayers();
+
+  // Dynamic layer definitions from cloud (fallback to hardcoded)
+  const dynamicLayerDefs = useMemo(() => {
+    if (cloudLayers.length > 0) {
+      return cloudLayers.map(cl => ({
+        key: cl.key as LayerType,
+        label: cl.label,
+        labelEn: cl.labelEn,
+        icon: cl.icon,
+        color: cl.color,
+      }));
+    }
+    return LAYER_DEFS;
+  }, [cloudLayers]);
+
+  // Dynamic peel directions from cloud
+  const dynamicPeelDirs = useMemo(() => {
+    if (cloudLayers.length > 0) {
+      const dirs: Record<string, [number, number, number]> = {};
+      cloudLayers.forEach(cl => { dirs[cl.key] = cl.peelDirection; });
+      return dirs;
+    }
+    return undefined;
+  }, [cloudLayers]);
+
+  // Dynamic organ shapes from cloud (for InteractiveOrgans)
+  const dynamicShapes = useMemo(() => {
+    if (cloudShapes.length > 0) {
+      return cloudShapes.map(cs => ({
+        key: cs.key,
+        position: cs.position,
+        scale: cs.scale,
+        color: cs.color,
+        hoverColor: cs.hoverColor,
+        geometry: cs.geometry,
+        rotation: cs.rotation,
+        layer: cs.layer,
+        category: cs.category as LayerType,
+      }));
+    }
+    return undefined;
+  }, [cloudShapes]);
+
   // Build enriched ORGAN_DETAILS map from cloud data
   const enrichedOrganDetails = useMemo(() => {
     if (!cloudMeshData.length) return ORGAN_DETAILS;
@@ -479,7 +524,6 @@ const ModelViewer = () => {
     cloudMeshData.forEach(cm => {
       const factsData = cm.facts || {};
       const key = cm.mesh_key;
-      // Only add if not already in ORGAN_DETAILS (cloud supplements, doesn't override hardcoded)
       if (!enriched[key]) {
         enriched[key] = {
           name: cm.name,
@@ -799,7 +843,7 @@ const ModelViewer = () => {
 
           <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "🧩 Layers" : "🧩 שכבות"}</div>
           <div className="flex flex-col gap-1">
-            {LAYER_DEFS.map(layer => {
+            {dynamicLayerDefs.map(layer => {
               const active = visibleLayers.has(layer.key);
               return (
                 <button key={layer.key} onClick={() => toggleLayer(layer.key)}
@@ -819,7 +863,7 @@ const ModelViewer = () => {
           <div className="h-px bg-border" />
           <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "👁 Layer Opacity" : "👁 שקיפות שכבות"}</div>
           <div className="flex flex-col gap-1.5">
-            {LAYER_DEFS.map(layer => {
+            {dynamicLayerDefs.map(layer => {
               const active = visibleLayers.has(layer.key);
               return (
                 <div key={`opacity-${layer.key}`} className={`flex items-center gap-1.5 ${!active ? "opacity-30 pointer-events-none" : ""}`}>
@@ -1409,7 +1453,7 @@ const ModelViewer = () => {
           <Suspense fallback={null}>
             <ModelErrorBoundary key={modelUrl} onError={msg => { setModelLoadWarning(msg); if (modelUrl !== LOCAL_DEFAULT_MODEL) setModelUrl(LOCAL_DEFAULT_MODEL); }}>
               {useInteractive ? (
-                <InteractiveOrgans onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} explodeAmount={explodeAmount} focusSelected={focusSelected} animationSpeed={animationSpeed} pathologyKeys={pathologyKeys} layerOpacities={layerOpacities} peelAmount={peelAmount} bodyModelUrl={bodyModelUrl} />
+                <InteractiveOrgans onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} explodeAmount={explodeAmount} focusSelected={focusSelected} animationSpeed={animationSpeed} pathologyKeys={pathologyKeys} layerOpacities={layerOpacities} peelAmount={peelAmount} bodyModelUrl={bodyModelUrl} cloudShapes={dynamicShapes} cloudPeelDirs={dynamicPeelDirs} />
               ) : (
                 <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} onScan={handleGlbScan} />
               )}

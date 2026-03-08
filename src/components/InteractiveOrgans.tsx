@@ -616,6 +616,8 @@ export default function InteractiveOrgans({
   layerOpacities,
   peelAmount = 0,
   bodyModelUrl,
+  cloudShapes,
+  cloudPeelDirs,
 }: {
   onSelect: (detail: OrganDetail) => void;
   selectedMesh: string | null;
@@ -628,18 +630,22 @@ export default function InteractiveOrgans({
   layerOpacities?: Record<LayerType, number>;
   peelAmount?: number;
   bodyModelUrl?: string;
+  cloudShapes?: OrganShape[];
+  cloudPeelDirs?: Record<string, [number, number, number]>;
 }) {
   const layers = visibleLayers ?? new Set<LayerType>(["skeleton", "muscles", "organs", "vessels"]);
   const opacities = layerOpacities ?? { skeleton: 1, muscles: 1, organs: 1, vessels: 1 };
+  const shapes = cloudShapes && cloudShapes.length > 0 ? cloudShapes : ORGAN_SHAPES;
+  const peelDirs = cloudPeelDirs && Object.keys(cloudPeelDirs).length > 0 ? { ...LAYER_PEEL_DIRS, ...cloudPeelDirs } : LAYER_PEEL_DIRS;
 
   return (
     <group position={[0, -0.5, 0]}>
       <BodySilhouette modelUrl={bodyModelUrl} />
-      <LayerPeelGroup visible={layers.has("vessels")} opacity={opacities.vessels} peelAmount={peelAmount} peelDirection={LAYER_PEEL_DIRS.vessels}>
+      <LayerPeelGroup visible={layers.has("vessels")} opacity={opacities.vessels} peelAmount={peelAmount} peelDirection={peelDirs.vessels || LAYER_PEEL_DIRS.vessels}>
         <BloodVessels />
       </LayerPeelGroup>
-      {ORGAN_SHAPES.map((shape, i) => (
-        <LayerPeelGroup key={`${shape.key}-${i}`} visible={layers.has(shape.category)} opacity={opacities[shape.category]} peelAmount={peelAmount} peelDirection={LAYER_PEEL_DIRS[shape.category]}>
+      {shapes.map((shape, i) => (
+        <LayerPeelGroup key={`${shape.key}-${i}`} visible={layers.has(shape.category)} opacity={opacities[shape.category]} peelAmount={peelAmount} peelDirection={peelDirs[shape.category] || LAYER_PEEL_DIRS[shape.category] || [0,0,0]}>
           <Float
             speed={1.5}
             rotationIntensity={0}
