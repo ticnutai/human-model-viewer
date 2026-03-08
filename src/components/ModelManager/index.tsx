@@ -289,23 +289,22 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       updateUploadItem(uploadId, { status: "done", statusLabel: `🎉 ${file.name} — נשמר בהצלחה!` });
       await load();
 
-      // Step 4: Background tasks (mesh analysis + thumbnail) — non-blocking
+      // Step 4: Background tasks (smart analysis + thumbnail) — non-blocking
       if (insertData) {
         const modelId = insertData.id;
-        // Run analysis and thumbnail in background without blocking the UI
+        setBgProcessingIds(prev => new Set(prev).add(modelId));
+
         (async () => {
           try {
-            // Mesh analysis
-            const meshNames = await analyzeGlbMeshes(file);
-            if (meshNames.length > 0) {
-              const translatedMeshes = meshNames.map(translateMeshName);
-              await supabase.from("models").update({ mesh_parts: translatedMeshes }).eq("id", modelId);
-              console.log(`[Upload] Mesh analysis done for ${file.name}: ${meshNames.length} parts`);
+            // Smart 3-tier analysis: fast binary → worker → cloud
+            const result = await analyzeGlbSmart(file, modelId);
+            if (result.translatedNames.length > 0) {
+              await supabase.from("models").update({ mesh_parts: result.translatedNames }).eq("id", modelId);
+              console.log(`[Upload] Smart analysis (${result.method}): ${result.meshNames.length} meshes in ${result.durationMs}ms`);
             }
-          } catch (e) { console.warn("[Upload] Background mesh analysis failed:", e); }
+          } catch (e) { console.warn("[Upload] Background analysis failed:", e); }
 
           try {
-            // Thumbnail generation
             if (detectedType === "glb") {
               const { generateThumbnailFromFile } = await import("./ThumbnailGenerator");
               const thumbBlob = await generateThumbnailFromFile(file);
@@ -316,7 +315,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
             }
           } catch (e) { console.warn("[Upload] Background thumbnail failed:", e); }
 
-          // Refresh the list after background tasks complete
+          setBgProcessingIds(prev => { const s = new Set(prev); s.delete(modelId); return s; });
           load();
         })();
       }
