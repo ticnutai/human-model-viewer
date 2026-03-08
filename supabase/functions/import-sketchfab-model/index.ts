@@ -135,6 +135,7 @@ Deno.serve(async (req) => {
         fileUrl,
         fileSize,
         displayName,
+        modelId: insertData?.id || null,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
