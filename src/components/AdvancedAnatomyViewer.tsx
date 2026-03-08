@@ -93,16 +93,16 @@ const THEMES: Record<ThemeId, {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const cloud = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
 
-// Map local paths to cloud storage. Empty string = no cloud version yet.
+// Map local paths to cloud storage slugs. Uses closest available cloud model as fallback.
 const CLOUD_MAP: Record<string, string> = {
-  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb": "",
-  "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb": "",
-  "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb": "",
-  "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb": "",
-  "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb": "",
-  "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb": "",
-  "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb": "",
-  "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb": "",
+  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb": cloud("sketchfab_14191ef860b44925be0e94462c84ffe6.glb"), // Full anatomy as fallback
+  "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb": cloud("1772667675008_cardiac_anatomy_external_view.glb"), // Heart model
+  "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb": cloud("sketchfab_5a2c779eb9524a5081cb1e6297d15e83.glb"), // Hans anatomy
+  "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb": cloud("sketchfab_5a2c779eb9524a5081cb1e6297d15e83.glb"), // Hans anatomy
+  "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb": cloud("sketchfab_fa8ddd1d6aef42769e199532a49d28d6.glb"), // Ecorche muscles
+  "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb": cloud("sketchfab_fa8ddd1d6aef42769e199532a49d28d6.glb"), // Ecorche muscles
+  "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb": cloud("1772470980259_human_heart_3d_model__anatomy__medical_project.glb"), // Heart 3D
+  "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb": cloud("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb"), // Z-Anatomy full body
 };
 
 function resolveModelPath(localPath: string): string {
