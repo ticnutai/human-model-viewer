@@ -38,6 +38,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [generatingThumbId, setGeneratingThumbId] = useState<string | null>(null);
   const [batchGenerating, setBatchGenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
+  const [autoNaming, setAutoNaming] = useState(false);
 
   // Sketchfab
   const [sketchfabResults, setSketchfabResults] = useState<SketchfabSearchResult[]>([]);
