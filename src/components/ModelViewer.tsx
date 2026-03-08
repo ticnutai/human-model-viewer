@@ -309,6 +309,8 @@ const ModelViewer = () => {
   const [compareMode, setCompareMode] = useState(false);
   const [compareModelUrl, setCompareModelUrl] = useState(LOCAL_DEFAULT_MODEL);
   const [showSymptomSearch, setShowSymptomSearch] = useState(false);
+  const [layerOpacities, setLayerOpacities] = useState<Record<LayerType, number>>({ skeleton: 1, muscles: 1, organs: 1, vessels: 1 });
+  const [peelAmount, setPeelAmount] = useState(0);
 
   const t = THEMES[themeIdx];
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
