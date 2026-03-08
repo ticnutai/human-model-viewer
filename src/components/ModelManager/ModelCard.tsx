@@ -291,11 +291,7 @@ export default function ModelCard({
   }
 
   // ── LIST VIEW ──
-  // Generate a Hebrew label for local models too
-  const localHebrewHint = !isCloud ? (() => {
-    const { autoHebrewName } = require("./utils");
-    return autoHebrewName(model.displayName, model.url) || "";
-  })() : "";
+  const localHebrewHint = !isCloud ? autoHebrewName(model.displayName, model.url) : "";
   const displayHebrew = hebrewName || localHebrewHint;
 
   return (
