@@ -30,10 +30,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePreferences } from "@/hooks/usePreferences";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const LOCAL_DEFAULT_MODEL = "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb";
-const DEFAULT_MODEL = SUPABASE_URL
-  ? `${SUPABASE_URL}/storage/v1/object/public/models/sketchfab_6cc9217317804dc89622b7b0e499bc89.glb`
-  : LOCAL_DEFAULT_MODEL;
+const cloudUrl = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
+const LOCAL_DEFAULT_MODEL = cloudUrl("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb") || "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb";
+const DEFAULT_MODEL = LOCAL_DEFAULT_MODEL;
 const SKETCHFAB_TOKEN_STORAGE_KEY = "sketchfab-api-token";
 const EFFECTS_PREFS_KEY = "anatomy-effects-prefs-v1";
 
@@ -699,8 +698,8 @@ const ModelViewer = () => {
 
       {/* ═══ FLOATING LAYER PANEL (LEFT SIDE) ═══ */}
       <div className={`absolute z-[12] transition-all duration-300 ${showLayerPanel ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-        style={{ top: isMobile ? 52 : 62, [isRTL ? "right" : "left"]: isMobile ? 8 : 16 }}>
-        <div className="glass-panel p-2.5 flex flex-col gap-2" style={{ width: isMobile ? "auto" : 200 }}>
+        style={{ top: isMobile ? 52 : 62, [isRTL ? "right" : "left"]: isMobile ? 8 : 16, bottom: isMobile ? 52 : 62 }}>
+        <div className="glass-panel p-2.5 flex flex-col gap-2 overflow-y-auto sidebar-scroll h-full" style={{ width: isMobile ? "auto" : 200 }}>
           {/* Mode switch */}
           <div className="flex gap-1">
             <button onClick={() => setUseInteractive(true)} className={`flex-1 text-[10px] font-bold py-1.5 px-2 rounded-lg border transition-all cursor-pointer ${useInteractive ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground border-border hover:border-primary/50"}`}>
@@ -1202,12 +1201,12 @@ const ModelViewer = () => {
             }}>
               <div className="text-sm font-bold text-foreground mb-1.5">⚖️ {lang === "en" ? "Compare" : "השוואה"}</div>
               {([
-                { label: lang === "en" ? "Front Body" : "גוף קדמי", url: "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb" },
-                { label: lang === "en" ? "Male Torso" : "פלג גוף עליון", url: "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb" },
-                { label: lang === "en" ? "🫀 Heart" : "🫀 לב", url: "/models/humanatlas/vh-m-heart/model.glb" },
-                { label: lang === "en" ? "🧠 Brain" : "🧠 מוח", url: "/models/humanatlas/vh-f-allen-brain/model.glb" },
-                { label: lang === "en" ? "🫁 Lung" : "🫁 ריאה", url: "/models/humanatlas/vh-m-lung/model.glb" },
-              ]).map(item => (
+                { label: lang === "en" ? "Front Body" : "גוף קדמי", url: cloudUrl("sketchfab_15f7ed2eefb244dc94d32b6a7d989355.glb") },
+                { label: lang === "en" ? "Male Torso" : "פלג גוף עליון", url: cloudUrl("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb") },
+                { label: lang === "en" ? "🫀 Heart" : "🫀 לב", url: cloudUrl("sketchfab_3f8072336ce94d18b3d0d055a1ece089.glb") },
+                { label: lang === "en" ? "💪 Muscles" : "💪 שרירים", url: cloudUrl("sketchfab_991eb96938be4d0d8fadee241a1063d3.glb") },
+                { label: lang === "en" ? "🦴 Skeleton" : "🦴 שלד", url: cloudUrl("sketchfab_665890c542be433fb18ef235cf987cef.glb") },
+              ].filter(i => i.url)).map(item => (
                 <button key={item.url} onClick={() => setCompareModelUrl(item.url)}
                   className={`settings-item mb-1 ${compareModelUrl === item.url ? "active" : ""}`}
                   style={{ textAlign: isRTL ? "right" : "left" }}
