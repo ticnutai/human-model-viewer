@@ -642,10 +642,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     });
   };
 
-  const selectAllVisible = () => {
-    const cloudIds = combinedModels.filter(m => m.source === "cloud" && m.record?.file_url).map(m => m.id);
-    setSelectedIds(new Set(cloudIds));
-  };
+  // selectAllVisible defined after combinedModels
 
   const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false); };
 
