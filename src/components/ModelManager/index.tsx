@@ -232,6 +232,10 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     setUploads(prev => [...prev, item]);
 
     try {
+      // Get the user's session token for authenticated uploads
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
       const success = await new Promise<boolean>((resolve) => {
         const xhr = new XMLHttpRequest();
         const url = `${SUPABASE_URL}/storage/v1/object/models/${fileName}`;
@@ -240,11 +244,11 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         });
         xhr.addEventListener("load", () => {
           if (xhr.status >= 200 && xhr.status < 300) { updateUploadItem(uploadId, { progress: 100 }); resolve(true); }
-          else { updateUploadItem(uploadId, { status: "error", error: `שגיאה ${xhr.status}` }); resolve(false); }
+          else { console.error("[Upload] failed status:", xhr.status, xhr.responseText); updateUploadItem(uploadId, { status: "error", error: `שגיאה ${xhr.status}: ${xhr.statusText}` }); resolve(false); }
         });
         xhr.addEventListener("error", () => { updateUploadItem(uploadId, { status: "error", error: "החיבור נותק" }); resolve(false); });
         xhr.open("POST", url);
-        xhr.setRequestHeader("Authorization", `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`);
+        xhr.setRequestHeader("Authorization", `Bearer ${authToken}`);
         xhr.setRequestHeader("apikey", import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
         xhr.setRequestHeader("x-upsert", "true");
         xhr.send(file);
