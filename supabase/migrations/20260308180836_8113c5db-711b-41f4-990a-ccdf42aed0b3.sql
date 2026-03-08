@@ -1,0 +1,1 @@
+DELETE FROM public.models WHERE id NOT IN (SELECT DISTINCT ON (file_name) id FROM public.models ORDER BY file_name, created_at ASC);
