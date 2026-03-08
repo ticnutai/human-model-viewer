@@ -500,9 +500,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
       {/* Model list */}
       <ScrollArea className="max-h-[500px] px-2 pt-2">
-        <div className="flex flex-col gap-2 pb-2">
+        <div className={viewMode === "grid"
+          ? "grid grid-cols-2 gap-2 pb-2"
+          : "flex flex-col gap-2 pb-2"
+        }>
           {combinedModels.length === 0 && (
-            <div className="text-center text-muted-foreground text-sm py-8 opacity-70">
+            <div className={`text-center text-muted-foreground text-sm py-8 opacity-70 ${viewMode === "grid" ? "col-span-2" : ""}`}>
               <span className="text-2xl block mb-2">📭</span>
               {searchQuery ? "לא נמצאו תוצאות" : "אין מודלים בקטגוריה זו"}
             </div>
@@ -522,6 +525,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               onGenerateThumbnail={handleGenerateThumbnail}
               reanalyzingId={reanalyzingId}
               generatingThumbId={generatingThumbId}
+              viewMode={viewMode}
             />
           ))}
         </div>
