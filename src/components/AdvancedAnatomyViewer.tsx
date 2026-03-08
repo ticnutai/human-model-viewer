@@ -888,13 +888,7 @@ export default function AdvancedAnatomyViewer() {
 
         {/* Loading overlay */}
         {loadedMeshKeys.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center gap-3" style={{ background: theme.bg + "dd" }}>
-            <span className="text-3xl">⚕️</span>
-            <div>
-              <div className="text-base font-semibold">טוען {meta.titleHe}...</div>
-              <div className="text-xs" style={{ color: theme.textDim }}>Loading {meta.titleEn}</div>
-            </div>
-          </div>
+          <LoadingOverlay meta={meta} theme={theme} />
         )}
 
         {/* Model label */}
