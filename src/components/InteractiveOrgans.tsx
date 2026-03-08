@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { ThreeEvent, useFrame } from "@react-three/fiber";
 import { Html, Float } from "@react-three/drei";
@@ -542,6 +542,23 @@ function OrganMesh({
   );
 }
 
+/** Animated layer group — smoothly fades scale on show/hide */
+function LayerFadeGroup({ visible, children }: { visible: boolean; children: React.ReactNode }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const currentScale = useRef(visible ? 1 : 0);
+  const targetScale = visible ? 1 : 0;
+
+  useFrame(() => {
+    if (!groupRef.current) return;
+    currentScale.current += (targetScale - currentScale.current) * 0.08;
+    const s = currentScale.current;
+    groupRef.current.scale.set(s, s, s);
+    groupRef.current.visible = s > 0.01;
+  });
+
+  return <group ref={groupRef}>{children}</group>;
+}
+
 export default function InteractiveOrgans({
   onSelect,
   selectedMesh,
@@ -566,27 +583,30 @@ export default function InteractiveOrgans({
   return (
     <group position={[0, -0.5, 0]}>
       <BodySilhouette />
-      {layers.has("vessels") && <BloodVessels />}
-      {ORGAN_SHAPES.filter(s => layers.has(s.category)).map((shape, i) => (
-        <Float
-          key={`${shape.key}-${i}`}
-          speed={1.5}
-          rotationIntensity={0}
-          floatIntensity={shape.key === selectedMesh ? 0.08 : 0.02}
-          floatingRange={[-0.01, 0.01]}
-        >
-          <OrganMesh
-            shape={shape}
-            isSelected={selectedMesh === shape.key}
-            accent={accent}
-            explodeAmount={explodeAmount}
-            focusSelected={focusSelected}
-            hasSelection={Boolean(selectedMesh)}
-            onSelect={onSelect}
-            animationSpeed={animationSpeed}
-            pathologyKeys={pathologyKeys}
-          />
-        </Float>
+      <LayerFadeGroup visible={layers.has("vessels")}>
+        <BloodVessels />
+      </LayerFadeGroup>
+      {ORGAN_SHAPES.map((shape, i) => (
+        <LayerFadeGroup key={`${shape.key}-${i}`} visible={layers.has(shape.category)}>
+          <Float
+            speed={1.5}
+            rotationIntensity={0}
+            floatIntensity={shape.key === selectedMesh ? 0.08 : 0.02}
+            floatingRange={[-0.01, 0.01]}
+          >
+            <OrganMesh
+              shape={shape}
+              isSelected={selectedMesh === shape.key}
+              accent={accent}
+              explodeAmount={explodeAmount}
+              focusSelected={focusSelected}
+              hasSelection={Boolean(selectedMesh)}
+              onSelect={onSelect}
+              animationSpeed={animationSpeed}
+              pathologyKeys={pathologyKeys}
+            />
+          </Float>
+        </LayerFadeGroup>
       ))}
 
       {/* Global ambient particles */}
