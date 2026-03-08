@@ -180,7 +180,33 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     return thumbUrl;
   };
 
+  // ── Duplicate detection ──
+  const isDuplicate = (fileName: string, fileSize?: number): ModelRecord | undefined => {
+    const baseName = fileName.replace(/^\d+_/, "").replace(/\.[^.]+$/, "").toLowerCase().replace(/[_\-\s]+/g, "");
+    return models.find(m => {
+      const existingBase = m.file_name.replace(/^\d+_/, "").replace(/\.[^.]+$/, "").toLowerCase().replace(/[_\-\s]+/g, "");
+      const existingDisplay = m.display_name.toLowerCase().replace(/[_\-\s]+/g, "");
+      // Match by normalized name
+      if (existingBase === baseName || existingDisplay === baseName) return true;
+      // Match by sketchfab uid
+      const uidMatch = baseName.match(/sketchfab_([a-f0-9]+)/);
+      if (uidMatch && (existingBase.includes(uidMatch[1]) || existingDisplay.includes(uidMatch[1]))) return true;
+      // Match by exact size + similar name (first 10 chars)
+      if (fileSize && m.file_size === fileSize && baseName.slice(0, 10) === existingBase.slice(0, 10)) return true;
+      return false;
+    });
+  };
+
   const uploadSingleFile = async (file: File) => {
+    // Check for duplicates before uploading
+    const dup = isDuplicate(file.name, file.size);
+    if (dup) {
+      const uploadId = `dup_${Date.now()}`;
+      setUploads(prev => [...prev, { id: uploadId, file, fileName: file.name, progress: 0, status: "error", error: `⚠️ כפילות: "${dup.hebrew_name || dup.display_name}" כבר קיים במאגר` }]);
+      setTimeout(() => setUploads(prev => prev.filter(u => u.id !== uploadId)), 5000);
+      return;
+    }
+
     const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const fileName = `${Date.now()}_${file.name}`;
     const item: UploadItem = { id: uploadId, file, fileName, progress: 0, status: "uploading" };
