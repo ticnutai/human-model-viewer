@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { CheckCircle2 } from "lucide-react";
 import type { SketchfabSearchResult, UploadItem } from "./types";
 import { pickBestThumb, getSavedSketchfabToken } from "./utils";
 
@@ -12,27 +13,30 @@ interface SketchfabSearchProps {
   error: string | null;
   importingUid: string | null;
   uploads: UploadItem[];
+  existingUids?: string[];
 }
 
 const QUICK_SEARCHES = [
-  { label: "🧬 איברים", query: "human organ anatomy interactive 3d" },
-  { label: "🫀 לב", query: "human heart anatomy detailed 3d" },
-  { label: "🧠 מוח", query: "human brain anatomy 3d" },
-  { label: "🦴 שלד", query: "human skeleton anatomy full body" },
-  { label: "💪 שרירים", query: "human muscular system anatomy" },
-  { label: "🫁 ריאות", query: "human lungs respiratory system 3d" },
+  { label: "🧬 איברים פנימיים", query: "human internal organs anatomy detailed realistic" },
+  { label: "🫀 לב מפורט", query: "human heart anatomy realistic detailed high quality" },
+  { label: "🧠 מוח ועצבים", query: "human brain anatomy nervous system detailed" },
+  { label: "🦴 שלד מלא", query: "human skeleton anatomy full body realistic" },
+  { label: "💪 שרירים", query: "human muscular system anatomy realistic detailed" },
+  { label: "🫁 ריאות + נשימה", query: "human lungs respiratory system anatomy detailed" },
+  { label: "🩻 גוף מלא", query: "human full body anatomy medical realistic" },
+  { label: "🦷 ראש + גולגולת", query: "human skull head anatomy detailed realistic" },
 ];
 
-export default function SketchfabSearch({ onSearch, onImport, results, searching, error, importingUid, uploads }: SketchfabSearchProps) {
-  const [query, setQuery] = useState("human organ anatomy");
+export default function SketchfabSearch({ onSearch, onImport, results, searching, error, importingUid, uploads, existingUids = [] }: SketchfabSearchProps) {
+  const [query, setQuery] = useState("human organ anatomy realistic detailed");
   const [previewUid, setPreviewUid] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-2.5 p-3 rounded-xl"
       style={{ background: "hsl(220 20% 97%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}
     >
-      <div className="text-xs font-bold" style={{ color: "hsl(220 40% 13%)" }}>🔎 חיפוש מודלים ב-Sketchfab</div>
-      <div className="text-[10px]" style={{ color: "hsl(220 15% 55%)" }}>חפש, צפה בתצוגה מוקדמת וייבא GLB ישירות</div>
+      <div className="text-xs font-bold" style={{ color: "hsl(220 40% 13%)" }}>🔎 חיפוש מודלים משוכללים</div>
+      <div className="text-[10px]" style={{ color: "hsl(220 15% 55%)" }}>מודלים ממוינים לפי איכות ופופולריות • כפילויות מזוהות אוטומטית</div>
 
       {/* Quick searches */}
       <div className="flex gap-1.5 flex-wrap">
@@ -41,7 +45,7 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
             key={q}
             onClick={() => { setQuery(q); onSearch(q); }}
             disabled={searching}
-            className="rounded-full px-2.5 py-1 text-[10px] font-semibold cursor-pointer transition-all disabled:opacity-50 border-none"
+            className="rounded-full px-2.5 py-1 text-[10px] font-semibold cursor-pointer transition-all disabled:opacity-50"
             style={{ background: "hsl(0 0% 100%)", color: "hsl(43 78% 40%)", border: "1px solid hsl(43 60% 55% / 0.4)" }}
           >{label}</button>
         ))}
@@ -52,7 +56,7 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="human heart anatomy"
+          placeholder="human heart anatomy realistic..."
           className="flex-1 rounded-lg px-2.5 py-2 text-xs outline-none transition-colors"
           style={{ direction: "ltr", textAlign: "left", background: "hsl(0 0% 100%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 60% 55% / 0.35)" }}
           onKeyDown={(e) => e.key === "Enter" && onSearch(query)}
@@ -63,17 +67,17 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
           className="rounded-lg px-3 py-2 text-xs font-bold cursor-pointer transition-opacity disabled:opacity-60 border-none"
           style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}
         >
-          {searching ? "מחפש..." : "חפש"}
+          {searching ? "⏳ מחפש..." : "🔍 חפש"}
         </button>
       </div>
 
-      {error && <div className="text-[11px]" style={{ color: "hsl(0 70% 45%)" }}>{error}</div>}
+      {error && <div className="text-[11px] rounded-lg px-2.5 py-1.5" style={{ color: "hsl(0 70% 45%)", background: "hsl(0 80% 97%)", border: "1px solid hsl(0 70% 85%)" }}>{error}</div>}
 
       {/* Results */}
       {results.length > 0 && (
         <div className="flex flex-col gap-2">
           <div className="text-[10px] font-bold" style={{ color: "hsl(220 15% 55%)" }}>
-            {results.length} תוצאות נמצאו
+            {results.length} תוצאות • ממוינות לפי איכות
           </div>
           {results.slice(0, 12).map((result) => {
             const isPreview = previewUid === result.uid;
@@ -81,19 +85,32 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
             const thumb = pickBestThumb(result);
             const hasOrgan = /organ|heart|lung|liver|kidney|brain|stomach|torso|anatomy|skull|spine|muscle|bone|skeleton/.test(result.name.toLowerCase());
             const importUpload = uploads.find(u => u.fileName.toLowerCase().includes(result.uid.toLowerCase()));
+            const alreadyImported = existingUids.includes(result.uid);
 
             return (
               <div key={result.uid} className="rounded-xl p-2.5 transition-all"
-                style={{ background: "hsl(0 0% 100%)", border: "1px solid hsl(43 60% 55% / 0.25)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
+                style={{
+                  background: alreadyImported ? "hsl(145 40% 97%)" : "hsl(0 0% 100%)",
+                  border: `1px solid ${alreadyImported ? "hsl(145 50% 70%)" : "hsl(43 60% 55% / 0.25)"}`,
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+                  opacity: alreadyImported ? 0.75 : 1,
+                }}
               >
                 <div className="flex gap-2.5 items-center">
                   {thumb ? (
-                    <img src={thumb} alt={result.name} className="w-16 h-16 rounded-lg object-cover shrink-0" style={{ border: "1px solid hsl(43 60% 55% / 0.2)" }} />
+                    <img src={thumb} alt={result.name} className="w-16 h-16 rounded-lg object-cover shrink-0" loading="lazy" style={{ border: "1px solid hsl(43 60% 55% / 0.2)" }} />
                   ) : (
                     <div className="w-16 h-16 rounded-lg flex items-center justify-center text-xl shrink-0" style={{ background: "hsl(220 20% 96%)" }}>🧬</div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold leading-tight" style={{ color: "hsl(220 40% 13%)" }}>{result.name}</div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-xs font-bold leading-tight flex-1" style={{ color: "hsl(220 40% 13%)" }}>{result.name}</div>
+                      {alreadyImported && (
+                        <div className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: "hsl(145 50% 45% / 0.15)", color: "hsl(145 50% 35%)" }}>
+                          <CheckCircle2 size={10} /> קיים
+                        </div>
+                      )}
+                    </div>
                     <div className="flex gap-1.5 flex-wrap items-center mt-1 text-[10px]" style={{ color: "hsl(220 15% 55%)" }}>
                       <span>⬇ {Number(result.downloadCount ?? 0).toLocaleString()}</span>
                       <span>👁 {Number(result.viewCount ?? 0).toLocaleString()}</span>
@@ -136,12 +153,16 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
                       color: isPreview ? "hsl(43 78% 40%)" : "hsl(220 30% 35%)",
                     }}
                   >{isPreview ? "סגור תצוגה" : "👁 תצוגה מקדימה"}</button>
-                  <button
-                    onClick={() => onImport(result)}
-                    disabled={isImporting}
-                    className="rounded-lg px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-opacity disabled:opacity-50 border-none"
-                    style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}
-                  >{isImporting ? "⏳ מייבא..." : "📥 ייבוא למאגר"}</button>
+                  {alreadyImported ? (
+                    <span className="rounded-lg px-3 py-1.5 text-[11px] font-bold" style={{ background: "hsl(145 50% 45% / 0.1)", color: "hsl(145 50% 35%)" }}>✅ כבר במאגר</span>
+                  ) : (
+                    <button
+                      onClick={() => onImport(result)}
+                      disabled={isImporting}
+                      className="rounded-lg px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-opacity disabled:opacity-50 border-none"
+                      style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}
+                    >{isImporting ? "⏳ מייבא..." : "📥 ייבוא למאגר"}</button>
+                  )}
                   <a
                     href={result.viewerUrl || `https://sketchfab.com/models/${result.uid}`}
                     target="_blank"
@@ -160,6 +181,7 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
                       height="220"
                       className="border-none"
                       allow="autoplay; fullscreen; xr-spatial-tracking"
+                      loading="lazy"
                     />
                   </div>
                 )}
