@@ -205,6 +205,11 @@ export default function ModelCard({
               ▶ פעיל
             </div>
           )}
+          {isBackgroundProcessing && (
+            <div className="absolute bottom-2 right-2 flex items-center gap-1 text-[8px] px-2 py-1 rounded-md font-bold animate-pulse" style={{ background: "hsl(270 60% 55% / 0.9)", color: "white", backdropFilter: "blur(4px)" }}>
+              <Loader2 size={10} className="animate-spin" /> מנתח ברקע...
+            </div>
+          )}
 
           {/* Hover overlay — always show, not just when thumb exists */}
           <div
