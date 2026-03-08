@@ -468,6 +468,36 @@ const ModelViewer = () => {
     supabase.from("models").select("id, display_name, hebrew_name, file_url").order("display_name")
       .then(({ data }) => { if (data) setCloudModels(data); });
   }, []);
+
+  // Fetch all cloud mesh mappings for enriching organ info
+  const { allMappings: cloudMeshData } = useMeshMappings();
+
+  // Build enriched ORGAN_DETAILS map from cloud data
+  const enrichedOrganDetails = useMemo(() => {
+    if (!cloudMeshData.length) return ORGAN_DETAILS;
+    const enriched = { ...ORGAN_DETAILS };
+    cloudMeshData.forEach(cm => {
+      const factsData = cm.facts || {};
+      const key = cm.mesh_key;
+      // Only add if not already in ORGAN_DETAILS (cloud supplements, doesn't override hardcoded)
+      if (!enriched[key]) {
+        enriched[key] = {
+          name: cm.name,
+          hebrewName: factsData.displayNameHe || cm.summary,
+          system: cm.system,
+          meshName: key,
+          description: factsData.functionHe || factsData.function || "",
+          latinName: factsData.latinName || "",
+          diseases: factsData.diseasesHe || factsData.diseases || [],
+          facts: factsData.factsHe || factsData.facts || [],
+          icon: cm.icon,
+          cameraPos: undefined,
+          lookAt: undefined,
+        } as unknown as OrganDetail;
+      }
+    });
+    return enriched;
+  }, [cloudMeshData]);
   const t = THEMES[themeIdx];
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
   const lessonSequence = useMemo(() => Object.keys(ORGAN_DETAILS), []);
