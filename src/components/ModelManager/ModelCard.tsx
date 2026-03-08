@@ -180,11 +180,11 @@ export default function ModelCard({
 
         {/* Info */}
         <div className="p-2.5 flex flex-col gap-1">
-          <div className="text-[11px] font-bold truncate leading-tight" dir="rtl" style={{ color: "hsl(220 40% 13%)" }}>
-            {hebrewName || cleanDisplayName}
+          <div className="text-[12px] font-bold leading-tight" dir="rtl" style={{ color: "hsl(220 40% 13%)", wordBreak: "break-word" }}>
+            {displayHebrew || cleanDisplayName}
           </div>
-          {hebrewName && (
-            <div className="text-[9px] truncate" dir="ltr" style={{ color: "hsl(220 15% 55%)" }}>
+          {displayHebrew && (
+            <div className="text-[10px] truncate" dir="ltr" style={{ color: "hsl(220 15% 55%)" }}>
               {cleanDisplayName}
             </div>
           )}
