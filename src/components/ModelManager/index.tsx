@@ -44,7 +44,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [autoNaming, setAutoNaming] = useState(false);
   const [managerTab, setManagerTab] = useState<"models" | "meshmap" | "allmappings">("models");
-
+  const [bgProcessingIds, setBgProcessingIds] = useState<Set<string>>(new Set());
   // Sketchfab
   const [sketchfabResults, setSketchfabResults] = useState<SketchfabSearchResult[]>([]);
   const [sketchfabSearching, setSketchfabSearching] = useState(false);
