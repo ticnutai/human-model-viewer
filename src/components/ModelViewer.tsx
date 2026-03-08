@@ -937,7 +937,7 @@ const ModelViewer = () => {
               <span style={{ color: "hsl(43 78% 42%)" }}>⭐ {favorites.size}</span>
             </div>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(220 20% 93%)" }}>
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(ORGAN_DETAILS).length, 1) * 100)}%`, background: "linear-gradient(90deg, hsl(43 78% 47%), hsl(43 78% 55%))" }} />
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(enrichedOrganDetails).length, 1) * 100)}%`, background: "linear-gradient(90deg, hsl(43 78% 47%), hsl(43 78% 55%))" }} />
             </div>
           </div>
 
