@@ -509,58 +509,24 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       updateUploadItem(uploadId, { status: "done", progress: 100, statusLabel: `✅ ${model.name} — יובא בהצלחה!` });
       await load();
       
-      // Background analysis + thumbnail (non-blocking, like regular uploads)
-      if (result.fileUrl) {
-        const modelId = result.modelId || null;
-        console.log(`[Sketchfab Import] 🔄 Starting background analysis for ${model.name}...`);
-        if (modelId) setBgProcessingIds(prev => new Set(prev).add(modelId));
+      // Mesh analysis is now done server-side — only generate thumbnail client-side
+      console.log(`[Sketchfab Import] ✅ Server returned ${result.meshCount || 0} meshes, ${result.nodeCount || 0} nodes`);
+      if (result.modelId && result.fileUrl) {
+        const modelId = result.modelId;
+        setBgProcessingIds(prev => new Set(prev).add(modelId));
         
         (async () => {
           try {
-            // Download the file for local analysis
-            console.log(`[Sketchfab Import/BG] ⬇️ Fetching GLB for analysis: ${result.fileUrl}`);
-            const glbRes = await fetch(result.fileUrl);
-            console.log(`[Sketchfab Import/BG] Fetch status: ${glbRes.status}, ok=${glbRes.ok}`);
-            if (!glbRes.ok) {
-              console.error(`[Sketchfab Import/BG] ❌ Failed to fetch GLB: ${glbRes.status} ${glbRes.statusText}`);
-              return;
+            console.log(`[Sketchfab Import/BG] 📸 Generating thumbnail from URL...`);
+            const thumbBlob = await generateThumbnailFromUrl(result.fileUrl);
+            if (thumbBlob) {
+              await uploadThumbnailBlob(thumbBlob, modelId);
+              console.log(`[Sketchfab Import/BG] ✅ Thumbnail uploaded`);
+            } else {
+              console.warn(`[Sketchfab Import/BG] ⚠️ Thumbnail returned null`);
             }
-            const glbBlob = await glbRes.blob();
-            console.log(`[Sketchfab Import/BG] Blob size: ${(glbBlob.size/1024).toFixed(0)}KB`);
-            const glbFile = new File([glbBlob], `sketchfab_${model.uid}.glb`, { type: "model/gltf-binary" });
-            
-            // Mesh analysis
-            try {
-              console.log(`[Sketchfab Import/BG] 🔬 Starting mesh analysis...`);
-              const analysisResult = await analyzeGlbSmart(glbFile, modelId || model.uid);
-              console.log(`[Sketchfab Import/BG] 🔬 Analysis done: method=${analysisResult.method}, meshes=${analysisResult.meshNames.length}, translated=${analysisResult.translatedNames.length}`);
-              if (modelId && analysisResult.translatedNames.length > 0) {
-                const { error: meshErr } = await supabase.from("models").update({ mesh_parts: analysisResult.translatedNames }).eq("id", modelId);
-                if (meshErr) console.error(`[Sketchfab Import/BG] ❌ mesh_parts save error:`, meshErr);
-                else console.log(`[Sketchfab Import/BG] ✅ Saved ${analysisResult.translatedNames.length} mesh parts`);
-              } else {
-                console.warn(`[Sketchfab Import/BG] ⚠️ No meshes to save (modelId=${modelId}, translated=${analysisResult.translatedNames.length})`);
-              }
-            } catch (analysisErr) {
-              console.error(`[Sketchfab Import/BG] ❌ Mesh analysis exception:`, analysisErr);
-            }
-            
-            // Thumbnail generation
-            try {
-              console.log(`[Sketchfab Import/BG] 📸 Starting thumbnail generation...`);
-              const { generateThumbnailFromFile } = await import("./ThumbnailGenerator");
-              const thumbBlob = await generateThumbnailFromFile(glbFile);
-              console.log(`[Sketchfab Import/BG] 📸 Thumbnail result: ${thumbBlob ? `${(thumbBlob.size/1024).toFixed(0)}KB` : 'null'}`);
-              if (thumbBlob && modelId) {
-                await uploadThumbnailBlob(thumbBlob, modelId);
-                console.log(`[Sketchfab Import/BG] ✅ Thumbnail uploaded`);
-              }
-            } catch (thumbErr) {
-              console.error(`[Sketchfab Import/BG] ❌ Thumbnail exception:`, thumbErr);
-            }
-          } catch (e) { console.error("[Sketchfab Import/BG] ❌ Top-level background error:", e); }
-          if (modelId) setBgProcessingIds(prev => { const s = new Set(prev); s.delete(modelId); return s; });
-          console.log(`[Sketchfab Import/BG] 🏁 All background tasks complete for ${modelId}`);
+          } catch (e) { console.error("[Sketchfab Import/BG] ❌ Thumbnail error:", e); }
+          setBgProcessingIds(prev => { const s = new Set(prev); s.delete(modelId); return s; });
           load();
         })();
       }
