@@ -1171,7 +1171,7 @@ const ModelViewer = () => {
 
       {/* ═══ ORGAN DIALOG ═══ */}
       {selectedOrgan && !showOrganSidebar && (
-        <OrganDialog organ={selectedOrgan} onClose={() => setSelectedOrgan(null)} theme={t} lang={lang} />
+        <OrganDialog organ={selectedOrgan} onClose={() => setSelectedOrgan(null)} theme={t} />
       )}
 
       {/* ═══ 3D CANVAS ═══ */}
