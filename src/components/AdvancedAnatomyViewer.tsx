@@ -1,54 +1,36 @@
 /**
- * AdvancedAnatomyViewer – GLB layer viewer with explode mode, per-mesh
- * toggles, x-ray transparency, click-to-focus and inline organ info panels.
- *
- * Supported models (already in public/models/sketchfab/):
- *   skull  – visible-interactive-human-exploding-skull  (25 bones, 1 anim)
- *   thorax – human-anatomy-heart-in-thorax             (11 organs, no anim)
+ * AdvancedAnatomyViewer – שדרוג מלא עם:
+ * - ערכות נושא מרובות + הגדרות
+ * - תרגום מלא לעברית
+ * - מודלים נוספים (שלד, שרירים, לב, גולגולת, בית חזה)
+ * - שכבות + מידע אנטומי משוכלל
+ * - X-Ray, Explode, חיפוש
  */
 
 import {
-  Canvas,
-  useLoader,
-  useThree,
-  useFrame,
-  ThreeEvent,
+  Canvas, useLoader, useThree, useFrame, ThreeEvent,
 } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useNavigate } from "react-router-dom";
 import {
-  Suspense,
-  useRef,
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  Component,
-  type ReactNode,
-  type ErrorInfo,
+  Suspense, useRef, useState, useEffect, useMemo, useCallback,
+  Component, type ReactNode, type ErrorInfo,
 } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Model paths
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Model definitions ───────────────────────────────────────────────────────
 
-const SKULL_PATH =
-  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb";
-
-const THORAX_PATH =
-  "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Anatomy data
-// ─────────────────────────────────────────────────────────────────────────────
+type ModelId = "skull" | "thorax" | "skeleton_f" | "skeleton_m" | "muscles_f" | "muscles_m" | "heart" | "torso";
 
 type Layer = {
   id: string;
   label: string;
   labelHe: string;
   color: string;
+  icon: string;
   meshPatterns: RegExp[];
 };
 
@@ -57,548 +39,417 @@ type MeshInfo = {
   displayNameHe: string;
   layer: string;
   facts: string[];
+  factsHe: string[];
   latinName: string;
   function: string;
+  functionHe: string;
   diseases: string[];
+  diseasesHe: string[];
 };
 
-// ── Skull layers ──
-const SKULL_LAYERS: Layer[] = [
-  {
-    id: "cranium",
-    label: "Cranium",
-    labelHe: "קרניום (גולגולת)",
-    color: "#e8d5b7",
-    meshPatterns: [
-      /frontal/i, /parietal/i, /occipital/i, /temporal/i,
-      /sphenoid/i, /ethmoid/i,
-    ],
-  },
-  {
-    id: "face",
-    label: "Facial Bones",
-    labelHe: "עצמות פנים",
-    color: "#f4c2a1",
-    meshPatterns: [
-      /zygomatic/i, /max/i, /nasal/i, /lacrimal/i, /palatine/i,
-      /vomer/i, /concha/i, /inferior/i,
-    ],
-  },
-  {
-    id: "jaw",
-    label: "Jaw & Teeth",
-    labelHe: "לסת ושיניים",
-    color: "#b5d5f5",
-    meshPatterns: [/mandible/i, /hyoid/i, /teeth/i, /tooth/i],
-  },
-];
+// ─── Theme system ────────────────────────────────────────────────────────────
 
-const SKULL_MESH_INFO: Record<string, MeshInfo> = {
-  Left_zygomatic: {
-    displayName: "Left Zygomatic",
-    displayNameHe: "עצם לחי שמאל",
-    layer: "face",
-    facts: ["Forms the prominent cheek arch", "Articulates with 4 bones"],
-    latinName: "Os zygomaticum sinistrum",
-    function: "Forms the cheekbone and lateral orbital wall",
-    diseases: ["Zygomatic fracture", "Malar hypoplasia"],
+type ThemeId = "dark" | "midnight" | "surgical" | "warm" | "ocean";
+
+const THEMES: Record<ThemeId, {
+  name: string; nameHe: string; icon: string;
+  bg: string; panel: string; border: string;
+  text: string; textDim: string; accent: string;
+  accentBg: string; canvasBg: string;
+}> = {
+  dark: {
+    name: "Dark", nameHe: "כהה", icon: "🌙",
+    bg: "#0d1117", panel: "#161b22", border: "#30363d",
+    text: "#f0f6fc", textDim: "#8b949e", accent: "#58a6ff",
+    accentBg: "rgba(88,166,255,0.12)", canvasBg: "#0d1117",
   },
-  Right_zygomatic: {
-    displayName: "Right Zygomatic",
-    displayNameHe: "עצם לחי ימין",
-    layer: "face",
-    facts: ["Mirror of left zygomatic", "Key to facial width"],
-    latinName: "Os zygomaticum dextrum",
-    function: "Forms the cheekbone and lateral orbital wall",
-    diseases: ["Zygomatic fracture"],
+  midnight: {
+    name: "Midnight", nameHe: "חצות", icon: "🌌",
+    bg: "#0a0a1a", panel: "#12122a", border: "#2a2a4a",
+    text: "#e8e8ff", textDim: "#7878aa", accent: "#a78bfa",
+    accentBg: "rgba(167,139,250,0.12)", canvasBg: "#0a0a1a",
   },
-  Occipital: {
-    displayName: "Occipital",
-    displayNameHe: "עצם העורף",
-    layer: "cranium",
-    facts: [
-      "Contains the foramen magnum where the spinal cord passes",
-      "Articulates with the atlas (C1)",
-    ],
-    latinName: "Os occipitale",
-    function: "Forms the back and base of the skull, protects cerebellum",
-    diseases: ["Occipital neuralgia", "Chiari malformation"],
+  surgical: {
+    name: "Surgical", nameHe: "כירורגי", icon: "🏥",
+    bg: "#f0f4f8", panel: "#ffffff", border: "#d0d7de",
+    text: "#1f2937", textDim: "#6b7280", accent: "#059669",
+    accentBg: "rgba(5,150,105,0.1)", canvasBg: "#e8edf2",
   },
-  Right_lacrimal: {
-    displayName: "Right Lacrimal",
-    displayNameHe: "עצם הדמעה ימין",
-    layer: "face",
-    facts: ["Smallest facial bone", "Contains the nasolacrimal groove"],
-    latinName: "Os lacrimale dextrum",
-    function: "Houses the nasolacrimal duct for tear drainage",
-    diseases: ["Dacryocystitis (tear duct infection)"],
+  warm: {
+    name: "Warm", nameHe: "חם", icon: "🔥",
+    bg: "#1a120b", panel: "#231a10", border: "#3d2e1e",
+    text: "#f5e6d3", textDim: "#a08b72", accent: "#f59e0b",
+    accentBg: "rgba(245,158,11,0.12)", canvasBg: "#1a120b",
   },
-  Left_lacrimal: {
-    displayName: "Left Lacrimal",
-    displayNameHe: "עצם הדמעה שמאל",
-    layer: "face",
-    facts: ["Smallest facial bone", "Part of medial orbital wall"],
-    latinName: "Os lacrimale sinistrum",
-    function: "Houses the nasolacrimal duct for tear drainage",
-    diseases: ["Dacryocystitis"],
-  },
-  Right_max: {
-    displayName: "Right Maxilla",
-    displayNameHe: "עצם הלסת העליונה ימין",
-    layer: "face",
-    facts: ["Holds upper teeth", "Largest facial bone besides mandible"],
-    latinName: "Maxilla dextra",
-    function: "Forms the upper jaw, holds upper teeth, forms hard palate",
-    diseases: ["Maxillary sinusitis", "Cleft palate"],
-  },
-  Left_max: {
-    displayName: "Left Maxilla",
-    displayNameHe: "עצם הלסת העליונה שמאל",
-    layer: "face",
-    facts: ["Holds upper teeth", "Fuses with right maxilla at midline"],
-    latinName: "Maxilla sinistra",
-    function: "Forms the upper jaw, holds upper teeth, forms hard palate",
-    diseases: ["Cleft lip and palate", "Maxillary fracture"],
-  },
-  right_nasal: {
-    displayName: "Right Nasal",
-    displayNameHe: "עצם האף ימין",
-    layer: "face",
-    facts: ["Small rectangular bone", "Forms the nasal bridge"],
-    latinName: "Os nasale dextrum",
-    function: "Forms the bridge of the nose",
-    diseases: ["Nasal fracture", "Rhinitis"],
-  },
-  left_nasal: {
-    displayName: "Left Nasal",
-    displayNameHe: "עצם האף שמאל",
-    layer: "face",
-    facts: ["Small rectangular bone", "Often asymmetric between individuals"],
-    latinName: "Os nasale sinistrum",
-    function: "Forms the bridge of the nose",
-    diseases: ["Nasal fracture"],
-  },
-  right_palatine: {
-    displayName: "Right Palatine",
-    displayNameHe: "עצם החיך ימין",
-    layer: "face",
-    facts: ["L-shaped bone", "Forms the posterior hard palate"],
-    latinName: "Os palatinum dextrum",
-    function: "Forms the posterior third of the hard palate",
-    diseases: ["Cleft palate"],
-  },
-  left_palatine: {
-    displayName: "Left Palatine",
-    displayNameHe: "עצם החיך שמאל",
-    layer: "face",
-    facts: ["L-shaped bone", "Contains greater palatine foramen"],
-    latinName: "Os palatinum sinistrum",
-    function: "Forms the posterior third of the hard palate",
-    diseases: ["Cleft palate"],
-  },
-  Right_Parietal: {
-    displayName: "Right Parietal",
-    displayNameHe: "עצם הקדקוד ימין",
-    layer: "cranium",
-    facts: [
-      "Forms the top-side of the skull",
-      "Contains the parietal foramen for a small emissary vein",
-    ],
-    latinName: "Os parietale dextrum",
-    function: "Forms the roof and sides of the cranium, protects the brain",
-    diseases: ["Parietal fracture", "Arachnoid cyst"],
-  },
-  Left_Parietal: {
-    displayName: "Left Parietal",
-    displayNameHe: "עצם הקדקוד שמאל",
-    layer: "cranium",
-    facts: ["Articulates with all other cranial bones", "Convex outer surface"],
-    latinName: "Os parietale sinistrum",
-    function: "Forms the roof and sides of the cranium, protects the brain",
-    diseases: ["Parietal lobe stroke"],
-  },
-  Right_temporal: {
-    displayName: "Right Temporal",
-    displayNameHe: "עצם הרקה ימין",
-    layer: "cranium",
-    facts: [
-      "Contains the inner ear structures",
-      "Has the mastoid process (behind the ear)",
-    ],
-    latinName: "Os temporale dextrum",
-    function: "Houses the ear canal and inner ear, forms the jaw joint",
-    diseases: ["Temporal bone fracture", "Mastoiditis", "Labyrinthitis"],
-  },
-  Left_temporal: {
-    displayName: "Left Temporal",
-    displayNameHe: "עצם הרקה שמאל",
-    layer: "cranium",
-    facts: [
-      "Contains cochlea and vestibular apparatus",
-      "Styloid process anchors tongue muscles",
-    ],
-    latinName: "Os temporale sinistrum",
-    function: "Houses the ear canal and inner ear, forms the jaw joint",
-    diseases: ["Temporal arteritis", "Hearing loss"],
-  },
-  Frontal: {
-    displayName: "Frontal",
-    displayNameHe: "עצם המצח",
-    layer: "cranium",
-    facts: [
-      "Forms the forehead",
-      "Contains the frontal sinuses which lighten the skull",
-    ],
-    latinName: "Os frontale",
-    function: "Frontal lobe protection, forms orbital roof",
-    diseases: ["Frontal sinusitis", "Frontal lobe injury"],
-  },
-  Sphenoid: {
-    displayName: "Sphenoid",
-    displayNameHe: "עצם הפרפר",
-    layer: "cranium",
-    facts: [
-      'Called the "butterfly bone" due to its shape',
-      "Articulates with all other cranial bones",
-    ],
-    latinName: "Os sphenoidale",
-    function: "Keystone of the skull base; protects pituitary gland",
-    diseases: ["Pituitary adenoma", "Sphenoid sinusitis"],
-  },
-  Ethmoid: {
-    displayName: "Ethmoid",
-    displayNameHe: "עצם המסננת",
-    layer: "cranium",
-    facts: [
-      "Lightest skull bone — mostly air cells",
-      "Contains olfactory foramina for smell nerves",
-    ],
-    latinName: "Os ethmoidale",
-    function: "Separates the nasal cavity from the brain",
-    diseases: ["Ethmoid sinusitis", "Epistaxis (nosebleed)"],
-  },
-  Mandible: {
-    displayName: "Mandible",
-    displayNameHe: "הלסת התחתונה",
-    layer: "jaw",
-    facts: [
-      "The only movable bone in the skull",
-      "Holds all lower teeth",
-    ],
-    latinName: "Mandibula",
-    function: "Lower jaw — chewing, speech, swallowing",
-    diseases: ["TMJ disorder", "Mandible fracture", "Osteonecrosis"],
-  },
-  Teeth: {
-    displayName: "Upper Teeth",
-    displayNameHe: "שיניים עליונות",
-    layer: "jaw",
-    facts: ["32 permanent teeth in adults", "Enamel is the hardest substance in the body"],
-    latinName: "Dentes superiores",
-    function: "Cutting and grinding food during mastication",
-    diseases: ["Caries", "Periodontitis", "Malocclusion"],
-  },
-  Lower_teeth: {
-    displayName: "Lower Teeth",
-    displayNameHe: "שיניים תחתונות",
-    layer: "jaw",
-    facts: ["Lower incisors are usually the first permanent teeth to erupt"],
-    latinName: "Dentes inferiores",
-    function: "Biting and grinding food; important for speech",
-    diseases: ["Caries", "Bruxism (teeth grinding)"],
-  },
-  Inferior_conchae: {
-    displayName: "Inferior Nasal Conchae",
-    displayNameHe: "קונכיות אפיות תחתונות",
-    layer: "face",
-    facts: ["Only facial bone that is a separate bone", "Largest nasal turbinate"],
-    latinName: "Conchae nasales inferiores",
-    function: "Warm, humidify and filter incoming air",
-    diseases: ["Concha bullosa", "Turbinate hypertrophy"],
-  },
-  Vomer: {
-    displayName: "Vomer",
-    displayNameHe: "עצם המחיצה האפית",
-    layer: "face",
-    facts: [
-      "Plough-shaped bone",
-      "Forms part of the nasal septum",
-    ],
-    latinName: "Vomer",
-    function: "Forms the inferior part of the nasal septum",
-    diseases: ["Deviated septum"],
+  ocean: {
+    name: "Ocean", nameHe: "אוקיינוס", icon: "🌊",
+    bg: "#0c1929", panel: "#0f2035", border: "#1e3a5f",
+    text: "#e0f2fe", textDim: "#64a0c8", accent: "#06b6d4",
+    accentBg: "rgba(6,182,212,0.12)", canvasBg: "#0c1929",
   },
 };
 
-// ── Thorax / Heart-in-Thorax layers ──
-const THORAX_LAYERS: Layer[] = [
-  {
-    id: "respiratory",
-    label: "Respiratory",
-    labelHe: "מערכת הנשימה",
-    color: "#f4a0a0",
-    meshPatterns: [/trachea/i, /lung/i],
-  },
-  {
-    id: "cardiovascular",
-    label: "Cardiovascular",
-    labelHe: "מערכת הלב",
-    color: "#cc3355",
-    meshPatterns: [/heart/i, /valve/i, /aorta/i, /vessel/i],
-  },
-  {
-    id: "skeletal",
-    label: "Skeletal",
-    labelHe: "מערכת השלד",
-    color: "#d4b896",
-    meshPatterns: [/thorax/i, /rib/i, /costal/i, /vertebr/i, /sternum/i, /clavicle/i],
-  },
-  {
-    id: "glands",
-    label: "Glands",
-    labelHe: "בלוטות",
-    color: "#90ee90",
-    meshPatterns: [/thyroid/i, /thymus/i, /gland/i],
-  },
-];
+// ─── Model paths & metadata ──────────────────────────────────────────────────
 
-const THORAX_MESH_INFO: Record<string, MeshInfo> = {
-  Heart: {
-    displayName: "Heart",
-    displayNameHe: "הלב",
-    layer: "cardiovascular",
-    facts: [
-      "Beats ~100,000 times per day",
-      "Pumps ~5 liters of blood per minute at rest",
-      "Has 4 chambers: 2 atria + 2 ventricles",
+const MODEL_META: Record<ModelId, {
+  path: string; titleHe: string; titleEn: string;
+  icon: string; layers: Layer[]; infoMap: Record<string, MeshInfo>;
+  hasAnimation: boolean; description: string;
+}> = {
+  skull: {
+    path: "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb",
+    titleHe: "גולגולת מתפרקת", titleEn: "Exploding Skull", icon: "💀",
+    hasAnimation: true, description: "25 עצמות הגולגולת עם אנימציית פירוק",
+    layers: [
+      { id: "cranium", label: "Cranium", labelHe: "קרניום", color: "#e8d5b7", icon: "🧠",
+        meshPatterns: [/frontal/i, /parietal/i, /occipital/i, /temporal/i, /sphenoid/i, /ethmoid/i] },
+      { id: "face", label: "Facial Bones", labelHe: "עצמות פנים", color: "#f4c2a1", icon: "😮",
+        meshPatterns: [/zygomatic/i, /max/i, /nasal/i, /lacrimal/i, /palatine/i, /vomer/i, /concha/i, /inferior/i] },
+      { id: "jaw", label: "Jaw & Teeth", labelHe: "לסת ושיניים", color: "#b5d5f5", icon: "🦷",
+        meshPatterns: [/mandible/i, /hyoid/i, /teeth/i, /tooth/i] },
     ],
-    latinName: "Cor",
-    function: "Pumps oxygenated blood through the entire body",
-    diseases: ["Myocardial infarction", "Heart failure", "Arrhythmia", "Cardiomyopathy"],
+    infoMap: {
+      Frontal: { displayName: "Frontal Bone", displayNameHe: "עצם המצח", layer: "cranium",
+        facts: ["Forms the forehead", "Contains frontal sinuses"],
+        factsHe: ["מהווה את המצח", "מכיל את הסינוסים המצחיים"],
+        latinName: "Os frontale", function: "Protects the frontal lobe, forms orbital roof",
+        functionHe: "מגן על האונה הקדמית, מהווה את תקרת ארובת העין",
+        diseases: ["Frontal sinusitis", "Frontal fracture"], diseasesHe: ["דלקת סינוסים מצחית", "שבר מצחי"] },
+      Occipital: { displayName: "Occipital Bone", displayNameHe: "עצם העורף", layer: "cranium",
+        facts: ["Contains the foramen magnum", "Articulates with the atlas (C1)"],
+        factsHe: ["מכיל את הפורמן מגנום - פתח חוט השדרה", "מתחבר לחוליה הראשונה"],
+        latinName: "Os occipitale", function: "Forms the back/base of the skull, protects cerebellum",
+        functionHe: "מהווה את חלקה האחורי והתחתון של הגולגולת, מגן על המוח הקטן",
+        diseases: ["Occipital neuralgia", "Chiari malformation"], diseasesHe: ["נוירלגיה עורפית", "מום קיארי"] },
+      Sphenoid: { displayName: "Sphenoid Bone", displayNameHe: "עצם הפרפר", layer: "cranium",
+        facts: ["Called the 'butterfly bone'", "Articulates with all cranial bones"],
+        factsHe: ["נקראת 'עצם הפרפר' בשל צורתה", "מתחברת לכל עצמות הגולגולת"],
+        latinName: "Os sphenoidale", function: "Keystone of skull base; protects pituitary gland",
+        functionHe: "אבן הפינה של בסיס הגולגולת; מגנה על בלוטת יותרת המוח",
+        diseases: ["Pituitary adenoma", "Sphenoid sinusitis"], diseasesHe: ["אדנומה של יותרת המוח", "דלקת סינוס ספנואידלי"] },
+      Ethmoid: { displayName: "Ethmoid Bone", displayNameHe: "עצם המסננת", layer: "cranium",
+        facts: ["Lightest skull bone", "Contains olfactory foramina"],
+        factsHe: ["העצם הקלה ביותר בגולגולת", "מכילה פתחים לעצבי הריח"],
+        latinName: "Os ethmoidale", function: "Separates nasal cavity from brain",
+        functionHe: "מפרידה בין חלל האף למוח",
+        diseases: ["Ethmoid sinusitis", "Epistaxis"], diseasesHe: ["דלקת סינוס אתמואידלי", "דימום מהאף"] },
+      Left_zygomatic: { displayName: "Left Zygomatic", displayNameHe: "עצם לחי שמאל", layer: "face",
+        facts: ["Forms the cheek arch", "Articulates with 4 bones"],
+        factsHe: ["מהווה את קשת הלחי", "מתחברת ל-4 עצמות"],
+        latinName: "Os zygomaticum sinistrum", function: "Forms cheekbone and orbital wall",
+        functionHe: "מהווה את עצם הלחי ודופן ארובת העין",
+        diseases: ["Zygomatic fracture"], diseasesHe: ["שבר בעצם הלחי"] },
+      Right_zygomatic: { displayName: "Right Zygomatic", displayNameHe: "עצם לחי ימין", layer: "face",
+        facts: ["Mirror of left zygomatic", "Key to facial width"],
+        factsHe: ["מראה של עצם הלחי השמאלית", "משפיעה על רוחב הפנים"],
+        latinName: "Os zygomaticum dextrum", function: "Forms cheekbone and orbital wall",
+        functionHe: "מהווה את עצם הלחי ודופן ארובת העין",
+        diseases: ["Zygomatic fracture"], diseasesHe: ["שבר בעצם הלחי"] },
+      Right_Parietal: { displayName: "Right Parietal", displayNameHe: "עצם קדקוד ימין", layer: "cranium",
+        facts: ["Forms the top-side of the skull", "Contains the parietal foramen"],
+        factsHe: ["מהווה את חלקה העליוני-צידי של הגולגולת", "מכילה את הפורמן הקדקודי"],
+        latinName: "Os parietale dextrum", function: "Forms roof and sides of cranium",
+        functionHe: "מהווה את גג הגולגולת ודפנותיה",
+        diseases: ["Parietal fracture"], diseasesHe: ["שבר בעצם הקדקוד"] },
+      Left_Parietal: { displayName: "Left Parietal", displayNameHe: "עצם קדקוד שמאל", layer: "cranium",
+        facts: ["Articulates with all cranial bones", "Convex outer surface"],
+        factsHe: ["מתחברת לכל עצמות הגולגולת", "משטח חיצוני קמור"],
+        latinName: "Os parietale sinistrum", function: "Forms roof and sides of cranium",
+        functionHe: "מהווה את גג הגולגולת ודפנותיה",
+        diseases: ["Parietal lobe stroke"], diseasesHe: ["שבץ באונה הקדקודית"] },
+      Right_temporal: { displayName: "Right Temporal", displayNameHe: "עצם רקה ימין", layer: "cranium",
+        facts: ["Contains inner ear structures", "Has the mastoid process"],
+        factsHe: ["מכילה את מבני האוזן הפנימית", "כוללת את התוספת המסטואידית"],
+        latinName: "Os temporale dextrum", function: "Houses ear canal and inner ear",
+        functionHe: "מכילה את תעלת האוזן והאוזן הפנימית",
+        diseases: ["Temporal bone fracture", "Mastoiditis"], diseasesHe: ["שבר בעצם הרקה", "דלקת המסטואיד"] },
+      Left_temporal: { displayName: "Left Temporal", displayNameHe: "עצם רקה שמאל", layer: "cranium",
+        facts: ["Contains cochlea and vestibular apparatus", "Styloid process anchors tongue muscles"],
+        factsHe: ["מכילה את השבלול ומנגנון שיווי המשקל", "תוספת הסטילואיד מעגנת שרירי לשון"],
+        latinName: "Os temporale sinistrum", function: "Houses ear canal and inner ear",
+        functionHe: "מכילה את תעלת האוזן והאוזן הפנימית",
+        diseases: ["Temporal arteritis"], diseasesHe: ["דלקת עורק רקתי"] },
+      Right_lacrimal: { displayName: "Right Lacrimal", displayNameHe: "עצם דמעה ימין", layer: "face",
+        facts: ["Smallest facial bone", "Contains nasolacrimal groove"],
+        factsHe: ["העצם הקטנה ביותר בפנים", "מכילה את תעלת הדמעות"],
+        latinName: "Os lacrimale dextrum", function: "Houses the nasolacrimal duct",
+        functionHe: "מכילה את צינור הדמעות",
+        diseases: ["Dacryocystitis"], diseasesHe: ["דלקת שק הדמעות"] },
+      Left_lacrimal: { displayName: "Left Lacrimal", displayNameHe: "עצם דמעה שמאל", layer: "face",
+        facts: ["Smallest facial bone", "Part of medial orbital wall"],
+        factsHe: ["העצם הקטנה ביותר בפנים", "חלק מדופן ארובת העין הפנימית"],
+        latinName: "Os lacrimale sinistrum", function: "Houses the nasolacrimal duct",
+        functionHe: "מכילה את צינור הדמעות",
+        diseases: ["Dacryocystitis"], diseasesHe: ["דלקת שק הדמעות"] },
+      Right_max: { displayName: "Right Maxilla", displayNameHe: "לסת עליונה ימין", layer: "face",
+        facts: ["Holds upper teeth", "Largest facial bone besides mandible"],
+        factsHe: ["מחזיקה שיניים עליונות", "העצם הגדולה ביותר בפנים אחרי הלסת התחתונה"],
+        latinName: "Maxilla dextra", function: "Forms upper jaw, holds teeth, forms hard palate",
+        functionHe: "מהווה את הלסת העליונה, מחזיקה שיניים, מהווה את החיך הקשה",
+        diseases: ["Maxillary sinusitis", "Cleft palate"], diseasesHe: ["דלקת סינוס מקסילרי", "חך שסוע"] },
+      Left_max: { displayName: "Left Maxilla", displayNameHe: "לסת עליונה שמאל", layer: "face",
+        facts: ["Holds upper teeth", "Fuses with right maxilla at midline"],
+        factsHe: ["מחזיקה שיניים עליונות", "מתאחה עם הלסת הימנית באמצע"],
+        latinName: "Maxilla sinistra", function: "Forms upper jaw, holds teeth",
+        functionHe: "מהווה את הלסת העליונה, מחזיקה שיניים",
+        diseases: ["Cleft lip and palate"], diseasesHe: ["שפה וחיך שסועים"] },
+      right_nasal: { displayName: "Right Nasal", displayNameHe: "עצם אף ימין", layer: "face",
+        facts: ["Small rectangular bone", "Forms the nasal bridge"],
+        factsHe: ["עצם מלבנית קטנה", "מהווה את גשר האף"],
+        latinName: "Os nasale dextrum", function: "Forms the bridge of the nose",
+        functionHe: "מהווה את גשר האף",
+        diseases: ["Nasal fracture"], diseasesHe: ["שבר באף"] },
+      left_nasal: { displayName: "Left Nasal", displayNameHe: "עצם אף שמאל", layer: "face",
+        facts: ["Small rectangular bone", "Often asymmetric"],
+        factsHe: ["עצם מלבנית קטנה", "לרוב אסימטרית"],
+        latinName: "Os nasale sinistrum", function: "Forms the bridge of the nose",
+        functionHe: "מהווה את גשר האף",
+        diseases: ["Nasal fracture"], diseasesHe: ["שבר באף"] },
+      right_palatine: { displayName: "Right Palatine", displayNameHe: "עצם חיך ימין", layer: "face",
+        facts: ["L-shaped bone", "Forms posterior hard palate"],
+        factsHe: ["עצם בצורת L", "מהווה את החלק האחורי של החיך הקשה"],
+        latinName: "Os palatinum dextrum", function: "Forms posterior hard palate",
+        functionHe: "מהווה את השליש האחורי של החיך הקשה",
+        diseases: ["Cleft palate"], diseasesHe: ["חיך שסוע"] },
+      left_palatine: { displayName: "Left Palatine", displayNameHe: "עצם חיך שמאל", layer: "face",
+        facts: ["L-shaped bone", "Contains greater palatine foramen"],
+        factsHe: ["עצם בצורת L", "מכילה את הפורמן הפלטיני הגדול"],
+        latinName: "Os palatinum sinistrum", function: "Forms posterior hard palate",
+        functionHe: "מהווה את השליש האחורי של החיך הקשה",
+        diseases: ["Cleft palate"], diseasesHe: ["חיך שסוע"] },
+      Mandible: { displayName: "Mandible", displayNameHe: "הלסת התחתונה", layer: "jaw",
+        facts: ["Only movable bone in the skull", "Holds all lower teeth"],
+        factsHe: ["העצם היחידה בגולגולת שזזה", "מחזיקה את כל השיניים התחתונות"],
+        latinName: "Mandibula", function: "Lower jaw — chewing, speech, swallowing",
+        functionHe: "הלסת התחתונה — לעיסה, דיבור, בליעה",
+        diseases: ["TMJ disorder", "Mandible fracture"], diseasesHe: ["הפרעת מפרק הלסת", "שבר בלסת התחתונה"] },
+      Teeth: { displayName: "Upper Teeth", displayNameHe: "שיניים עליונות", layer: "jaw",
+        facts: ["32 permanent teeth in adults", "Enamel is hardest substance in body"],
+        factsHe: ["32 שיניים קבועות אצל מבוגר", "האמייל הוא החומר הקשה ביותר בגוף"],
+        latinName: "Dentes superiores", function: "Cutting and grinding food",
+        functionHe: "חיתוך וטחינת מזון",
+        diseases: ["Caries", "Periodontitis"], diseasesHe: ["עששת", "מחלת חניכיים"] },
+      Lower_teeth: { displayName: "Lower Teeth", displayNameHe: "שיניים תחתונות", layer: "jaw",
+        facts: ["Lower incisors erupt first"],
+        factsHe: ["החותכות התחתונות בוקעות ראשונות"],
+        latinName: "Dentes inferiores", function: "Biting and grinding food",
+        functionHe: "נשיכה וטחינת מזון",
+        diseases: ["Caries", "Bruxism"], diseasesHe: ["עששת", "חריקת שיניים"] },
+      Inferior_conchae: { displayName: "Inferior Nasal Conchae", displayNameHe: "קונכיות אפיות תחתונות", layer: "face",
+        facts: ["Only facial bone that is separate", "Largest nasal turbinate"],
+        factsHe: ["עצם הפנים היחידה שהיא עצם נפרדת", "הקונכייה הגדולה ביותר באף"],
+        latinName: "Conchae nasales inferiores", function: "Warm, humidify, filter air",
+        functionHe: "מחממות, מלחלחות ומסננות את האוויר",
+        diseases: ["Turbinate hypertrophy"], diseasesHe: ["היפרטרופיה של הקונכיות"] },
+      Vomer: { displayName: "Vomer", displayNameHe: "עצם מחיצת האף", layer: "face",
+        facts: ["Plough-shaped bone", "Forms nasal septum"],
+        factsHe: ["עצם בצורת מחרשה", "מהווה חלק ממחיצת האף"],
+        latinName: "Vomer", function: "Forms inferior nasal septum",
+        functionHe: "מהווה את החלק התחתון של מחיצת האף",
+        diseases: ["Deviated septum"], diseasesHe: ["סטיית מחיצת האף"] },
+    },
   },
-  Valves: {
-    displayName: "Heart Valves",
-    displayNameHe: "מסתמי הלב",
-    layer: "cardiovascular",
-    facts: [
-      "4 valves: aortic, pulmonary, mitral, tricuspid",
-      "Open and close ~100,000 times a day",
+  thorax: {
+    path: "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb",
+    titleHe: "לב בבית החזה", titleEn: "Heart in Thorax", icon: "❤️",
+    hasAnimation: false, description: "הלב, ריאות, קנה נשימה וכלוב הצלעות",
+    layers: [
+      { id: "respiratory", label: "Respiratory", labelHe: "מערכת נשימה", color: "#f4a0a0", icon: "💨",
+        meshPatterns: [/trachea/i, /lung/i] },
+      { id: "cardiovascular", label: "Cardiovascular", labelHe: "מערכת הלב", color: "#cc3355", icon: "❤️",
+        meshPatterns: [/heart/i, /valve/i, /aorta/i, /vessel/i] },
+      { id: "skeletal", label: "Skeletal", labelHe: "מערכת שלד", color: "#d4b896", icon: "🦴",
+        meshPatterns: [/thorax/i, /rib/i, /costal/i, /vertebr/i, /sternum/i, /clavicle/i] },
+      { id: "glands", label: "Glands", labelHe: "בלוטות", color: "#90ee90", icon: "🧪",
+        meshPatterns: [/thyroid/i, /thymus/i, /gland/i] },
     ],
-    latinName: "Valvae cordis",
-    function: "Control one-directional blood flow through the heart",
-    diseases: ["Valve stenosis", "Regurgitation", "Endocarditis"],
+    infoMap: {
+      Heart: { displayName: "Heart", displayNameHe: "הלב", layer: "cardiovascular",
+        facts: ["Beats ~100,000 times/day", "Pumps ~5L blood/minute"],
+        factsHe: ["פועם כ-100,000 פעמים ביום", "שואב כ-5 ליטר דם בדקה"],
+        latinName: "Cor", function: "Pumps oxygenated blood through body",
+        functionHe: "שואב דם עשיר בחמצן לכל הגוף",
+        diseases: ["Myocardial infarction", "Heart failure", "Arrhythmia"],
+        diseasesHe: ["אוטם שריר הלב", "אי-ספיקת לב", "הפרעת קצב"] },
+      Valves: { displayName: "Heart Valves", displayNameHe: "מסתמי הלב", layer: "cardiovascular",
+        facts: ["4 valves control blood flow", "Open/close 100,000 times/day"],
+        factsHe: ["4 מסתמים שולטים בזרימת הדם", "נפתחים ונסגרים 100,000 פעם ביום"],
+        latinName: "Valvae cordis", function: "Control one-directional blood flow",
+        functionHe: "שולטים בזרימת דם חד-כיוונית דרך הלב",
+        diseases: ["Valve stenosis", "Endocarditis"], diseasesHe: ["היצרות מסתמים", "דלקת פנים הלב"] },
+      Trachea: { displayName: "Trachea", displayNameHe: "קנה הנשימה", layer: "respiratory",
+        facts: ["15–20 C-shaped cartilage rings", "Lined with cilia"],
+        factsHe: ["15-20 טבעות סחוס בצורת C", "מצופה בריסים שמסלקים ליחה"],
+        latinName: "Trachea", function: "Airway from larynx to bronchi",
+        functionHe: "נתיב אוויר מהגרון לסימפונות",
+        diseases: ["Tracheomalacia", "Tracheal stenosis"], diseasesHe: ["רפיון קנה הנשימה", "היצרות קנה הנשימה"] },
+      Lungs: { displayName: "Lungs", displayNameHe: "הריאות", layer: "respiratory",
+        facts: ["Surface area ~70m² if unfolded", "Right: 3 lobes, Left: 2 lobes"],
+        factsHe: ["שטח פנים כ-70 מ\"ר אם נפרוש", "ימנית: 3 אונות, שמאלית: 2 אונות"],
+        latinName: "Pulmones", function: "Gas exchange: O₂ in, CO₂ out",
+        functionHe: "חילופי גזים: חמצן פנימה, פחמן דו-חמצני החוצה",
+        diseases: ["Pneumonia", "COPD", "Lung cancer"], diseasesHe: ["דלקת ריאות", "מחלת ריאות חסימתית", "סרטן ריאות"] },
+      Thorax: { displayName: "Thoracic Cage", displayNameHe: "כלוב הצלעות", layer: "skeletal",
+        facts: ["12 pairs of ribs + sternum", "Protects heart and lungs"],
+        factsHe: ["12 זוגות צלעות + עצם החזה", "מגן על הלב והריאות"],
+        latinName: "Thorax", function: "Protective bony cage; aids breathing",
+        functionHe: "כלוב עצם מגן; מסייע בנשימה",
+        diseases: ["Rib fracture", "Costochondritis"], diseasesHe: ["שבר בצלע", "דלקת סחוסי הצלעות"] },
+      Thyroid_gland: { displayName: "Thyroid", displayNameHe: "בלוטת התריס", layer: "glands",
+        facts: ["Butterfly-shaped gland", "Produces T3 and T4"],
+        factsHe: ["בלוטה בצורת פרפר", "מייצרת הורמוני T3 ו-T4"],
+        latinName: "Glandula thyroidea", function: "Regulates metabolism",
+        functionHe: "מווסתת את חילוף החומרים",
+        diseases: ["Hypothyroidism", "Goiter"], diseasesHe: ["תת-פעילות בלוטת התריס", "זפק"] },
+    },
   },
-  Trachea: {
-    displayName: "Trachea",
-    displayNameHe: "קנה הנשימה",
-    layer: "respiratory",
-    facts: [
-      "Made of 15–20 C-shaped cartilage rings",
-      "Lined with cilia that move mucus up",
+  skeleton_f: {
+    path: "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb",
+    titleHe: "שלד נשי", titleEn: "Female Skeleton", icon: "🦴",
+    hasAnimation: false, description: "שלד אנושי נשי מפורט — מחקר אנטומי",
+    layers: [
+      { id: "axial", label: "Axial Skeleton", labelHe: "שלד צירי", color: "#e8d5b7", icon: "🦴",
+        meshPatterns: [/skull/i, /spine/i, /vertebr/i, /rib/i, /sternum/i, /sacrum/i, /coccyx/i] },
+      { id: "upper", label: "Upper Limbs", labelHe: "גפיים עליונות", color: "#c4b896", icon: "💪",
+        meshPatterns: [/humerus/i, /radius/i, /ulna/i, /clavicle/i, /scapula/i, /hand/i, /carpal/i, /finger/i] },
+      { id: "lower", label: "Lower Limbs", labelHe: "גפיים תחתונות", color: "#a0c4e8", icon: "🦵",
+        meshPatterns: [/femur/i, /tibia/i, /fibula/i, /patella/i, /pelvis/i, /foot/i, /tarsal/i, /toe/i] },
     ],
-    latinName: "Trachea",
-    function: "Airway from larynx to bronchi; filters, warms, humidifies air",
-    diseases: ["Tracheomalacia", "Tracheal stenosis", "Tracheitis"],
+    infoMap: {},
   },
-  Lungs: {
-    displayName: "Lungs",
-    displayNameHe: "הריאות",
-    layer: "respiratory",
-    facts: [
-      "Surface area of ~70 m² if unfolded",
-      "Right lung has 3 lobes; left has 2",
-      "Process ~10,000 liters of air per day",
+  skeleton_m: {
+    path: "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb",
+    titleHe: "שלד גברי", titleEn: "Male Skeleton", icon: "🦴",
+    hasAnimation: false, description: "שלד אנושי גברי מפורט — מחקר אנטומי",
+    layers: [
+      { id: "axial", label: "Axial Skeleton", labelHe: "שלד צירי", color: "#e8d5b7", icon: "🦴",
+        meshPatterns: [/skull/i, /spine/i, /vertebr/i, /rib/i, /sternum/i, /sacrum/i, /coccyx/i] },
+      { id: "upper", label: "Upper Limbs", labelHe: "גפיים עליונות", color: "#c4b896", icon: "💪",
+        meshPatterns: [/humerus/i, /radius/i, /ulna/i, /clavicle/i, /scapula/i, /hand/i, /carpal/i, /finger/i] },
+      { id: "lower", label: "Lower Limbs", labelHe: "גפיים תחתונות", color: "#a0c4e8", icon: "🦵",
+        meshPatterns: [/femur/i, /tibia/i, /fibula/i, /patella/i, /pelvis/i, /foot/i, /tarsal/i, /toe/i] },
     ],
-    latinName: "Pulmones",
-    function: "Gas exchange: oxygen in, CO₂ out",
-    diseases: ["Pneumonia", "COPD", "Lung cancer", "Pulmonary embolism"],
+    infoMap: {},
   },
-  Vertebral_discs: {
-    displayName: "Vertebral Discs",
-    displayNameHe: "דיסקים בין-חולייתיים",
-    layer: "skeletal",
-    facts: [
-      "Act as shock absorbers for the spine",
-      "Contain ~80% water when healthy",
+  muscles_f: {
+    path: "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb",
+    titleHe: "מערכת שרירים נשית", titleEn: "Female Muscular System", icon: "💪",
+    hasAnimation: false, description: "מערכת השרירים של הגוף הנשי",
+    layers: [
+      { id: "torso", label: "Torso Muscles", labelHe: "שרירי פלג גוף", color: "#cc6666", icon: "🫁",
+        meshPatterns: [/pectoral/i, /rectus/i, /oblique/i, /trapez/i, /deltoid/i, /lat/i] },
+      { id: "limbs", label: "Limb Muscles", labelHe: "שרירי גפיים", color: "#dd8888", icon: "💪",
+        meshPatterns: [/bicep/i, /tricep/i, /quad/i, /hamstring/i, /calf/i, /gluteu/i] },
     ],
-    latinName: "Disci intervertebrales",
-    function: "Cushion between vertebrae, allow spinal flexibility",
-    diseases: ["Herniated disc", "Degenerative disc disease", "Spinal stenosis"],
+    infoMap: {},
   },
-  Thyroid_gland: {
-    displayName: "Thyroid Gland",
-    displayNameHe: "בלוטת התריס",
-    layer: "glands",
-    facts: [
-      "Butterfly-shaped gland in the neck",
-      "Produces T3 and T4 hormones",
-      "Controls metabolic rate",
+  muscles_m: {
+    path: "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb",
+    titleHe: "מערכת שרירים גברית", titleEn: "Male Muscular System", icon: "💪",
+    hasAnimation: false, description: "מערכת השרירים של הגוף הגברי",
+    layers: [
+      { id: "torso", label: "Torso Muscles", labelHe: "שרירי פלג גוף", color: "#cc6666", icon: "🫁",
+        meshPatterns: [/pectoral/i, /rectus/i, /oblique/i, /trapez/i, /deltoid/i, /lat/i] },
+      { id: "limbs", label: "Limb Muscles", labelHe: "שרירי גפיים", color: "#dd8888", icon: "💪",
+        meshPatterns: [/bicep/i, /tricep/i, /quad/i, /hamstring/i, /calf/i, /gluteu/i] },
     ],
-    latinName: "Glandula thyroidea",
-    function: "Regulates metabolism, growth, and development",
-    diseases: ["Hypothyroidism", "Hyperthyroidism", "Goiter", "Thyroid cancer"],
+    infoMap: {},
   },
-  Thorax: {
-    displayName: "Thoracic Cage",
-    displayNameHe: "כלוב הצלעות",
-    layer: "skeletal",
-    facts: [
-      "Consists of 12 pairs of ribs, sternum, and thoracic vertebrae",
-      "Protects heart and lungs",
+  heart: {
+    path: "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb",
+    titleHe: "לב ריאליסטי", titleEn: "Realistic Heart", icon: "🫀",
+    hasAnimation: false, description: "מודל לב אנושי ריאליסטי ומפורט",
+    layers: [
+      { id: "chambers", label: "Chambers", labelHe: "חדרי הלב", color: "#cc3355", icon: "❤️",
+        meshPatterns: [/ventricle/i, /atrium/i, /chamber/i] },
+      { id: "vessels", label: "Great Vessels", labelHe: "כלי דם גדולים", color: "#4466aa", icon: "🩸",
+        meshPatterns: [/aorta/i, /vein/i, /artery/i, /pulmonary/i] },
+      { id: "valves", label: "Valves", labelHe: "מסתמים", color: "#ff9944", icon: "🔘",
+        meshPatterns: [/valve/i, /mitral/i, /tricuspid/i] },
     ],
-    latinName: "Thorax",
-    function: "Protective bony cage for vital thoracic organs; aids breathing",
-    diseases: ["Rib fracture", "Flail chest", "Costochondritis"],
+    infoMap: {},
   },
-  Ligament: {
-    displayName: "Thoracic Ligaments",
-    displayNameHe: "רצועות בית החזה",
-    layer: "skeletal",
-    facts: ["Stabilize organs and bones within the thorax"],
-    latinName: "Ligamenta thoracis",
-    function: "Connect and stabilize thoracic structures",
-    diseases: ["Ligament sprain", "Costochondral separation"],
-  },
-  Htc: {
-    displayName: "Hyoid-Thyroid Cartilages",
-    displayNameHe: "סחוסי בית הקול",
-    layer: "respiratory",
-    facts: ["The hyoid is the only bone in the body not connected to another bone", "Thyroid cartilage forms the 'Adam's apple'"],
-    latinName: "Cartilago thyroidea et Os hyoideum",
-    function: "Support the larynx; protect vocal cords; anchor tongue muscles",
-    diseases: ["Laryngitis", "Hyoid fracture", "Laryngeal cancer"],
-  },
-  Tracheal_cartilages: {
-    displayName: "Tracheal Cartilages",
-    displayNameHe: "טבעות קנה הנשימה",
-    layer: "respiratory",
-    facts: ["15–20 C-shaped rings keep the airway open", "The open part faces posteriorly toward the esophagus"],
-    latinName: "Cartilagines tracheales",
-    function: "Maintain the circular shape of the trachea; prevent collapse during breathing",
-    diseases: ["Tracheomalacia", "Relapsing polychondritis"],
-  },
-  Costal_cartilages: {
-    displayName: "Costal Cartilages",
-    displayNameHe: "סחוסי הצלעות",
-    layer: "skeletal",
-    facts: [
-      "Connect ribs to sternum",
-      "Allow chest expansion during breathing",
+  torso: {
+    path: "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb",
+    titleHe: "פלג גוף גברי", titleEn: "Male Torso Anatomy", icon: "🧍",
+    hasAnimation: false, description: "פלג גוף גברי עם כל האיברים הפנימיים",
+    layers: [
+      { id: "organs", label: "Internal Organs", labelHe: "איברים פנימיים", color: "#cc6666", icon: "🫀",
+        meshPatterns: [/heart/i, /liver/i, /stomach/i, /intestin/i, /kidney/i, /spleen/i, /pancreas/i, /bladder/i] },
+      { id: "respiratory", label: "Respiratory", labelHe: "נשימה", color: "#f4a0a0", icon: "🫁",
+        meshPatterns: [/lung/i, /trachea/i, /diaphragm/i, /bronch/i] },
+      { id: "muscular", label: "Muscles", labelHe: "שרירים", color: "#dd8888", icon: "💪",
+        meshPatterns: [/muscle/i, /pectoral/i, /rectus/i, /oblique/i] },
     ],
-    latinName: "Cartilagines costales",
-    function: "Flexible connection between ribs and sternum",
-    diseases: ["Costochondritis (Tietze syndrome)", "Calcification"],
+    infoMap: {},
   },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: extract short display name from raw mesh name
-// ─────────────────────────────────────────────────────────────────────────────
-
-function meshDisplayName(rawName: string): string {
-  // "Heart_Heart_0" → "Heart"
-  // "Left_zygomatic:STL_Output..." → "Left_zygomatic"
-  const stripped = rawName.split(":")[0];
-  const parts = stripped.split("_");
-  // Remove trailing numeric index
-  while (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) parts.pop();
-  // Remove duplicate consecutive parts ("Heart_Heart" → "Heart")
-  const deduped: string[] = [];
-  for (const p of parts) {
-    if (!deduped.length || deduped[deduped.length - 1].toLowerCase() !== p.toLowerCase()) {
-      deduped.push(p);
-    }
-  }
-  return deduped.join(" ").replace(/_/g, " ");
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getMeshKey(rawName: string): string {
   return rawName.split(":")[0];
 }
 
-function getMeshInfo(
-  rawName: string,
-  infoMap: Record<string, MeshInfo>,
-  layers: Layer[]
-): MeshInfo {
+function meshDisplayName(rawName: string): string {
+  const stripped = rawName.split(":")[0];
+  const parts = stripped.split("_");
+  while (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) parts.pop();
+  const deduped: string[] = [];
+  for (const p of parts) {
+    if (!deduped.length || deduped[deduped.length - 1].toLowerCase() !== p.toLowerCase()) deduped.push(p);
+  }
+  return deduped.join(" ").replace(/_/g, " ");
+}
+
+function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers: Layer[]): MeshInfo {
   const key = getMeshKey(rawName);
   if (infoMap[key]) return infoMap[key];
-  // Try case-insensitive
   const lkey = key.toLowerCase();
   for (const k of Object.keys(infoMap)) {
     if (k.toLowerCase() === lkey) return infoMap[k];
   }
-  // Auto-detect layer
-  const autoLayer =
-    layers.find((l) => l.meshPatterns.some((re) => re.test(key)))?.id ??
-    "other";
+  const autoLayer = layers.find(l => l.meshPatterns.some(re => re.test(key)))?.id ?? "other";
   return {
-    displayName: meshDisplayName(rawName),
-    displayNameHe: meshDisplayName(rawName),
-    layer: autoLayer,
-    facts: [],
-    latinName: "",
-    function: "",
-    diseases: [],
+    displayName: meshDisplayName(rawName), displayNameHe: meshDisplayName(rawName),
+    layer: autoLayer, facts: [], factsHe: [], latinName: "",
+    function: "", functionHe: "", diseases: [], diseasesHe: [],
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ErrorBoundary
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── ErrorBoundary ───────────────────────────────────────────────────────────
 
-class ErrorBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
-  { hasError: boolean }
-> {
+class ErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
   componentDidCatch(_e: Error, _i: ErrorInfo) {}
-  render() {
-    return this.state.hasError ? this.props.fallback : this.props.children;
-  }
+  render() { return this.state.hasError ? this.props.fallback : this.props.children; }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 3-D model with per-mesh visibility, transparency, explode & click
-// ─────────────────────────────────────────────────────────────────────────────
-
-type ModelProps = {
-  url: string;
-  hiddenMeshes: Set<string>;
-  xRayMeshes: Set<string>;
-  selectedMesh: string | null;
-  explodeAmount: number;      // 0 = assembled, 1 = fully exploded
-  animTime: number | null;    // null = manual; otherwise 0-1 fraction of animation
-  onSelectMesh: (key: string) => void;
-  onMeshesLoaded: (names: string[]) => void;
-  accent: string;
-};
-
-function configureLoader(loader: GLTFLoader) {
-  loader.register(() => ({ name: "KHR_materials_pbrSpecularGlossiness" } as never));
-}
+// ─── 3D Scene ────────────────────────────────────────────────────────────────
 
 function ModelScene({
   url, hiddenMeshes, xRayMeshes, selectedMesh,
   explodeAmount, animTime, onSelectMesh, onMeshesLoaded, accent,
-}: ModelProps) {
-  const gltf = useLoader(GLTFLoader, url, configureLoader);
+}: {
+  url: string; hiddenMeshes: Set<string>; xRayMeshes: Set<string>;
+  selectedMesh: string | null; explodeAmount: number; animTime: number | null;
+  onSelectMesh: (key: string) => void; onMeshesLoaded: (names: string[]) => void;
+  accent: string;
+}) {
+  const gltf = useLoader(GLTFLoader, url);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
-  const clockRef = useRef(new THREE.Clock());
   const origPositions = useRef<Map<string, THREE.Vector3>>(new Map());
   const origCenters = useRef<Map<string, THREE.Vector3>>(new Map());
   const origMaterials = useRef<Map<string, THREE.Material | THREE.Material[]>>(new Map());
   const reportedRef = useRef(false);
 
-  // ── Compute scene bounding center for explode pivot ──
   const sceneCenter = useMemo(() => {
     const box = new THREE.Box3().setFromObject(sceneClone);
     return box.getCenter(new THREE.Vector3());
   }, [sceneClone]);
 
-  // ── Normalize scale so model fits viewport ──
   const { scale: normScale, offset } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(sceneClone);
     const size = box.getSize(new THREE.Vector3());
@@ -607,111 +458,75 @@ function ModelScene({
     return { scale: s, offset: ctr.multiplyScalar(-s) };
   }, [sceneClone]);
 
-  // ── Cache original positions and materials ──
   useEffect(() => {
     const names: string[] = [];
-    sceneClone.traverse((child) => {
+    sceneClone.traverse(child => {
       if (!(child as THREE.Mesh).isMesh) return;
       const mesh = child as THREE.Mesh;
       origPositions.current.set(mesh.uuid, mesh.position.clone());
-      origMaterials.current.set(
-        mesh.uuid,
-        Array.isArray(mesh.material)
-          ? (mesh.material as THREE.Material[]).map((m) => m.clone())
-          : (mesh.material as THREE.Material).clone()
-      );
-      // Compute mesh world center (relative to scene root)
+      origMaterials.current.set(mesh.uuid,
+        Array.isArray(mesh.material) ? mesh.material.map(m => m.clone()) : (mesh.material as THREE.Material).clone());
       const wBox = new THREE.Box3().setFromObject(mesh);
       origCenters.current.set(mesh.uuid, wBox.getCenter(new THREE.Vector3()));
       const key = getMeshKey(mesh.name);
       if (key && !names.includes(key)) names.push(key);
     });
-    if (!reportedRef.current) {
-      reportedRef.current = true;
-      onMeshesLoaded(names);
-    }
+    if (!reportedRef.current) { reportedRef.current = true; onMeshesLoaded(names); }
   }, [sceneClone, onMeshesLoaded]);
 
-  // ── Setup animation mixer ──
   useEffect(() => {
     if (!gltf.animations?.length) return;
     mixerRef.current = new THREE.AnimationMixer(sceneClone);
     const action = mixerRef.current.clipAction(gltf.animations[0]);
-    action.play();
-    action.paused = true;
-    action.time = 0;
-    clockRef.current.getDelta(); // reset
+    action.play(); action.paused = true; action.time = 0;
     return () => { mixerRef.current?.stopAllAction(); };
   }, [gltf.animations, sceneClone]);
 
-  // ── Per-frame update: apply animation frame + explode ──
   useFrame(() => {
     const mixer = mixerRef.current;
-    if (mixer && gltf.animations?.length) {
-      const clip = gltf.animations[0];
-      if (animTime !== null) {
-        const targetTime = animTime * clip.duration;
-        mixer.setTime(targetTime);
-      }
+    if (mixer && gltf.animations?.length && animTime !== null) {
+      mixer.setTime(animTime * gltf.animations[0].duration);
     }
-
-    sceneClone.traverse((child) => {
+    sceneClone.traverse(child => {
       if (!(child as THREE.Mesh).isMesh) return;
       const mesh = child as THREE.Mesh;
       const origPos = origPositions.current.get(mesh.uuid);
       const origCenter = origCenters.current.get(mesh.uuid);
       if (!origPos || !origCenter) return;
-
       if (explodeAmount > 0 && !mixerRef.current) {
-        // Manual explode: push each mesh outward from the scene center
         const dir = origCenter.clone().sub(sceneCenter).normalize();
-        const explodeScale = 1.2 * normScale;
-        mesh.position.copy(origPos).addScaledVector(dir, explodeAmount * explodeScale);
+        mesh.position.copy(origPos).addScaledVector(dir, explodeAmount * 1.2 * normScale);
       } else if (!mixerRef.current) {
         mesh.position.copy(origPos);
       }
     });
   });
 
-  // ── Apply materials (visibility + selection + x-ray) ──
   useEffect(() => {
-    sceneClone.traverse((child) => {
+    sceneClone.traverse(child => {
       if (!(child as THREE.Mesh).isMesh) return;
       const mesh = child as THREE.Mesh;
       const key = getMeshKey(mesh.name);
       const origMat = origMaterials.current.get(mesh.uuid);
       if (!origMat) return;
-
-      const fresh = Array.isArray(origMat)
-        ? (origMat as THREE.Material[]).map((m) => m.clone())
-        : (origMat as THREE.Material).clone();
+      const fresh = Array.isArray(origMat) ? origMat.map(m => m.clone()) : (origMat as THREE.Material).clone();
       mesh.material = fresh;
-
       const isHidden = hiddenMeshes.has(key);
       const isSelected = key === selectedMesh;
       const isXRay = xRayMeshes.has(key);
-
       mesh.visible = !isHidden;
-
-      const mats = Array.isArray(fresh) ? (fresh as THREE.Material[]) : [fresh as THREE.Material];
+      const mats = Array.isArray(fresh) ? fresh : [fresh];
       for (const mat of mats) {
         const m = mat as THREE.MeshStandardMaterial;
         if (isSelected) {
-          m.transparent = false;
-          m.opacity = 1;
-          if (m.isMeshStandardMaterial) {
-            m.emissive = new THREE.Color(accent);
-            m.emissiveIntensity = 0.55;
-          }
+          m.transparent = false; m.opacity = 1;
+          if (m.isMeshStandardMaterial) { m.emissive = new THREE.Color(accent); m.emissiveIntensity = 0.55; }
           m.depthWrite = true;
         } else if (isXRay) {
-          m.transparent = true;
-          m.opacity = 0.18;
-          m.depthWrite = false;
+          m.transparent = true; m.opacity = 0.18; m.depthWrite = false;
           if (m.isMeshStandardMaterial) m.emissiveIntensity = 0;
         } else {
-          m.transparent = false;
-          m.opacity = 1;
+          m.transparent = false; m.opacity = 1;
           if (m.isMeshStandardMaterial) m.emissiveIntensity = 0;
           m.depthWrite = true;
         }
@@ -720,80 +535,27 @@ function ModelScene({
     });
   }, [sceneClone, hiddenMeshes, xRayMeshes, selectedMesh, accent]);
 
-  const handleClick = useCallback(
-    (e: ThreeEvent<MouseEvent>) => {
-      e.stopPropagation();
-      const mesh = e.object as THREE.Mesh;
-      if (mesh.isMesh) {
-        onSelectMesh(getMeshKey(mesh.name));
-      }
-    },
-    [onSelectMesh]
-  );
+  const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    if ((e.object as THREE.Mesh).isMesh) onSelectMesh(getMeshKey(e.object.name));
+  }, [onSelectMesh]);
 
-  return (
-    <primitive
-      object={sceneClone}
-      scale={normScale}
-      position={[offset.x, offset.y, offset.z]}
-      onClick={handleClick}
-    />
-  );
+  return <primitive object={sceneClone} scale={normScale} position={[offset.x, offset.y, offset.z]} onClick={handleClick} />;
 }
 
-// Camera auto-focus when a mesh is selected
-function FocusController({ selectedMesh }: { selectedMesh: string | null }) {
-  const { camera } = useThree();
-  const prevMesh = useRef<string | null>(null);
+// ─── Main Component ──────────────────────────────────────────────────────────
 
-  useFrame(() => {
-    if (selectedMesh && selectedMesh !== prevMesh.current) {
-      prevMesh.current = selectedMesh;
-    }
-  });
-
-  return null;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// UI helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-type ModelId = "skull" | "thorax";
-
-const MODEL_META: Record<ModelId, {
-  path: string;
-  titleEn: string;
-  titleHe: string;
-  layers: Layer[];
-  infoMap: Record<string, MeshInfo>;
-  hasAnimation: boolean;
-}> = {
-  skull: {
-    path: SKULL_PATH,
-    titleEn: "Exploding Skull",
-    titleHe: "גולגולת מתפרקת",
-    layers: SKULL_LAYERS,
-    infoMap: SKULL_MESH_INFO,
-    hasAnimation: true,
-  },
-  thorax: {
-    path: THORAX_PATH,
-    titleEn: "Heart in Thorax",
-    titleHe: "לב בבית החזה",
-    layers: THORAX_LAYERS,
-    infoMap: THORAX_MESH_INFO,
-    hasAnimation: false,
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Main component
-// ─────────────────────────────────────────────────────────────────────────────
+const THEME_STORAGE_KEY = "advanced-anatomy-theme";
 
 export default function AdvancedAnatomyViewer() {
   const navigate = useNavigate();
   const [modelId, setModelId] = useState<ModelId>("skull");
+  const [themeId, setThemeId] = useState<ThemeId>(() => {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    return (saved && saved in THEMES) ? saved as ThemeId : "dark";
+  });
+  const [showSettings, setShowSettings] = useState(false);
+  const theme = THEMES[themeId];
   const meta = MODEL_META[modelId];
 
   const [loadedMeshKeys, setLoadedMeshKeys] = useState<string[]>([]);
@@ -801,23 +563,21 @@ export default function AdvancedAnatomyViewer() {
   const [hiddenMeshes, setHiddenMeshes] = useState<Set<string>>(new Set());
   const [selectedMesh, setSelectedMesh] = useState<string | null>(null);
   const [explodeAmount, setExplodeAmount] = useState(0);
-  const [animTime, setAnimTime] = useState<number | null>(null); // 0–1
+  const [animTime, setAnimTime] = useState<number | null>(null);
   const [xRayMode, setXRayMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showInfoPanel, setShowInfoPanel] = useState(true);
+  const [brightness, setBrightness] = useState(100);
 
-  // Reset state when model changes
   useEffect(() => {
-    setLoadedMeshKeys([]);
-    setHiddenLayers(new Set());
-    setHiddenMeshes(new Set());
-    setSelectedMesh(null);
-    setExplodeAmount(0);
-    setAnimTime(null);
-    setSearchQuery("");
+    localStorage.setItem(THEME_STORAGE_KEY, themeId);
+  }, [themeId]);
+
+  useEffect(() => {
+    setLoadedMeshKeys([]); setHiddenLayers(new Set()); setHiddenMeshes(new Set());
+    setSelectedMesh(null); setExplodeAmount(0); setAnimTime(null); setSearchQuery("");
   }, [modelId]);
 
-  // ── Layer → mesh lookup ──
   const meshKeysByLayer = useMemo(() => {
     const map: Record<string, string[]> = {};
     for (const key of loadedMeshKeys) {
@@ -828,339 +588,265 @@ export default function AdvancedAnatomyViewer() {
     return map;
   }, [loadedMeshKeys, meta.infoMap, meta.layers]);
 
-  // ── Recompute hidden meshes from hidden layers ──
   useEffect(() => {
     const hidden = new Set<string>();
     for (const layerId of hiddenLayers) {
-      for (const key of meshKeysByLayer[layerId] ?? []) {
-        hidden.add(key);
-      }
+      for (const key of meshKeysByLayer[layerId] ?? []) hidden.add(key);
     }
     setHiddenMeshes(hidden);
   }, [hiddenLayers, meshKeysByLayer]);
 
-  // ── X-Ray: all meshes except selected become x-ray ──
   const xRayMeshes = useMemo(() => {
     if (!xRayMode || !selectedMesh) return new Set<string>();
-    return new Set(loadedMeshKeys.filter((k) => k !== selectedMesh));
+    return new Set(loadedMeshKeys.filter(k => k !== selectedMesh));
   }, [xRayMode, selectedMesh, loadedMeshKeys]);
 
-  // ── Search highlight ──
   const searchHighlighted = useMemo(() => {
     if (!searchQuery.trim()) return null;
     const q = searchQuery.toLowerCase();
     for (const key of loadedMeshKeys) {
       const info = getMeshInfo(key, meta.infoMap, meta.layers);
-      const haystack = [info.displayName, info.displayNameHe, info.latinName,
-        info.function, ...info.facts, ...info.diseases].join(" ").toLowerCase();
+      const haystack = [info.displayName, info.displayNameHe, info.latinName, info.functionHe, ...info.factsHe, ...info.diseasesHe].join(" ").toLowerCase();
       if (haystack.includes(q)) return key;
     }
     return null;
   }, [searchQuery, loadedMeshKeys, meta.infoMap, meta.layers]);
 
-  // Use search result as selected mesh
   const effectiveSelectedMesh = searchHighlighted ?? selectedMesh;
 
-  // ── Toggle layer visibility ──
   const toggleLayer = (layerId: string) => {
-    setHiddenLayers((prev) => {
-      const next = new Set(prev);
-      if (next.has(layerId)) next.delete(layerId);
-      else next.add(layerId);
-      return next;
-    });
+    setHiddenLayers(prev => { const next = new Set(prev); next.has(layerId) ? next.delete(layerId) : next.add(layerId); return next; });
   };
 
-  const selectedInfo = effectiveSelectedMesh
-    ? getMeshInfo(effectiveSelectedMesh, meta.infoMap, meta.layers)
-    : null;
-
-  const handleMeshesLoaded = useCallback((names: string[]) => {
-    setLoadedMeshKeys(names);
-  }, []);
-
-  // ── Explode for animated skull: use animTime ──
+  const selectedInfo = effectiveSelectedMesh ? getMeshInfo(effectiveSelectedMesh, meta.infoMap, meta.layers) : null;
+  const handleMeshesLoaded = useCallback((names: string[]) => setLoadedMeshKeys(names), []);
   const skullAnimTime = meta.hasAnimation ? animTime ?? explodeAmount : null;
   const manualExplode = meta.hasAnimation ? 0 : explodeAmount;
 
-  return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        width: "100vw",
-        background: "#0d1117",
-        color: "#e6edf3",
-        fontFamily: "'Segoe UI', system-ui, sans-serif",
-        overflow: "hidden",
-      }}
-    >
-      {/* ── LEFT PANEL ── */}
-      <div
-        style={{
-          width: 280,
-          minWidth: 240,
-          maxWidth: 320,
-          background: "#161b22",
-          borderRight: "1px solid #30363d",
-          display: "flex",
-          flexDirection: "column",
-          overflowY: "auto",
-          zIndex: 10,
-        }}
-      >
-        {/* Header */}
-        <div style={{ padding: "16px 16px 8px", borderBottom: "1px solid #30363d" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <div style={{ fontSize: 11, color: "#8b949e", letterSpacing: 1, textTransform: "uppercase" }}>
-              Advanced Anatomy
-            </div>
-            <button
-              onClick={() => navigate("/")}
-              style={{ ...btnStyle, padding: "4px 10px", fontSize: 11, color: "#58a6ff", borderColor: "#1f6feb" }}
-              title="חזור לצופה הראשי"
-            >
-              ← חזור
-            </button>
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#f0f6fc" }}>
-            {meta.titleHe}
-          </div>
-          <div style={{ fontSize: 12, color: "#8b949e" }}>{meta.titleEn}</div>
+  // Model grouping
+  const modelGroups: { label: string; models: ModelId[] }[] = [
+    { label: "🧠 ראש", models: ["skull"] },
+    { label: "🫀 בית החזה", models: ["thorax", "heart"] },
+    { label: "🧍 גוף מלא", models: ["torso"] },
+    { label: "🦴 שלד", models: ["skeleton_f", "skeleton_m"] },
+    { label: "💪 שרירים", models: ["muscles_f", "muscles_m"] },
+  ];
 
-          {/* Model selector */}
-          <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-            {(["skull", "thorax"] as ModelId[]).map((id) => (
-              <button
-                key={id}
-                onClick={() => setModelId(id)}
-                style={{
-                  flex: 1,
-                  padding: "6px 4px",
-                  borderRadius: 6,
-                  border: "1px solid",
-                  borderColor: modelId === id ? "#58a6ff" : "#30363d",
-                  background: modelId === id ? "rgba(88,166,255,0.15)" : "transparent",
-                  color: modelId === id ? "#58a6ff" : "#8b949e",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: modelId === id ? 600 : 400,
-                  transition: "all 0.2s",
-                }}
-              >
-                {id === "skull" ? "💀 Skull" : "❤️ Thorax"}
+  return (
+    <div className="flex h-screen w-screen overflow-hidden" dir="rtl"
+      style={{ background: theme.bg, color: theme.text, fontFamily: "'Segoe UI', system-ui, sans-serif", filter: `brightness(${brightness}%)` }}
+    >
+      {/* ── RIGHT PANEL (RTL → appears on right) ── */}
+      <div className="flex flex-col overflow-y-auto shrink-0" style={{ width: 300, background: theme.panel, borderLeft: `1px solid ${theme.border}` }}>
+        {/* Header */}
+        <div className="p-4 pb-2" style={{ borderBottom: `1px solid ${theme.border}` }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{meta.icon}</span>
+              <div>
+                <div className="text-base font-bold">{meta.titleHe}</div>
+                <div className="text-xs" style={{ color: theme.textDim }}>{meta.titleEn}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setShowSettings(s => !s)} className="p-1.5 rounded-lg transition-all cursor-pointer border-none text-sm"
+                style={{ background: showSettings ? theme.accentBg : "transparent", color: showSettings ? theme.accent : theme.textDim }}>
+                ⚙️
               </button>
-            ))}
+              <button onClick={() => navigate("/")} className="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-all"
+                style={{ color: theme.accent, borderColor: theme.accent + "60", background: "transparent" }}>
+                ← חזור
+              </button>
+            </div>
+          </div>
+          <div className="text-[11px] mb-2" style={{ color: theme.textDim }}>{meta.description}</div>
+
+          {/* Stats */}
+          <div className="flex gap-2 text-[10px]" style={{ color: theme.textDim }}>
+            <span>{loadedMeshKeys.length} חלקים</span>
+            <span>•</span>
+            <span>{meta.layers.length} שכבות</span>
           </div>
         </div>
 
+        {/* Settings panel */}
+        {showSettings && (
+          <div className="p-3 animate-fade-in" style={{ borderBottom: `1px solid ${theme.border}` }}>
+            <div className="text-[11px] font-bold mb-2" style={{ color: theme.textDim }}>⚙️ הגדרות</div>
+
+            {/* Themes */}
+            <div className="text-[10px] font-bold mb-1.5" style={{ color: theme.textDim }}>🎨 ערכת נושא</div>
+            <div className="grid grid-cols-3 gap-1.5 mb-3">
+              {(Object.entries(THEMES) as [ThemeId, typeof theme][]).map(([id, t]) => (
+                <button key={id} onClick={() => setThemeId(id)}
+                  className="flex flex-col items-center gap-0.5 p-1.5 rounded-lg text-[10px] cursor-pointer border transition-all"
+                  style={{
+                    background: themeId === id ? theme.accentBg : "transparent",
+                    borderColor: themeId === id ? theme.accent : theme.border,
+                    color: themeId === id ? theme.accent : theme.textDim,
+                  }}>
+                  <span className="text-base">{t.icon}</span>
+                  <span className="font-semibold">{t.nameHe}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Brightness */}
+            <div className="text-[10px] font-bold mb-1" style={{ color: theme.textDim }}>☀️ בהירות: {brightness}%</div>
+            <input type="range" min={50} max={150} value={brightness} onChange={e => setBrightness(Number(e.target.value))}
+              className="w-full h-1.5 mb-2" style={{ accentColor: theme.accent }} />
+          </div>
+        )}
+
+        {/* Model selector */}
+        <div className="p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
+          <div className="text-[10px] font-bold mb-2" style={{ color: theme.textDim }}>📦 בחר מודל</div>
+          {modelGroups.map(group => (
+            <div key={group.label} className="mb-2">
+              <div className="text-[10px] font-bold mb-1" style={{ color: theme.textDim }}>{group.label}</div>
+              <div className="flex gap-1 flex-wrap">
+                {group.models.map(id => {
+                  const m = MODEL_META[id];
+                  return (
+                    <button key={id} onClick={() => setModelId(id)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] cursor-pointer border transition-all"
+                      style={{
+                        background: modelId === id ? theme.accentBg : "transparent",
+                        borderColor: modelId === id ? theme.accent : theme.border,
+                        color: modelId === id ? theme.accent : theme.textDim,
+                        fontWeight: modelId === id ? 600 : 400,
+                      }}>
+                      <span>{m.icon}</span>
+                      <span>{m.titleHe}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Search */}
-        <div style={{ padding: "10px 12px", borderBottom: "1px solid #21262d" }}>
-          <input
-            type="text"
-            placeholder="🔍 Search organ/disease..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "7px 10px",
-              background: "#0d1117",
-              border: "1px solid #30363d",
-              borderRadius: 6,
-              color: "#e6edf3",
-              fontSize: 12,
-              outline: "none",
-              boxSizing: "border-box",
-            }}
-          />
+        <div className="px-3 py-2" style={{ borderBottom: `1px solid ${theme.border}` }}>
+          <input type="text" placeholder="🔍 חפש איבר / מחלה..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+            className="w-full px-3 py-1.5 rounded-lg text-xs outline-none border"
+            style={{ background: theme.bg, borderColor: theme.border, color: theme.text }} />
           {searchHighlighted && (
-            <div style={{ fontSize: 11, color: "#3fb950", marginTop: 4 }}>
-              ✓ Found: {getMeshInfo(searchHighlighted, meta.infoMap, meta.layers).displayName}
+            <div className="text-[10px] mt-1" style={{ color: "#3fb950" }}>
+              ✓ נמצא: {getMeshInfo(searchHighlighted, meta.infoMap, meta.layers).displayNameHe}
             </div>
           )}
         </div>
 
         {/* Controls */}
-        <div style={{ padding: "12px", borderBottom: "1px solid #21262d" }}>
-          {/* Explode / Anim slider */}
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#8b949e", marginBottom: 6 }}>
-              <span>{meta.hasAnimation ? "💥 Explode Animation" : "💥 Explode"}</span>
-              <span style={{ color: "#58a6ff" }}>{Math.round(explodeAmount * 100)}%</span>
+        <div className="p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
+          {/* Explode */}
+          <div className="mb-3">
+            <div className="flex justify-between text-xs mb-1">
+              <span style={{ color: theme.textDim }}>💥 {meta.hasAnimation ? "אנימציית פירוק" : "פירוק"}</span>
+              <span style={{ color: theme.accent }}>{Math.round(explodeAmount * 100)}%</span>
             </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={Math.round(explodeAmount * 100)}
-              onChange={(e) => {
-                const v = Number(e.target.value) / 100;
-                setExplodeAmount(v);
-                if (meta.hasAnimation) setAnimTime(v);
-              }}
-              style={{ width: "100%", accentColor: "#58a6ff" }}
-            />
+            <input type="range" min={0} max={100} value={Math.round(explodeAmount * 100)}
+              onChange={e => { const v = Number(e.target.value) / 100; setExplodeAmount(v); if (meta.hasAnimation) setAnimTime(v); }}
+              className="w-full h-1.5" style={{ accentColor: theme.accent }} />
             {meta.hasAnimation && (
-              <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                <button
-                  onClick={() => { setExplodeAmount(0); setAnimTime(0); }}
-                  style={btnStyle}
-                >
-                  Assemble
+              <div className="flex gap-1.5 mt-1.5">
+                <button onClick={() => { setExplodeAmount(0); setAnimTime(0); }}
+                  className="flex-1 py-1 rounded-lg text-[11px] cursor-pointer border transition-all"
+                  style={{ background: "transparent", borderColor: theme.border, color: theme.textDim }}>
+                  🔧 הרכב
                 </button>
-                <button
-                  onClick={() => { setExplodeAmount(1); setAnimTime(1); }}
-                  style={btnStyle}
-                >
-                  Explode
+                <button onClick={() => { setExplodeAmount(1); setAnimTime(1); }}
+                  className="flex-1 py-1 rounded-lg text-[11px] cursor-pointer border transition-all"
+                  style={{ background: "transparent", borderColor: theme.border, color: theme.textDim }}>
+                  💥 פרק
                 </button>
               </div>
             )}
           </div>
 
-          {/* X-Ray toggle */}
-          <button
-            onClick={() => setXRayMode((v) => !v)}
+          {/* X-Ray */}
+          <button onClick={() => setXRayMode(v => !v)}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all mb-1.5"
             style={{
-              ...btnStyle,
-              width: "100%",
-              background: xRayMode ? "rgba(255,166,0,0.2)" : "transparent",
-              borderColor: xRayMode ? "#ffa600" : "#30363d",
-              color: xRayMode ? "#ffa600" : "#8b949e",
-              marginBottom: 6,
-            }}
-          >
-            🔬 X-Ray Mode {xRayMode ? "ON" : "OFF"}
+              background: xRayMode ? "rgba(255,166,0,0.15)" : "transparent",
+              borderColor: xRayMode ? "#ffa600" : theme.border,
+              color: xRayMode ? "#ffa600" : theme.textDim,
+            }}>
+            🔬 X-Ray {xRayMode ? "פעיל" : "כבוי"}
           </button>
 
-          {/* Clear selection */}
           {effectiveSelectedMesh && (
-            <button
-              onClick={() => { setSelectedMesh(null); setSearchQuery(""); }}
-              style={{ ...btnStyle, width: "100%", color: "#f85149", borderColor: "#da3633" }}
-            >
-              ✕ Clear Selection
+            <button onClick={() => { setSelectedMesh(null); setSearchQuery(""); }}
+              className="w-full py-1 rounded-lg text-[11px] cursor-pointer border transition-all"
+              style={{ background: "transparent", borderColor: "#da3633", color: "#f85149" }}>
+              ✕ נקה בחירה
             </button>
           )}
         </div>
 
-        {/* Layer toggles */}
-        <div style={{ padding: "12px", borderBottom: "1px solid #21262d", flex: 1 }}>
-          <div style={{ fontSize: 11, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Layers
-          </div>
-          {meta.layers.map((layer) => {
+        {/* Layers */}
+        <div className="p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
+          <div className="text-[10px] font-bold mb-2" style={{ color: theme.textDim }}>🧩 שכבות</div>
+          {meta.layers.map(layer => {
             const isHidden = hiddenLayers.has(layer.id);
             const count = meshKeysByLayer[layer.id]?.length ?? 0;
             return (
-              <div
-                key={layer.id}
-                onClick={() => toggleLayer(layer.id)}
+              <div key={layer.id} onClick={() => toggleLayer(layer.id)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer mb-1 transition-all"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "7px 10px",
-                  marginBottom: 4,
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  background: isHidden ? "transparent" : "rgba(56,139,253,0.08)",
-                  border: `1px solid ${isHidden ? "#21262d" : "#1f6feb"}`,
+                  background: isHidden ? "transparent" : theme.accentBg,
+                  border: `1px solid ${isHidden ? theme.border : theme.accent + "60"}`,
                   opacity: isHidden ? 0.5 : 1,
-                  transition: "all 0.2s",
-                }}
-              >
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: isHidden ? "#484f58" : layer.color,
-                    flexShrink: 0,
-                  }}
-                />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{layer.labelHe}</div>
-                  <div style={{ fontSize: 10, color: "#8b949e" }}>{layer.label}</div>
+                }}>
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: isHidden ? theme.textDim : layer.color }} />
+                <div className="flex-1">
+                  <div className="text-xs font-medium">{layer.icon} {layer.labelHe}</div>
+                  <div className="text-[10px]" style={{ color: theme.textDim }}>{layer.label}</div>
                 </div>
-                <div style={{ fontSize: 10, color: "#8b949e" }}>{count}</div>
-                <div style={{ fontSize: 10, color: isHidden ? "#484f58" : "#3fb950" }}>
-                  {isHidden ? "●" : "●"}
-                </div>
+                <div className="text-[10px]" style={{ color: theme.textDim }}>{count}</div>
+                <div className="text-[10px]" style={{ color: isHidden ? theme.textDim : "#3fb950" }}>●</div>
               </div>
             );
           })}
         </div>
 
         {/* Mesh list */}
-        <div style={{ padding: "12px" }}>
-          <div style={{ fontSize: 11, color: "#8b949e", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Parts ({loadedMeshKeys.length})
+        <div className="p-3 flex-1">
+          <div className="text-[10px] font-bold mb-2" style={{ color: theme.textDim }}>
+            🦴 חלקים ({loadedMeshKeys.length})
           </div>
-          <div style={{ maxHeight: 240, overflowY: "auto" }}>
-            {loadedMeshKeys.map((key) => {
+          <ScrollArea className="max-h-60">
+            {loadedMeshKeys.map(key => {
               const info = getMeshInfo(key, meta.infoMap, meta.layers);
               const isHidden = hiddenMeshes.has(key);
               const isSelected = effectiveSelectedMesh === key;
-              const layerColor =
-                meta.layers.find((l) => l.id === info.layer)?.color ?? "#8b949e";
+              const layerColor = meta.layers.find(l => l.id === info.layer)?.color ?? theme.textDim;
               return (
-                <div
-                  key={key}
-                  onClick={() => setSelectedMesh(isSelected ? null : key)}
+                <div key={key} onClick={() => setSelectedMesh(isSelected ? null : key)}
+                  className="flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer text-xs mb-0.5 transition-all"
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 7,
-                    padding: "5px 8px",
-                    borderRadius: 5,
-                    cursor: "pointer",
-                    fontSize: 12,
-                    marginBottom: 2,
-                    background: isSelected ? "rgba(88,166,255,0.18)" : "transparent",
-                    color: isHidden ? "#484f58" : isSelected ? "#58a6ff" : "#c9d1d9",
+                    background: isSelected ? theme.accentBg : "transparent",
+                    color: isHidden ? theme.textDim + "60" : isSelected ? theme.accent : theme.text,
                     fontWeight: isSelected ? 600 : 400,
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: "50%",
-                      background: isHidden ? "#484f58" : layerColor,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {info.displayNameHe || info.displayName}
-                  </span>
+                  }}>
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: isHidden ? theme.textDim : layerColor }} />
+                  <span className="truncate flex-1">{info.displayNameHe || info.displayName}</span>
                 </div>
               );
             })}
-          </div>
+          </ScrollArea>
         </div>
       </div>
 
       {/* ── 3D CANVAS ── */}
-      <div style={{ flex: 1, position: "relative" }}>
-        <ErrorBoundary
-          fallback={
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#f85149" }}>
-              WebGL Error — please refresh
-            </div>
-          }
-        >
-          <Canvas
-            gl={{ antialias: true, powerPreference: "default" }}
-            camera={{ position: [0, 0, 6], fov: 45 }}
-            style={{ background: "#0d1117" }}
-          >
+      <div className="flex-1 relative">
+        <ErrorBoundary fallback={<div className="flex items-center justify-center h-full" style={{ color: "#f85149" }}>שגיאת WebGL — רענן את הדף</div>}>
+          <Canvas gl={{ antialias: true }} camera={{ position: [0, 0, 6], fov: 45 }} style={{ background: theme.canvasBg }}>
             <ambientLight intensity={0.6} />
             <directionalLight position={[5, 10, 7]} intensity={1.2} />
             <directionalLight position={[-5, -5, -5]} intensity={0.3} />
             <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
-            <FocusController selectedMesh={effectiveSelectedMesh} />
             <Suspense fallback={null}>
               <ModelScene
                 key={modelId}
@@ -1172,7 +858,7 @@ export default function AdvancedAnatomyViewer() {
                 animTime={meta.hasAnimation ? skullAnimTime : null}
                 onSelectMesh={setSelectedMesh}
                 onMeshesLoaded={handleMeshesLoaded}
-                accent="#58a6ff"
+                accent={theme.accent}
               />
             </Suspense>
           </Canvas>
@@ -1180,239 +866,123 @@ export default function AdvancedAnatomyViewer() {
 
         {/* Loading overlay */}
         {loadedMeshKeys.length === 0 && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "rgba(13,17,23,0.85)",
-              gap: 12,
-            }}
-          >
-            <div style={{ fontSize: 28 }}>⚕️</div>
+          <div className="absolute inset-0 flex items-center justify-center gap-3" style={{ background: theme.bg + "dd" }}>
+            <span className="text-3xl">⚕️</span>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#f0f6fc" }}>טוען מודל...</div>
-              <div style={{ fontSize: 12, color: "#8b949e" }}>Loading {meta.titleEn}</div>
+              <div className="text-base font-semibold">טוען {meta.titleHe}...</div>
+              <div className="text-xs" style={{ color: theme.textDim }}>Loading {meta.titleEn}</div>
             </div>
           </div>
         )}
 
         {/* Model label */}
-        <div
-          style={{
-            position: "absolute",
-            top: 16,
-            left: 16,
-            background: "rgba(22,27,34,0.85)",
-            border: "1px solid #30363d",
-            borderRadius: 8,
-            padding: "8px 14px",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#f0f6fc" }}>{meta.titleHe}</div>
-          <div style={{ fontSize: 11, color: "#8b949e" }}>
-            {loadedMeshKeys.length} חלקים • לחץ על חלק לפרטים
-          </div>
+        <div className="absolute top-4 right-4 rounded-xl px-3.5 py-2 backdrop-blur-lg"
+          style={{ background: theme.panel + "dd", border: `1px solid ${theme.border}` }}>
+          <div className="text-sm font-bold">{meta.icon} {meta.titleHe}</div>
+          <div className="text-[11px]" style={{ color: theme.textDim }}>{loadedMeshKeys.length} חלקים • לחץ על חלק לפרטים</div>
         </div>
 
-        {/* Keyboard hint */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 16,
-            left: 16,
-            fontSize: 11,
-            color: "#484f58",
-          }}
-        >
-          Drag to rotate • Scroll to zoom • Click part for info
+        {/* Hint */}
+        <div className="absolute bottom-4 right-4 text-[11px]" style={{ color: theme.textDim + "80" }}>
+          גרירה = סיבוב • גלגלת = זום • לחיצה = מידע
         </div>
       </div>
 
-      {/* ── RIGHT INFO PANEL ── */}
+      {/* ── LEFT INFO PANEL ── */}
       {showInfoPanel && (
-        <div
-          style={{
-            width: 300,
-            minWidth: 240,
-            maxWidth: 340,
-            background: "#161b22",
-            borderLeft: "1px solid #30363d",
-            display: "flex",
-            flexDirection: "column",
-            overflowY: "auto",
-          }}
-        >
-          <div
-            style={{
-              padding: "14px 16px 10px",
-              borderBottom: "1px solid #30363d",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f6fc" }}>
-              מידע אנטומי
-            </div>
-            <button
-              onClick={() => setShowInfoPanel(false)}
-              style={{ ...btnStyle, padding: "3px 8px", fontSize: 11 }}
-            >
-              ✕
-            </button>
+        <div className="flex flex-col overflow-y-auto shrink-0" style={{ width: 300, background: theme.panel, borderRight: `1px solid ${theme.border}` }}>
+          <div className="flex items-center justify-between p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
+            <span className="text-sm font-bold">📋 מידע אנטומי</span>
+            <button onClick={() => setShowInfoPanel(false)} className="text-xs p-1 rounded-md cursor-pointer border-none"
+              style={{ background: "transparent", color: theme.textDim }}>✕</button>
           </div>
 
           {effectiveSelectedMesh && selectedInfo ? (
-            <InfoPanel info={selectedInfo} />
+            <InfoPanel info={selectedInfo} theme={theme} />
           ) : (
-            <div style={{ padding: 20, color: "#8b949e", fontSize: 13, textAlign: "center", marginTop: 40 }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>🫀</div>
-              <div>בחר חלק כדי לראות מידע</div>
-              <div style={{ fontSize: 11, marginTop: 8 }}>
-                Click any part of the 3D model or select from the list
-              </div>
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center" style={{ color: theme.textDim }}>
+              <span className="text-4xl mb-3">🫀</span>
+              <div className="text-sm font-semibold mb-1">בחר חלק כדי לראות מידע</div>
+              <div className="text-[11px]">לחץ על חלק במודל התלת-ממדי או בחר מהרשימה</div>
             </div>
           )}
         </div>
       )}
 
-      {/* Show panel button when closed */}
       {!showInfoPanel && (
-        <button
-          onClick={() => setShowInfoPanel(true)}
-          style={{
-            position: "absolute",
-            right: 16,
-            top: "50%",
-            transform: "translateY(-50%)",
-            ...btnStyle,
-            padding: "10px 6px",
-            writingMode: "vertical-rl",
-            fontSize: 11,
-          }}
-        >
-          ℹ Info
+        <button onClick={() => setShowInfoPanel(true)}
+          className="absolute left-4 top-1/2 -translate-y-1/2 py-3 px-1.5 rounded-lg text-xs cursor-pointer border"
+          style={{ background: theme.panel, borderColor: theme.border, color: theme.textDim, writingMode: "vertical-rl" }}>
+          ℹ️ מידע
         </button>
       )}
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Info panel
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Info Panel ──────────────────────────────────────────────────────────────
 
-function InfoPanel({ info }: { info: MeshInfo }) {
+function InfoPanel({ info, theme }: { info: MeshInfo; theme: typeof THEMES["dark"] }) {
   const layerEmoji: Record<string, string> = {
-    cranium: "🧠",
-    face: "😮",
-    jaw: "🦷",
-    respiratory: "💨",
-    cardiovascular: "❤️",
-    skeletal: "🦴",
-    glands: "🫀",
-    other: "⚕️",
+    cranium: "🧠", face: "😮", jaw: "🦷", respiratory: "💨",
+    cardiovascular: "❤️", skeletal: "🦴", glands: "🧪", chambers: "❤️",
+    vessels: "🩸", valves: "🔘", axial: "🦴", upper: "💪", lower: "🦵",
+    torso: "🫁", limbs: "💪", organs: "🫀", muscular: "💪", other: "⚕️",
   };
-  const emoji = layerEmoji[info.layer] ?? "⚕️";
 
   return (
-    <div style={{ padding: 16, flex: 1 }}>
+    <div className="p-4 flex-1">
       {/* Title */}
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 22 }}>{emoji}</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#f0f6fc", marginTop: 4 }}>
-          {info.displayNameHe}
-        </div>
-        <div style={{ fontSize: 13, color: "#8b949e" }}>{info.displayName}</div>
-        {info.latinName && (
-          <div style={{ fontSize: 11, color: "#58a6ff", fontStyle: "italic", marginTop: 2 }}>
-            {info.latinName}
-          </div>
-        )}
+      <div className="mb-4">
+        <span className="text-2xl">{layerEmoji[info.layer] ?? "⚕️"}</span>
+        <div className="text-lg font-bold mt-1">{info.displayNameHe}</div>
+        <div className="text-xs" style={{ color: theme.textDim }}>{info.displayName}</div>
+        {info.latinName && <div className="text-[11px] italic mt-0.5" style={{ color: theme.accent }}>{info.latinName}</div>}
       </div>
 
       {/* Function */}
-      {info.function && (
-        <Section title="תפקיד" icon="⚙️">
-          <p style={{ fontSize: 13, color: "#c9d1d9", margin: 0, lineHeight: 1.6 }}>
-            {info.function}
-          </p>
-        </Section>
+      {(info.functionHe || info.function) && (
+        <InfoSection title="⚙️ תפקיד" theme={theme}>
+          <p className="text-xs leading-relaxed m-0">{info.functionHe || info.function}</p>
+        </InfoSection>
       )}
 
       {/* Facts */}
-      {info.facts.length > 0 && (
-        <Section title="עובדות מעניינות" icon="💡">
-          {info.facts.map((f, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 12, color: "#c9d1d9" }}>
-              <span style={{ color: "#ffa600", flexShrink: 0 }}>▸</span>
-              <span style={{ lineHeight: 1.5 }}>{f}</span>
+      {(info.factsHe.length > 0 || info.facts.length > 0) && (
+        <InfoSection title="💡 עובדות" theme={theme}>
+          {(info.factsHe.length > 0 ? info.factsHe : info.facts).map((f, i) => (
+            <div key={i} className="flex gap-2 mb-1.5 text-xs">
+              <span style={{ color: theme.accent }} className="shrink-0">▸</span>
+              <span className="leading-relaxed">{f}</span>
             </div>
           ))}
-        </Section>
+        </InfoSection>
       )}
 
       {/* Diseases */}
-      {info.diseases.length > 0 && (
-        <Section title="מחלות נפוצות" icon="🏥">
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {info.diseases.map((d, i) => (
-              <span
-                key={i}
-                style={{
-                  background: "rgba(248,81,73,0.15)",
-                  border: "1px solid #da3633",
-                  color: "#f85149",
-                  borderRadius: 12,
-                  padding: "3px 8px",
-                  fontSize: 11,
-                }}
-              >
+      {(info.diseasesHe.length > 0 || info.diseases.length > 0) && (
+        <InfoSection title="🏥 מחלות נפוצות" theme={theme}>
+          <div className="flex flex-wrap gap-1.5">
+            {(info.diseasesHe.length > 0 ? info.diseasesHe : info.diseases).map((d, i) => (
+              <Badge key={i} variant="outline" className="text-[10px] px-2 py-0.5"
+                style={{ borderColor: "#da363380", color: "#f85149", background: "rgba(248,81,73,0.1)" }}>
                 {d}
-              </span>
+              </Badge>
             ))}
           </div>
-        </Section>
+        </InfoSection>
       )}
     </div>
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon: string; children: ReactNode }) {
+function InfoSection({ title, theme, children }: { title: string; theme: typeof THEMES["dark"]; children: ReactNode }) {
   return (
-    <div
-      style={{
-        background: "#0d1117",
-        border: "1px solid #21262d",
-        borderRadius: 8,
-        padding: "10px 12px",
-        marginBottom: 10,
-      }}
-    >
-      <div style={{ fontSize: 11, color: "#8b949e", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
-        <span>{icon}</span>
-        <span style={{ textTransform: "uppercase", letterSpacing: 1 }}>{title}</span>
+    <div className="rounded-lg p-3 mb-2.5" style={{ background: theme.bg, border: `1px solid ${theme.border}` }}>
+      <div className="text-[10px] font-bold mb-2 flex items-center gap-1.5" style={{ color: theme.textDim }}>
+        {title}
       </div>
       {children}
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared button style
-// ─────────────────────────────────────────────────────────────────────────────
-
-const btnStyle: React.CSSProperties = {
-  padding: "6px 12px",
-  background: "transparent",
-  border: "1px solid #30363d",
-  borderRadius: 6,
-  color: "#8b949e",
-  cursor: "pointer",
-  fontSize: 12,
-  transition: "all 0.2s",
-};
