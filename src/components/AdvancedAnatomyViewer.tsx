@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 
 // ─── Model definitions ───────────────────────────────────────────────────────
 
-type ModelId = "skull" | "thorax" | "skeleton_f" | "skeleton_m" | "muscles_f" | "muscles_m" | "heart" | "torso";
+type ModelId = "skull" | "thorax" | "skeleton_f" | "skeleton_m" | "muscles_f" | "muscles_m" | "heart" | "torso" | "brain" | "brain_eyes" | "stomach" | "kidney" | "liver" | "lung";
 
 type Layer = {
   id: string;
@@ -96,15 +96,24 @@ const cloud = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/objec
 // Map local paths to cloud storage slugs. Uses closest available cloud model as fallback.
 const CLOUD_MAP: Record<string, string> = {
   // Original models now imported to cloud from Sketchfab
-  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb": cloud("sketchfab_5a2c779eb9524a5081cb1e6297d15e83.glb"), // Hans anatomy (valid GLB fallback for skull)
-  "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb": cloud("sketchfab_22ebd4abce9440639563807e72e5f8d1.glb"), // ✅ Original heart-in-thorax
-  "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb": cloud("sketchfab_5f28b52cab3e439490727e0aede55a6b.glb"), // ✅ Original female skeleton
-  "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb": cloud("sketchfab_665890c542be433fb18ef235cf987cef.glb"), // ✅ Original male skeleton
-  "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb": cloud("sketchfab_9a596b6c24b344bfbe6bb5246290df0e.glb"), // ✅ Original female muscles
-  "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb": cloud("sketchfab_991eb96938be4d0d8fadee241a1063d3.glb"), // ✅ Original male muscles
-  "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb": cloud("sketchfab_3f8072336ce94d18b3d0d055a1ece089.glb"), // ✅ Original realistic heart
-  "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb": cloud("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb"), // Z-Anatomy (original too large for edge fn)
-  "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb": cloud("sketchfab_15f7ed2eefb244dc94d32b6a7d989355.glb"), // ✅ Original front body
+  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb": cloud("sketchfab_5a2c779eb9524a5081cb1e6297d15e83.glb"),
+  "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb": cloud("sketchfab_22ebd4abce9440639563807e72e5f8d1.glb"),
+  "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb": cloud("sketchfab_5f28b52cab3e439490727e0aede55a6b.glb"),
+  "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb": cloud("sketchfab_665890c542be433fb18ef235cf987cef.glb"),
+  "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb": cloud("sketchfab_9a596b6c24b344bfbe6bb5246290df0e.glb"),
+  "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb": cloud("sketchfab_991eb96938be4d0d8fadee241a1063d3.glb"),
+  "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb": cloud("sketchfab_3f8072336ce94d18b3d0d055a1ece089.glb"),
+  "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb": cloud("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb"),
+  "/models/sketchfab/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb": cloud("sketchfab_15f7ed2eefb244dc94d32b6a7d989355.glb"),
+  // New models
+  "/models/cloud/brain.glb": cloud("sketchfab_756bc05dd59e4f3ca1a93ffcc57a8994.glb"),
+  "/models/cloud/brain-eyes.glb": cloud("sketchfab_847350461cdf4d99ad18bc89daf13853.glb"),
+  "/models/cloud/stomach.glb": cloud("sketchfab_e0f1952de7204654ba469c3e887a029b.glb"),
+  "/models/cloud/humerus.glb": cloud("sketchfab_367fade2e5cb45fea2502faddff64f5f.glb"),
+  // HumanAtlas CDN (public, no import needed)
+  "/models/humanatlas/kidney.glb": "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Kidney_L.glb",
+  "/models/humanatlas/liver.glb": "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Liver.glb",
+  "/models/humanatlas/lung.glb": "https://ccf-ontology.hubmapconsortium.org/objects/v1.4/3d-vh-m-lung.glb",
 };
 
 function resolveModelPath(localPath: string): string {
@@ -404,6 +413,78 @@ const MODEL_META: Record<ModelId, {
         meshPatterns: [/lung/i, /trachea/i, /diaphragm/i, /bronch/i] },
       { id: "muscular", label: "Muscles", labelHe: "שרירים", color: "#dd8888", icon: "💪",
         meshPatterns: [/muscle/i, /pectoral/i, /rectus/i, /oblique/i] },
+    ],
+    infoMap: {},
+  },
+  brain: {
+    path: resolveModelPath("/models/cloud/brain.glb"),
+    titleHe: "מוח אנושי", titleEn: "Realistic Brain", icon: "🧠",
+    hasAnimation: false, description: "מודל מוח אנושי ריאליסטי תלת-ממדי",
+    layers: [
+      { id: "cerebrum", label: "Cerebrum", labelHe: "מוח גדול", color: "#f0b0b0", icon: "🧠",
+        meshPatterns: [/cerebr/i, /frontal/i, /parietal/i, /temporal/i, /occipital/i, /cortex/i] },
+      { id: "cerebellum", label: "Cerebellum", labelHe: "מוח קטן", color: "#b0c0f0", icon: "🔬",
+        meshPatterns: [/cerebellum/i, /vermis/i] },
+      { id: "brainstem", label: "Brainstem", labelHe: "גזע המוח", color: "#c0e0b0", icon: "🌿",
+        meshPatterns: [/brain.?stem/i, /medulla/i, /pons/i, /midbrain/i] },
+    ],
+    infoMap: {},
+  },
+  brain_eyes: {
+    path: resolveModelPath("/models/cloud/brain-eyes.glb"),
+    titleHe: "מוח ועיניים", titleEn: "Brain & Eyes", icon: "👁️",
+    hasAnimation: false, description: "מוח אנושי עם מערכת העיניים ועצבי הראייה",
+    layers: [
+      { id: "brain", label: "Brain", labelHe: "מוח", color: "#f0b0b0", icon: "🧠",
+        meshPatterns: [/brain/i, /cerebr/i, /cortex/i] },
+      { id: "eyes", label: "Eyes & Optic", labelHe: "עיניים ועצב ראייה", color: "#80c0ff", icon: "👁️",
+        meshPatterns: [/eye/i, /optic/i, /retina/i, /lens/i, /cornea/i, /sclera/i] },
+    ],
+    infoMap: {},
+  },
+  stomach: {
+    path: resolveModelPath("/models/cloud/stomach.glb"),
+    titleHe: "קיבה אנושית", titleEn: "Realistic Stomach", icon: "🫃",
+    hasAnimation: false, description: "מודל קיבה אנושית ריאליסטי",
+    layers: [
+      { id: "gastric", label: "Gastric Layers", labelHe: "שכבות הקיבה", color: "#e8a0a0", icon: "🫃",
+        meshPatterns: [/stomach/i, /gastric/i, /pylor/i, /fundus/i, /cardia/i, /mucosa/i] },
+      { id: "vessels", label: "Blood Supply", labelHe: "אספקת דם", color: "#cc3355", icon: "🩸",
+        meshPatterns: [/artery/i, /vein/i, /vessel/i] },
+    ],
+    infoMap: {},
+  },
+  kidney: {
+    path: resolveModelPath("/models/humanatlas/kidney.glb"),
+    titleHe: "כליה שמאלית", titleEn: "Left Kidney", icon: "🫘",
+    hasAnimation: false, description: "כליה אנושית שמאלית — Human Reference Atlas",
+    layers: [
+      { id: "cortex", label: "Cortex & Medulla", labelHe: "קליפה ומדולה", color: "#cc8866", icon: "🫘",
+        meshPatterns: [/cortex/i, /medulla/i, /pyramid/i, /papilla/i, /pelvis/i] },
+      { id: "vessels", label: "Renal Vessels", labelHe: "כלי דם כלייתיים", color: "#cc3355", icon: "🩸",
+        meshPatterns: [/artery/i, /vein/i, /vessel/i, /renal/i] },
+    ],
+    infoMap: {},
+  },
+  liver: {
+    path: resolveModelPath("/models/humanatlas/liver.glb"),
+    titleHe: "כבד", titleEn: "Liver", icon: "🫁",
+    hasAnimation: false, description: "כבד אנושי — Human Reference Atlas",
+    layers: [
+      { id: "lobes", label: "Liver Lobes", labelHe: "אונות הכבד", color: "#8b4513", icon: "🫁",
+        meshPatterns: [/lobe/i, /liver/i, /hepatic/i, /portal/i, /gallbladder/i] },
+    ],
+    infoMap: {},
+  },
+  lung: {
+    path: resolveModelPath("/models/humanatlas/lung.glb"),
+    titleHe: "ריאות", titleEn: "Lungs", icon: "🫁",
+    hasAnimation: false, description: "ריאות אנושיות — Human Reference Atlas",
+    layers: [
+      { id: "lobes", label: "Lung Lobes", labelHe: "אונות הריאה", color: "#f4a0a0", icon: "🫁",
+        meshPatterns: [/lobe/i, /lung/i, /bronch/i, /trachea/i] },
+      { id: "airways", label: "Airways", labelHe: "דרכי אוויר", color: "#90c0e0", icon: "💨",
+        meshPatterns: [/airway/i, /bronchiol/i, /alveol/i] },
     ],
     infoMap: {},
   },
