@@ -546,7 +546,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         <div className="flex items-center gap-2">
           <span className="text-sm font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>📦 מאגר מודלים</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "hsl(43 78% 47% / 0.15)", color: "hsl(43 78% 40%)" }}>
-            {models.length} בענן
+            {modelsLoading ? "⏳" : models.length} בענן
           </span>
           <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "hsl(220 20% 93%)", color: "hsl(220 30% 25%)" }}>
             {localModels.length} מקומיים
