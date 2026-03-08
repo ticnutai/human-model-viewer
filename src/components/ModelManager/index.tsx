@@ -508,6 +508,46 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       updateUploadItem(uploadId, { status: "done", progress: 100, statusLabel: `✅ ${model.name} — יובא בהצלחה!` });
       await load();
       
+      // Background analysis + thumbnail (non-blocking, like regular uploads)
+      if (result.fileUrl) {
+        const modelId = result.modelId || null;
+        console.log(`[Sketchfab Import] 🔄 Starting background analysis for ${model.name}...`);
+        if (modelId) setBgProcessingIds(prev => new Set(prev).add(modelId));
+        
+        (async () => {
+          try {
+            // Download the file for local analysis
+            console.log(`[Sketchfab Import/BG] ⬇️ Fetching GLB for analysis: ${result.fileUrl}`);
+            const glbRes = await fetch(result.fileUrl);
+            if (glbRes.ok) {
+              const glbBlob = await glbRes.blob();
+              const glbFile = new File([glbBlob], `sketchfab_${model.uid}.glb`, { type: "model/gltf-binary" });
+              
+              // Mesh analysis
+              console.log(`[Sketchfab Import/BG] 🔬 Analyzing meshes...`);
+              const analysisResult = await analyzeGlbSmart(glbFile, modelId || model.uid);
+              console.log(`[Sketchfab Import/BG] 🔬 Analysis: method=${analysisResult.method}, meshes=${analysisResult.meshNames.length}`);
+              if (modelId && analysisResult.translatedNames.length > 0) {
+                await supabase.from("models").update({ mesh_parts: analysisResult.translatedNames }).eq("id", modelId);
+                console.log(`[Sketchfab Import/BG] ✅ Saved ${analysisResult.translatedNames.length} mesh parts`);
+              }
+              
+              // Thumbnail generation
+              console.log(`[Sketchfab Import/BG] 📸 Generating thumbnail...`);
+              const { generateThumbnailFromFile } = await import("./ThumbnailGenerator");
+              const thumbBlob = await generateThumbnailFromFile(glbFile);
+              if (thumbBlob && modelId) {
+                await uploadThumbnailBlob(thumbBlob, modelId);
+                console.log(`[Sketchfab Import/BG] ✅ Thumbnail saved`);
+              }
+            }
+          } catch (e) { console.error("[Sketchfab Import/BG] ❌ Background error:", e); }
+          if (modelId) setBgProcessingIds(prev => { const s = new Set(prev); s.delete(modelId); return s; });
+          console.log(`[Sketchfab Import/BG] 🏁 Background tasks complete`);
+          load();
+        })();
+      }
+      
       setTimeout(() => setUploads(prev => prev.filter(u => u.id !== uploadId)), 4000);
     } catch (err) {
       console.error(`[Sketchfab Import] ❌ Exception:`, err);
