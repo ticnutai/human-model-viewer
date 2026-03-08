@@ -54,6 +54,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   // ── Data loading ──
   const load = useCallback(async () => {
     console.log("[ModelManager] load() called");
+    setModelsLoading(true);
     const isAbortError = (e: { message?: string } | null) =>
       e?.message?.includes('AbortError') || e?.message?.includes('steal');
 
@@ -80,6 +81,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       }
     } catch (err) {
       console.error("[ModelManager] load() exception:", err);
+    } finally {
+      setModelsLoading(false);
     }
   }, []);
 
