@@ -472,6 +472,51 @@ const ModelViewer = () => {
   // Fetch all cloud mesh mappings for enriching organ info
   const { allMappings: cloudMeshData } = useMeshMappings();
 
+  // Fetch cloud layer definitions and organ shapes
+  const { cloudLayers, cloudShapes, loading: cloudLayersLoading } = useCloudLayers();
+
+  // Dynamic layer definitions from cloud (fallback to hardcoded)
+  const dynamicLayerDefs = useMemo(() => {
+    if (cloudLayers.length > 0) {
+      return cloudLayers.map(cl => ({
+        key: cl.key as LayerType,
+        label: cl.label,
+        labelEn: cl.labelEn,
+        icon: cl.icon,
+        color: cl.color,
+      }));
+    }
+    return LAYER_DEFS;
+  }, [cloudLayers]);
+
+  // Dynamic peel directions from cloud
+  const dynamicPeelDirs = useMemo(() => {
+    if (cloudLayers.length > 0) {
+      const dirs: Record<string, [number, number, number]> = {};
+      cloudLayers.forEach(cl => { dirs[cl.key] = cl.peelDirection; });
+      return dirs;
+    }
+    return undefined;
+  }, [cloudLayers]);
+
+  // Dynamic organ shapes from cloud (for InteractiveOrgans)
+  const dynamicShapes = useMemo(() => {
+    if (cloudShapes.length > 0) {
+      return cloudShapes.map(cs => ({
+        key: cs.key,
+        position: cs.position,
+        scale: cs.scale,
+        color: cs.color,
+        hoverColor: cs.hoverColor,
+        geometry: cs.geometry,
+        rotation: cs.rotation,
+        layer: cs.layer,
+        category: cs.category as LayerType,
+      }));
+    }
+    return undefined;
+  }, [cloudShapes]);
+
   // Build enriched ORGAN_DETAILS map from cloud data
   const enrichedOrganDetails = useMemo(() => {
     if (!cloudMeshData.length) return ORGAN_DETAILS;
@@ -479,7 +524,6 @@ const ModelViewer = () => {
     cloudMeshData.forEach(cm => {
       const factsData = cm.facts || {};
       const key = cm.mesh_key;
-      // Only add if not already in ORGAN_DETAILS (cloud supplements, doesn't override hardcoded)
       if (!enriched[key]) {
         enriched[key] = {
           name: cm.name,
