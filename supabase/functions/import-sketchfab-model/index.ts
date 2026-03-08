@@ -93,36 +93,37 @@ Deno.serve(async (req) => {
 
     // 4. Insert into models table
     const displayName = name || `Sketchfab ${uid}`;
-    const { data: insertData, error: insertError } = await supabase
-      .from("models")
-      .upsert(
-        {
-          file_name: fileName,
-          display_name: displayName,
-          file_url: fileUrl,
-          file_size: fileSize,
-          media_type: "glb",
-        },
-        { onConflict: "file_name" }
-      )
-      .select()
-      .single();
+    let modelId: string | null = null;
 
-    if (insertError) {
-      // Try without onConflict
-      const { data: d2, error: e2 } = await supabase
+    // Check if already exists
+    const { data: existing } = await supabase
+      .from("models")
+      .select("id")
+      .eq("file_name", fileName)
+      .maybeSingle();
+
+    if (existing) {
+      // Update existing
+      const { data: updated } = await supabase
         .from("models")
-        .insert({
-          file_name: fileName,
-          display_name: displayName,
-          file_url: fileUrl,
-          file_size: fileSize,
-          media_type: "glb",
-        })
-        .select()
+        .update({ display_name: displayName, file_url: fileUrl, file_size: fileSize, media_type: "glb" })
+        .eq("id", existing.id)
+        .select("id")
         .single();
-      if (e2) {
-        console.error("[import] DB insert error:", e2);
+      modelId = updated?.id || existing.id;
+      console.log(`[import] Updated existing model: ${modelId}`);
+    } else {
+      // Insert new
+      const { data: inserted, error: insertErr } = await supabase
+        .from("models")
+        .insert({ file_name: fileName, display_name: displayName, file_url: fileUrl, file_size: fileSize, media_type: "glb" })
+        .select("id")
+        .single();
+      if (insertErr) {
+        console.error("[import] DB insert error:", insertErr);
+      } else {
+        modelId = inserted?.id || null;
+        console.log(`[import] Inserted new model: ${modelId}`);
       }
     }
 
