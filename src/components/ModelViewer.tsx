@@ -266,7 +266,7 @@ const ModelViewer = () => {
   const [showDevPanel, setShowDevPanel] = useState(false);
   const [themeIdx, setThemeIdx] = useState(0);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [useInteractive, setUseInteractive] = useState(true); // DEFAULT to interactive
+  const [useInteractive, setUseInteractive] = useState(false); // DEFAULT to GLB model
   const [atlasQuery, setAtlasQuery] = useState("");
   const [selectedSystem, setSelectedSystem] = useState("all");
   const [lessonActive, setLessonActive] = useState(false);
