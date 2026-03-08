@@ -613,6 +613,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               error={sketchfabError}
               importingUid={importingUid}
               uploads={uploads}
+              existingUids={models.map(m => m.file_name).filter(n => n.includes("sketchfab_")).map(n => { const match = n.match(/sketchfab_([a-f0-9]+)/); return match ? match[1] : ""; }).filter(Boolean)}
             />
           </div>
         )}
