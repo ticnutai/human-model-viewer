@@ -76,7 +76,26 @@ export default function ModelCard({
           {thumb ? (
             <img src={thumb} alt={cleanDisplayName} className="w-full h-full object-cover" />
           ) : (
-            <span className="text-4xl opacity-60">{mediaIcon}</span>
+            <div className="flex flex-col items-center justify-center gap-1">
+              <span className="text-4xl opacity-60">{mediaIcon}</span>
+              {model.source === "cloud" && rec && !isGenerating && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onGenerateThumbnail(rec); }}
+                  className="bg-primary/80 text-primary-foreground text-[8px] px-1.5 py-0.5 rounded-md font-semibold hover:bg-primary transition-colors whitespace-nowrap"
+                >📸 צור תמונה</button>
+              )}
+              {isGenerating && (
+                <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+          )}
+          {/* Active model indicator - click to toggle */}
+          {isActive && (
+            <div className="absolute bottom-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold bg-primary text-primary-foreground backdrop-blur-sm animate-pulse">
+              ▶ פעיל
+            </div>
           )}
           {/* Source badge */}
           <div className={`absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold backdrop-blur-sm ${
@@ -104,27 +123,41 @@ export default function ModelCard({
             <span className="text-[9px] text-muted-foreground">
               {formatSize(model.fileSize)}
             </span>
-            {model.source === "cloud" && rec && (
-              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+              {/* Edit button - for cloud models */}
+              {model.source === "cloud" && rec && (
                 <button
                   onClick={() => { setInlineEdit(true); setInlineValue(hebrewName); }}
                   title="ערוך שם"
                   className="text-[11px] p-0.5 rounded bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer border-none"
                 >✏️</button>
-                {confirmDel ? (
-                  <div className="flex gap-0.5">
-                    <button onClick={() => onDelete(rec)} className="bg-destructive text-destructive-foreground rounded px-1.5 py-0.5 text-[8px] font-semibold cursor-pointer border-none">מחק</button>
-                    <button onClick={() => setConfirmDel(false)} className="bg-transparent text-muted-foreground border border-border rounded px-1 py-0.5 text-[8px] cursor-pointer">✕</button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setConfirmDel(true)}
-                    title="מחק"
-                    className="text-[11px] p-0.5 rounded bg-transparent text-destructive hover:bg-destructive/10 transition-colors cursor-pointer border-none"
-                  >🗑️</button>
-                )}
-              </div>
-            )}
+              )}
+              {/* Delete button - for cloud models */}
+              {model.source === "cloud" && rec && (
+                <>
+                  {confirmDel ? (
+                    <div className="flex gap-0.5">
+                      <button onClick={() => onDelete(rec)} className="bg-destructive text-destructive-foreground rounded px-1.5 py-0.5 text-[8px] font-semibold cursor-pointer border-none">מחק</button>
+                      <button onClick={() => setConfirmDel(false)} className="bg-transparent text-muted-foreground border border-border rounded px-1 py-0.5 text-[8px] cursor-pointer">✕</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDel(true)}
+                      title="מחק"
+                      className="text-[11px] p-0.5 rounded bg-transparent text-destructive hover:bg-destructive/10 transition-colors cursor-pointer border-none"
+                    >🗑️</button>
+                  )}
+                </>
+              )}
+              {/* Play/Active toggle */}
+              <button
+                onClick={() => onSelect(model.url)}
+                title={isActive ? "מודל פעיל" : "הפעל מודל"}
+                className={`text-[11px] p-0.5 rounded transition-colors cursor-pointer border-none ${
+                  isActive ? "bg-primary/20 text-primary" : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent"
+                }`}
+              >{isActive ? "⏸️" : "▶️"}</button>
+            </div>
           </div>
         </div>
         {/* Inline edit overlay for grid */}
