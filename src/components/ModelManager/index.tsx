@@ -488,6 +488,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           uid: model.uid,
           name: model.name,
           sketchfabToken: token,
+          category_id: activeCategory || categories[0]?.id || null,
         }),
       });
       
