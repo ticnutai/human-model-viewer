@@ -634,10 +634,10 @@ const ModelViewer = () => {
   }, [tryResolveToCloud]);
 
   const focusOrganByKey = useCallback((key: string) => {
-    const organ = ORGAN_DETAILS[key]; if (!organ) return;
+    const organ = enrichedOrganDetails[key]; if (!organ) return;
     setSelectedOrgan({ ...organ, meshName: key });
     if (organ.cameraPos) handleViewChange(organ.cameraPos, organ.lookAt);
-  }, [handleViewChange]);
+  }, [handleViewChange, enrichedOrganDetails]);
 
   const moveLesson = useCallback((direction: 1 | -1) => {
     setLessonIndex(prev => { const next = (prev + direction + lessonSequence.length) % lessonSequence.length; focusOrganByKey(lessonSequence[next]); return next; });
