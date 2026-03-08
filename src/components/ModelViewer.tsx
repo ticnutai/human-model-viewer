@@ -691,7 +691,6 @@ const ModelViewer = () => {
             )}
             {sidebarTab === "models" && (
               <ModelManager
-                theme={t}
                 onSelectModel={handleSelectModel}
                 currentModelUrl={modelUrl}
               />
