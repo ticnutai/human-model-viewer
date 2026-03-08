@@ -214,76 +214,201 @@ function OrganParticles({ position, color }: { position: [number, number, number
   );
 }
 
+/** Realistic human body silhouette using LatheGeometry + TubeGeometry limbs */
 function BodySilhouette() {
-  const ref = useRef<THREE.Group>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const chestRef = useRef<THREE.Mesh>(null);
+  const abdomenRef = useRef<THREE.Mesh>(null);
+
+  // Torso LatheGeometry from profile curve
+  const torsoGeom = useMemo(() => {
+    const pts = [
+      new THREE.Vector2(0.001, -0.55),  // bottom (pelvis base)
+      new THREE.Vector2(0.26, -0.50),   // hips wide
+      new THREE.Vector2(0.28, -0.40),   // hip curve
+      new THREE.Vector2(0.24, -0.20),   // lower waist
+      new THREE.Vector2(0.21, 0.00),    // waist narrow
+      new THREE.Vector2(0.23, 0.15),    // above waist
+      new THREE.Vector2(0.28, 0.35),    // lower chest
+      new THREE.Vector2(0.32, 0.55),    // chest wide
+      new THREE.Vector2(0.30, 0.70),    // upper chest
+      new THREE.Vector2(0.22, 0.80),    // shoulders taper in
+      new THREE.Vector2(0.001, 0.85),   // top (neck base)
+    ];
+    return new THREE.LatheGeometry(pts, 48, 0, Math.PI * 2);
+  }, []);
+
+  // Head as slightly elongated sphere (skull shape)
+  const headGeom = useMemo(() => {
+    const pts = [
+      new THREE.Vector2(0.001, -0.14),  // chin
+      new THREE.Vector2(0.12, -0.12),   // jaw
+      new THREE.Vector2(0.18, -0.05),   // lower face
+      new THREE.Vector2(0.21, 0.05),    // cheek
+      new THREE.Vector2(0.22, 0.12),    // temple
+      new THREE.Vector2(0.21, 0.20),    // forehead
+      new THREE.Vector2(0.18, 0.26),    // top front
+      new THREE.Vector2(0.12, 0.30),    // crown
+      new THREE.Vector2(0.001, 0.32),   // top
+    ];
+    return new THREE.LatheGeometry(pts, 32, 0, Math.PI * 2);
+  }, []);
+
+  // Neck cylinder
+  const neckGeom = useMemo(() => {
+    const pts = [
+      new THREE.Vector2(0.001, -0.10),
+      new THREE.Vector2(0.07, -0.08),
+      new THREE.Vector2(0.08, 0.00),
+      new THREE.Vector2(0.07, 0.08),
+      new THREE.Vector2(0.001, 0.10),
+    ];
+    return new THREE.LatheGeometry(pts, 16, 0, Math.PI * 2);
+  }, []);
+
+  // Arm tube geometry (upper + forearm)
+  const armCurve = useMemo(() => {
+    return {
+      upper: new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0.38, 0),
+        new THREE.Vector3(0.04, 0.20, 0.02),
+        new THREE.Vector3(0.06, 0.0, 0.01),
+        new THREE.Vector3(0.05, -0.20, -0.01),
+      ]),
+      forearm: new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.05, -0.20, -0.01),
+        new THREE.Vector3(0.04, -0.38, -0.02),
+        new THREE.Vector3(0.02, -0.55, 0.0),
+      ]),
+    };
+  }, []);
+
+  // Leg tube curve
+  const legCurve = useMemo(() => {
+    return {
+      upper: new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0.0, 0),
+        new THREE.Vector3(0.01, -0.22, 0.02),
+        new THREE.Vector3(0.01, -0.45, 0.01),
+      ]),
+      lower: new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.01, -0.45, 0.01),
+        new THREE.Vector3(0.005, -0.68, -0.01),
+        new THREE.Vector3(0.0, -0.90, 0.0),
+      ]),
+    };
+  }, []);
+
+  const upperArmGeom = useMemo(() => new THREE.TubeGeometry(armCurve.upper, 20, 0.045, 12, false), [armCurve]);
+  const forearmGeom = useMemo(() => new THREE.TubeGeometry(armCurve.forearm, 16, 0.032, 10, false), [armCurve]);
+  const upperLegGeom = useMemo(() => new THREE.TubeGeometry(legCurve.upper, 20, 0.075, 12, false), [legCurve]);
+  const lowerLegGeom = useMemo(() => new THREE.TubeGeometry(legCurve.lower, 16, 0.055, 10, false), [legCurve]);
+
+  // Breathing animation — chest and abdomen independently
   useFrame(({ clock }) => {
-    if (!ref.current) return;
-    const breathe = 1 + Math.sin(clock.getElapsedTime() * 1.2) * 0.005;
-    ref.current.scale.set(1, breathe, 1);
+    if (!groupRef.current) return;
+    const t = clock.getElapsedTime();
+    const breathPhase = Math.sin(t * 1.2);
+    // Chest expands on inhale
+    if (chestRef.current) {
+      const chestBreath = 1 + breathPhase * 0.012;
+      chestRef.current.scale.set(chestBreath, 1, chestBreath);
+    }
+    // Abdomen contracts slightly when chest expands (diaphragmatic breathing)
+    if (abdomenRef.current) {
+      const abdBreath = 1 - breathPhase * 0.006;
+      abdomenRef.current.scale.set(abdBreath, 1, abdBreath);
+    }
   });
 
+  // Shared skin material — semi-transparent physical material
+  const skinMat = useMemo(() => (
+    <meshPhysicalMaterial
+      color="#3a3545"
+      transparent
+      opacity={0.12}
+      roughness={0.5}
+      metalness={0.0}
+      transmission={0.25}
+      thickness={0.4}
+      clearcoat={0.1}
+      clearcoatRoughness={0.8}
+      depthWrite={false}
+      side={THREE.DoubleSide}
+    />
+  ), []);
+
+  const limbMat = useMemo(() => (
+    <meshPhysicalMaterial
+      color="#352f3a"
+      transparent
+      opacity={0.08}
+      roughness={0.6}
+      metalness={0.0}
+      transmission={0.2}
+      thickness={0.3}
+      depthWrite={false}
+      side={THREE.DoubleSide}
+    />
+  ), []);
+
   return (
-    <group ref={ref}>
+    <group ref={groupRef}>
       {/* Head */}
-      <mesh position={[0, 2.02, 0]}>
-        <sphereGeometry args={[0.28, 32, 32]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.1} depthWrite={false} />
+      <mesh geometry={headGeom} position={[0, 2.05, 0]}>
+        {skinMat}
       </mesh>
+
       {/* Neck */}
-      <mesh position={[0, 1.62, 0]}>
-        <cylinderGeometry args={[0.07, 0.09, 0.18, 16]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.08} depthWrite={false} />
+      <mesh geometry={neckGeom} position={[0, 1.72, 0]}>
+        {skinMat}
       </mesh>
-      {/* Torso — tapered */}
-      <mesh position={[0, 0.85, 0]}>
-        <cylinderGeometry args={[0.32, 0.28, 0.7, 16]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.07} depthWrite={false} />
+
+      {/* Torso (split into chest ref and full mesh for breathing) */}
+      <mesh ref={chestRef} geometry={torsoGeom} position={[0, 0.35, 0]}>
+        {skinMat}
       </mesh>
-      {/* Abdomen */}
-      <mesh position={[0, 0.25, 0]}>
-        <cylinderGeometry args={[0.28, 0.26, 0.8, 16]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.06} depthWrite={false} />
+
+      {/* Shoulder caps */}
+      <mesh position={[0.34, 1.18, 0]}>
+        <sphereGeometry args={[0.065, 16, 16]} />
+        {skinMat}
       </mesh>
-      {/* Pelvis */}
-      <mesh position={[0, -0.35, 0]}>
-        <sphereGeometry args={[0.26, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
+      <mesh position={[-0.34, 1.18, 0]}>
+        <sphereGeometry args={[0.065, 16, 16]} />
+        {skinMat}
       </mesh>
-      {/* Legs */}
-      <mesh position={[0.13, -1.0, 0]}>
-        <cylinderGeometry args={[0.07, 0.055, 1.0, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
+
+      {/* Right arm */}
+      <group position={[0.34, 1.18, 0]}>
+        <mesh geometry={upperArmGeom}>{limbMat}</mesh>
+        <mesh geometry={forearmGeom}>{limbMat}</mesh>
+      </group>
+      {/* Left arm (mirrored) */}
+      <group position={[-0.34, 1.18, 0]} scale={[-1, 1, 1]}>
+        <mesh geometry={upperArmGeom}>{limbMat}</mesh>
+        <mesh geometry={forearmGeom}>{limbMat}</mesh>
+      </group>
+
+      {/* Right leg */}
+      <group position={[0.13, -0.15, 0]}>
+        <mesh geometry={upperLegGeom}>{limbMat}</mesh>
+        <mesh geometry={lowerLegGeom}>{limbMat}</mesh>
+      </group>
+      {/* Left leg */}
+      <group position={[-0.13, -0.15, 0]}>
+        <mesh geometry={upperLegGeom}>{limbMat}</mesh>
+        <mesh geometry={lowerLegGeom}>{limbMat}</mesh>
+      </group>
+
+      {/* Clavicles */}
+      <mesh position={[0.17, 1.20, 0.04]} rotation={[0, 0, Math.PI / 2 - 0.15]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.22, 8]} />
+        <meshPhysicalMaterial color="#3a3a4a" transparent opacity={0.06} depthWrite={false} />
       </mesh>
-      <mesh position={[-0.13, -1.0, 0]}>
-        <cylinderGeometry args={[0.07, 0.055, 1.0, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
-      </mesh>
-      {/* Upper arms */}
-      <mesh position={[0.46, 0.9, 0]} rotation={[0, 0, 0.12]}>
-        <cylinderGeometry args={[0.045, 0.035, 0.55, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
-      </mesh>
-      <mesh position={[-0.46, 0.9, 0]} rotation={[0, 0, -0.12]}>
-        <cylinderGeometry args={[0.045, 0.035, 0.55, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.05} depthWrite={false} />
-      </mesh>
-      {/* Forearms */}
-      <mesh position={[0.52, 0.5, 0]} rotation={[0, 0, 0.05]}>
-        <cylinderGeometry args={[0.035, 0.025, 0.5, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.04} depthWrite={false} />
-      </mesh>
-      <mesh position={[-0.52, 0.5, 0]} rotation={[0, 0, -0.05]}>
-        <cylinderGeometry args={[0.035, 0.025, 0.5, 12]} />
-        <meshStandardMaterial color="#2a2a3a" transparent opacity={0.04} depthWrite={false} />
-      </mesh>
-      {/* Clavicles (collarbones) */}
-      <mesh position={[0.2, 1.18, 0.04]} rotation={[0, 0, Math.PI / 2 - 0.15]}>
-        <cylinderGeometry args={[0.015, 0.015, 0.2, 8]} />
-        <meshStandardMaterial color="#3a3a4a" transparent opacity={0.06} depthWrite={false} />
-      </mesh>
-      <mesh position={[-0.2, 1.18, 0.04]} rotation={[0, 0, Math.PI / 2 + 0.15]}>
-        <cylinderGeometry args={[0.015, 0.015, 0.2, 8]} />
-        <meshStandardMaterial color="#3a3a4a" transparent opacity={0.06} depthWrite={false} />
+      <mesh position={[-0.17, 1.20, 0.04]} rotation={[0, 0, Math.PI / 2 + 0.15]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.22, 8]} />
+        <meshPhysicalMaterial color="#3a3a4a" transparent opacity={0.06} depthWrite={false} />
       </mesh>
     </group>
   );
