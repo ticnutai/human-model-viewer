@@ -367,7 +367,7 @@ const ModelViewer = () => {
       setVisibleLayers(new Set(["skeleton", "muscles", "organs", "vessels"]));
       setShowBloodFlow(false); setShowLabels3D(false); setShowClippingPlane(false);
       setShowXRayShader(false); setExplodeAmount(0); setFocusSelected(false);
-      setShowSelectionOutline(true); setXRayOpacity(1);
+      setShowSelectionOutline(true); setXRayOpacity(1); setPeelAmount(0); setLayerOpacities({ skeleton: 1, muscles: 1, organs: 1, vessels: 1 });
     } else if (preset === "organs") {
       setVisibleLayers(new Set(["organs", "vessels"]));
       setShowLabels3D(true); setShowBloodFlow(true); setFocusSelected(false); setShowSelectionOutline(true); setXRayOpacity(1);
