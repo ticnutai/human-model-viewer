@@ -601,9 +601,11 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               categories={categories}
               onSelect={onSelectModel}
               onDelete={handleDelete}
+              onHideLocal={handleHideLocal}
               onSaveEdit={handleSaveEdit}
               onSaveInlineName={handleSaveInlineName}
               onSaveDisplayName={handleSaveDisplayName}
+              onEditLocalName={handleEditLocalName}
               onReanalyze={handleReanalyze}
               onGenerateThumbnail={handleGenerateThumbnail}
               reanalyzingId={reanalyzingId}
