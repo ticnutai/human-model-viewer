@@ -109,6 +109,9 @@ export default function ModelCard({
     }
     setInlineEdit(false);
   };
+  // Hebrew name for all models (local + cloud)
+  const localHebrewHint = !isCloud ? autoHebrewName(model.displayName, model.url) : "";
+  const displayHebrew = hebrewName || localHebrewHint;
 
   // ── GRID VIEW ──
   if (viewMode === "grid") {
