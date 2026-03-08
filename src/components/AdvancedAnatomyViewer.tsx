@@ -89,6 +89,28 @@ const THEMES: Record<ThemeId, {
   },
 };
 
+// ─── Cloud URL resolver ──────────────────────────────────────────────────────
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const cloud = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
+
+// Map local paths to cloud storage slugs. Uses closest available cloud model as fallback.
+const CLOUD_MAP: Record<string, string> = {
+  "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb": cloud("sketchfab_14191ef860b44925be0e94462c84ffe6.glb"), // Full anatomy as fallback
+  "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb": cloud("1772667675008_cardiac_anatomy_external_view.glb"), // Heart model
+  "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb": cloud("sketchfab_5a2c779eb9524a5081cb1e6297d15e83.glb"), // Hans anatomy
+  "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb": cloud("sketchfab_5a2c779eb9524a5081cb1e6297d15e83.glb"), // Hans anatomy
+  "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb": cloud("sketchfab_fa8ddd1d6aef42769e199532a49d28d6.glb"), // Ecorche muscles
+  "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb": cloud("sketchfab_fa8ddd1d6aef42769e199532a49d28d6.glb"), // Ecorche muscles
+  "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb": cloud("1772470980259_human_heart_3d_model__anatomy__medical_project.glb"), // Heart 3D
+  "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb": cloud("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb"), // Z-Anatomy full body
+};
+
+function resolveModelPath(localPath: string): string {
+  const cloudPath = CLOUD_MAP[localPath];
+  if (cloudPath) return cloudPath; // Cloud version available
+  return localPath; // fallback to local
+}
+
 // ─── Model paths & metadata ──────────────────────────────────────────────────
 
 const MODEL_META: Record<ModelId, {
@@ -97,7 +119,7 @@ const MODEL_META: Record<ModelId, {
   hasAnimation: boolean; description: string;
 }> = {
   skull: {
-    path: "/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb",
+    path: resolveModelPath("/models/sketchfab/visible-interactive-human-exploding-skull-252887e2e755427c90d9e3d0c6d3025f/model.glb"),
     titleHe: "גולגולת מתפרקת", titleEn: "Exploding Skull", icon: "💀",
     hasAnimation: true, description: "25 עצמות הגולגולת עם אנימציית פירוק",
     layers: [
@@ -250,7 +272,7 @@ const MODEL_META: Record<ModelId, {
     },
   },
   thorax: {
-    path: "/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb",
+    path: resolveModelPath("/models/sketchfab/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb"),
     titleHe: "לב בבית החזה", titleEn: "Heart in Thorax", icon: "❤️",
     hasAnimation: false, description: "הלב, ריאות, קנה נשימה וכלוב הצלעות",
     layers: [
@@ -304,7 +326,7 @@ const MODEL_META: Record<ModelId, {
     },
   },
   skeleton_f: {
-    path: "/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb",
+    path: resolveModelPath("/models/sketchfab/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb"),
     titleHe: "שלד נשי", titleEn: "Female Skeleton", icon: "🦴",
     hasAnimation: false, description: "שלד אנושי נשי מפורט — מחקר אנטומי",
     layers: [
@@ -318,7 +340,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   skeleton_m: {
-    path: "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb",
+    path: resolveModelPath("/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb"),
     titleHe: "שלד גברי", titleEn: "Male Skeleton", icon: "🦴",
     hasAnimation: false, description: "שלד אנושי גברי מפורט — מחקר אנטומי",
     layers: [
@@ -332,7 +354,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   muscles_f: {
-    path: "/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb",
+    path: resolveModelPath("/models/sketchfab/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb"),
     titleHe: "מערכת שרירים נשית", titleEn: "Female Muscular System", icon: "💪",
     hasAnimation: false, description: "מערכת השרירים של הגוף הנשי",
     layers: [
@@ -344,7 +366,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   muscles_m: {
-    path: "/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb",
+    path: resolveModelPath("/models/sketchfab/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb"),
     titleHe: "מערכת שרירים גברית", titleEn: "Male Muscular System", icon: "💪",
     hasAnimation: false, description: "מערכת השרירים של הגוף הגברי",
     layers: [
@@ -356,7 +378,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   heart: {
-    path: "/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb",
+    path: resolveModelPath("/models/sketchfab/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb"),
     titleHe: "לב ריאליסטי", titleEn: "Realistic Heart", icon: "🫀",
     hasAnimation: false, description: "מודל לב אנושי ריאליסטי ומפורט",
     layers: [
@@ -370,7 +392,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   torso: {
-    path: "/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb",
+    path: resolveModelPath("/models/sketchfab/human-anatomy-male-torso-c51104a42e554cf5ae18c7e7f584fd70/model.glb"),
     titleHe: "פלג גוף גברי", titleEn: "Male Torso Anatomy", icon: "🧍",
     hasAnimation: false, description: "פלג גוף גברי עם כל האיברים הפנימיים",
     layers: [
@@ -415,6 +437,41 @@ function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers:
     layer: autoLayer, facts: [], factsHe: [], latinName: "",
     function: "", functionHe: "", diseases: [], diseasesHe: [],
   };
+}
+
+// ─── Loading overlay with timeout ────────────────────────────────────────────
+
+function LoadingOverlay({ meta, theme }: { meta: { titleHe: string; titleEn: string; path: string }; theme: { bg: string; textDim: string } }) {
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), 15000);
+    return () => clearTimeout(timer);
+  }, [meta.path]);
+
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: theme.bg + "dd" }}>
+      {timedOut ? (
+        <>
+          <span className="text-3xl">⚠️</span>
+          <div className="text-center">
+            <div className="text-base font-semibold text-red-400">שגיאה בטעינת המודל</div>
+            <div className="text-xs mt-1" style={{ color: theme.textDim }}>
+              הקובץ עלול להיות פגום או מצביע Git LFS.<br />
+              נסה מודל אחר מהרשימה.
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <span className="text-3xl">⚕️</span>
+          <div>
+            <div className="text-base font-semibold">טוען {meta.titleHe}...</div>
+            <div className="text-xs" style={{ color: theme.textDim }}>Loading {meta.titleEn}</div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 // ─── ErrorBoundary ───────────────────────────────────────────────────────────
@@ -866,13 +923,7 @@ export default function AdvancedAnatomyViewer() {
 
         {/* Loading overlay */}
         {loadedMeshKeys.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center gap-3" style={{ background: theme.bg + "dd" }}>
-            <span className="text-3xl">⚕️</span>
-            <div>
-              <div className="text-base font-semibold">טוען {meta.titleHe}...</div>
-              <div className="text-xs" style={{ color: theme.textDim }}>Loading {meta.titleEn}</div>
-            </div>
-          </div>
+          <LoadingOverlay meta={meta} theme={theme} />
         )}
 
         {/* Model label */}
