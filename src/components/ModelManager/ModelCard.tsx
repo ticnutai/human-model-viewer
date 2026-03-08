@@ -24,7 +24,7 @@ interface ModelCardProps {
 export default function ModelCard({
   model, isActive, categories, onSelect, onDelete,
   onSaveEdit, onSaveInlineName, onSaveDisplayName, onReanalyze,
-  onGenerateThumbnail, reanalyzingId, generatingThumbId,
+  onGenerateThumbnail, reanalyzingId, generatingThumbId, viewMode = "list",
 }: ModelCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
