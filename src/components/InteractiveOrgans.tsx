@@ -535,22 +535,73 @@ function OrganMesh({
   );
 }
 
-/** Animated layer group — smoothly fades scale on show/hide */
-function LayerFadeGroup({ visible, children }: { visible: boolean; children: React.ReactNode }) {
+/**
+ * Animated layer group — supports:
+ * - Scale fade on show/hide
+ * - Per-layer opacity (applied to all mesh children)
+ * - "Peel" animation: layers slide outward like anatomy book pages
+ */
+function LayerPeelGroup({
+  visible,
+  opacity = 1,
+  peelAmount = 0,
+  peelDirection,
+  children,
+}: {
+  visible: boolean;
+  opacity?: number;
+  peelAmount?: number;
+  peelDirection: [number, number, number];
+  children: React.ReactNode;
+}) {
   const groupRef = useRef<THREE.Group>(null);
   const currentScale = useRef(visible ? 1 : 0);
+  const currentPeel = useRef(0);
   const targetScale = visible ? 1 : 0;
 
   useFrame(() => {
     if (!groupRef.current) return;
+    // Scale animation
     currentScale.current += (targetScale - currentScale.current) * 0.08;
     const s = currentScale.current;
-    groupRef.current.scale.set(s, s, s);
     groupRef.current.visible = s > 0.01;
+
+    // Peel offset animation
+    const targetPeel = visible ? peelAmount : 0;
+    currentPeel.current += (targetPeel - currentPeel.current) * 0.06;
+    const p = currentPeel.current;
+    groupRef.current.position.set(
+      peelDirection[0] * p,
+      peelDirection[1] * p,
+      peelDirection[2] * p
+    );
+
+    // Apply opacity + scale to all child meshes
+    groupRef.current.scale.set(s, s, s);
+    groupRef.current.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mat = (child as THREE.Mesh).material;
+        if (mat && "opacity" in mat) {
+          (mat as THREE.Material & { opacity: number }).opacity =
+            Math.min((mat as any)._baseOpacity ?? (mat as any).opacity ?? 0.75, opacity);
+          if (!(mat as any)._baseOpacity) {
+            (mat as any)._baseOpacity = (mat as any).opacity;
+          }
+        }
+      }
+    });
   });
 
   return <group ref={groupRef}>{children}</group>;
 }
+
+// Peel directions for each layer (outward spread like anatomy book)
+const LAYER_PEEL_DIRS: Record<LayerType, [number, number, number]> = {
+  skeleton: [0, 0, -0.8],    // back
+  muscles: [-0.6, 0, -0.3],  // left-back
+  organs: [0, 0, 0.5],       // front
+  vessels: [0.6, 0, -0.3],   // right-back
+};
 
 export default function InteractiveOrgans({
   onSelect,
@@ -561,6 +612,8 @@ export default function InteractiveOrgans({
   focusSelected = false,
   animationSpeed = 1,
   pathologyKeys,
+  layerOpacities,
+  peelAmount = 0,
 }: {
   onSelect: (detail: OrganDetail) => void;
   selectedMesh: string | null;
@@ -570,17 +623,20 @@ export default function InteractiveOrgans({
   focusSelected?: boolean;
   animationSpeed?: number;
   pathologyKeys?: Set<string>;
+  layerOpacities?: Record<LayerType, number>;
+  peelAmount?: number;
 }) {
   const layers = visibleLayers ?? new Set<LayerType>(["skeleton", "muscles", "organs", "vessels"]);
+  const opacities = layerOpacities ?? { skeleton: 1, muscles: 1, organs: 1, vessels: 1 };
 
   return (
     <group position={[0, -0.5, 0]}>
       <BodySilhouette />
-      <LayerFadeGroup visible={layers.has("vessels")}>
+      <LayerPeelGroup visible={layers.has("vessels")} opacity={opacities.vessels} peelAmount={peelAmount} peelDirection={LAYER_PEEL_DIRS.vessels}>
         <BloodVessels />
-      </LayerFadeGroup>
+      </LayerPeelGroup>
       {ORGAN_SHAPES.map((shape, i) => (
-        <LayerFadeGroup key={`${shape.key}-${i}`} visible={layers.has(shape.category)}>
+        <LayerPeelGroup key={`${shape.key}-${i}`} visible={layers.has(shape.category)} opacity={opacities[shape.category]} peelAmount={peelAmount} peelDirection={LAYER_PEEL_DIRS[shape.category]}>
           <Float
             speed={1.5}
             rotationIntensity={0}
@@ -599,7 +655,7 @@ export default function InteractiveOrgans({
               pathologyKeys={pathologyKeys}
             />
           </Float>
-        </LayerFadeGroup>
+        </LayerPeelGroup>
       ))}
 
       {/* Global ambient particles */}

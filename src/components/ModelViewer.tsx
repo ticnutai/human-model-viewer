@@ -309,6 +309,8 @@ const ModelViewer = () => {
   const [compareMode, setCompareMode] = useState(false);
   const [compareModelUrl, setCompareModelUrl] = useState(LOCAL_DEFAULT_MODEL);
   const [showSymptomSearch, setShowSymptomSearch] = useState(false);
+  const [layerOpacities, setLayerOpacities] = useState<Record<LayerType, number>>({ skeleton: 1, muscles: 1, organs: 1, vessels: 1 });
+  const [peelAmount, setPeelAmount] = useState(0);
 
   const t = THEMES[themeIdx];
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
@@ -365,7 +367,7 @@ const ModelViewer = () => {
       setVisibleLayers(new Set(["skeleton", "muscles", "organs", "vessels"]));
       setShowBloodFlow(false); setShowLabels3D(false); setShowClippingPlane(false);
       setShowXRayShader(false); setExplodeAmount(0); setFocusSelected(false);
-      setShowSelectionOutline(true); setXRayOpacity(1);
+      setShowSelectionOutline(true); setXRayOpacity(1); setPeelAmount(0); setLayerOpacities({ skeleton: 1, muscles: 1, organs: 1, vessels: 1 });
     } else if (preset === "organs") {
       setVisibleLayers(new Set(["organs", "vessels"]));
       setShowLabels3D(true); setShowBloodFlow(true); setFocusSelected(false); setShowSelectionOutline(true); setXRayOpacity(1);
@@ -572,7 +574,36 @@ const ModelViewer = () => {
             })}
           </div>
 
-          {/* X-Ray slider */}
+          {/* Per-layer opacity sliders */}
+          <div className="h-px bg-border" />
+          <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "👁 Layer Opacity" : "👁 שקיפות שכבות"}</div>
+          <div className="flex flex-col gap-1.5">
+            {LAYER_DEFS.map(layer => {
+              const active = visibleLayers.has(layer.key);
+              return (
+                <div key={`opacity-${layer.key}`} className={`flex items-center gap-1.5 ${!active ? "opacity-30 pointer-events-none" : ""}`}>
+                  <span className="text-[10px] w-4">{layer.icon}</span>
+                  <input type="range" min={5} max={100} value={Math.round(layerOpacities[layer.key] * 100)}
+                    onChange={e => setLayerOpacities(prev => ({ ...prev, [layer.key]: Number(e.target.value) / 100 }))}
+                    className="flex-1 h-1" style={{ accentColor: layer.color }}
+                  />
+                  <span className="text-[9px] text-muted-foreground w-7 text-center">{Math.round(layerOpacities[layer.key] * 100)}%</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Peel / anatomy book slider */}
+          <div className="h-px bg-border" />
+          <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "📖 Layer Peel" : "📖 קילוף שכבות"}</div>
+          <input type="range" min={0} max={100} value={Math.round(peelAmount * 100)}
+            onChange={e => setPeelAmount(Number(e.target.value) / 100)}
+            className="w-full h-1.5" style={{ accentColor: "hsl(var(--primary))" }}
+          />
+          <div className="text-[9px] text-muted-foreground text-center">
+            {peelAmount === 0 ? (lang === "en" ? "Assembled" : "מורכב") : `${Math.round(peelAmount * 100)}%`}
+          </div>
+
           <div className="h-px bg-border" />
           <div className="text-[10px] font-bold text-foreground">{lang === "en" ? "🔬 X-Ray" : "🔬 רנטגן"}</div>
           <input type="range" min={15} max={100} value={Math.round(xRayOpacity * 100)}
@@ -1131,7 +1162,7 @@ const ModelViewer = () => {
           <Suspense fallback={null}>
             <ModelErrorBoundary key={modelUrl} onError={msg => { setModelLoadWarning(msg); if (modelUrl !== LOCAL_DEFAULT_MODEL) setModelUrl(LOCAL_DEFAULT_MODEL); }}>
               {useInteractive ? (
-                <InteractiveOrgans onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} explodeAmount={explodeAmount} focusSelected={focusSelected} animationSpeed={animationSpeed} pathologyKeys={pathologyKeys} />
+                <InteractiveOrgans onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} explodeAmount={explodeAmount} focusSelected={focusSelected} animationSpeed={animationSpeed} pathologyKeys={pathologyKeys} layerOpacities={layerOpacities} peelAmount={peelAmount} />
               ) : (
                 <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} onScan={handleGlbScan} />
               )}
