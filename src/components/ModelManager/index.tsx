@@ -749,6 +749,11 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
   const modelsWithoutThumb = models.filter(m => !m.thumbnail_url && m.file_url && (m.media_type || "glb") === "glb").length;
 
+  const selectAllVisible = () => {
+    const cloudIds = combinedModels.filter(m => m.source === "cloud" && m.record?.file_url).map(m => m.id);
+    setSelectedIds(new Set(cloudIds));
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }}>
       {/* Tab switcher */}
