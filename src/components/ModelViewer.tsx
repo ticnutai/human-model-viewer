@@ -527,7 +527,7 @@ const ModelViewer = () => {
       const matchesSystem = selectedSystem === "all" || localizedSystem === selectedSystem;
       return matchesQuery && matchesSystem;
     });
-  }, [atlasQuery, lang, selectedSystem, diseaseMatchKeys]);
+  }, [atlasQuery, lang, selectedSystem, diseaseMatchKeys, enrichedOrganDetails]);
 
   // Group atlas entries by system
   const groupedAtlasEntries = useMemo(() => {
