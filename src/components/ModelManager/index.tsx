@@ -895,6 +895,52 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         />
       </div>
 
+      {/* Batch analysis toolbar */}
+      <div className="px-2 pt-1.5 pb-1 flex items-center gap-1 flex-wrap" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.15)" }}>
+        <button
+          onClick={() => { setSelectMode(s => !s); if (selectMode) clearSelection(); }}
+          className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors"
+          style={{
+            background: selectMode ? "hsl(220 50% 50% / 0.15)" : "transparent",
+            color: selectMode ? "hsl(220 50% 40%)" : "hsl(220 15% 55%)",
+            border: `1px solid ${selectMode ? "hsl(220 50% 50%)" : "hsl(43 60% 55% / 0.3)"}`,
+          }}
+        >
+          {selectMode ? "✖ בטל בחירה" : "☑ בחירה מרובה"}
+        </button>
+        {selectMode && (
+          <>
+            <button
+              onClick={selectAllVisible}
+              className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors"
+              style={{ background: "hsl(220 50% 50% / 0.08)", color: "hsl(220 50% 40%)", border: "1px solid hsl(220 50% 50% / 0.3)" }}
+            >
+              ✅ בחר הכל ({combinedModels.filter(m => m.source === "cloud").length})
+            </button>
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleAnalyzeSelected}
+                disabled={batchAnalyzing}
+                className="text-[10px] rounded-lg px-2 py-1 font-bold cursor-pointer transition-colors disabled:opacity-50"
+                style={{ background: "hsl(280 60% 50% / 0.12)", color: "hsl(280 60% 40%)", border: "1px solid hsl(280 60% 50% / 0.3)" }}
+              >
+                {batchAnalyzing ? `⏳ מנתח ${batchAnalysisProgress.done}/${batchAnalysisProgress.total}...` : `🔬 נתח נבחרים (${selectedIds.size})`}
+              </button>
+            )}
+          </>
+        )}
+        {!selectMode && (
+          <button
+            onClick={handleAnalyzeAll}
+            disabled={batchAnalyzing}
+            className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors disabled:opacity-50"
+            style={{ background: "hsl(280 60% 50% / 0.08)", color: "hsl(280 60% 40%)", border: "1px solid hsl(280 60% 50% / 0.3)" }}
+          >
+            {batchAnalyzing ? `⏳ מנתח ${batchAnalysisProgress.done}/${batchAnalysisProgress.total}...` : `🔬 נתח הכל (${models.filter(m => m.file_url).length})`}
+          </button>
+        )}
+      </div>
+
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto sidebar-scroll">
         {/* DB error */}
