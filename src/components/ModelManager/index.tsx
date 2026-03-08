@@ -55,32 +55,32 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const load = useCallback(async () => {
     console.log("[ModelManager] load() called");
     setModelsLoading(true);
-    const isAbortError = (e: { message?: string } | null) =>
-      e?.message?.includes('AbortError') || e?.message?.includes('steal');
 
     try {
-      const [catResult, modResult] = await Promise.all([
-        supabase.from("model_categories").select("*").order("sort_order"),
-        supabase.from("models").select("*").order("created_at", { ascending: false }),
-      ]);
-
+      // Load categories
+      const catResult = await supabase.from("model_categories").select("*").order("sort_order");
       console.log("[ModelManager] catResult:", catResult.data?.length, "error:", catResult.error?.message);
-      console.log("[ModelManager] modResult:", modResult.data?.length, "error:", modResult.error?.message);
-
       if (catResult.error) {
-        if (isAbortError(catResult.error)) { setTimeout(() => load(), 1500); return; }
         setCatLoadError(catResult.error.message);
       } else if (catResult.data) {
         setCatLoadError(null);
         setCategories(catResult.data);
       }
+    } catch (err) {
+      console.error("[ModelManager] categories load exception:", err);
+    }
+
+    try {
+      // Load models
+      const modResult = await supabase.from("models").select("*").order("created_at", { ascending: false });
+      console.log("[ModelManager] modResult:", modResult.data?.length, "error:", modResult.error?.message);
       if (modResult.error) {
-        if (!isAbortError(modResult.error)) console.error("[ModelManager] load error:", modResult.error);
+        console.error("[ModelManager] load error:", modResult.error);
       } else if (modResult.data) {
         setModels(modResult.data);
       }
     } catch (err) {
-      console.error("[ModelManager] load() exception:", err);
+      console.error("[ModelManager] models load exception:", err);
     } finally {
       setModelsLoading(false);
     }
