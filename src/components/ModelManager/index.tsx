@@ -673,7 +673,10 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   };
 
   // ── Build combined model list ──
-  const countForCategory = (catId: string | null) => models.filter(m => !catId || m.category_id === catId).length;
+  const countForCategory = (catId: string | null) => {
+    if (!catId) return models.length; // "All" tab shows total
+    return models.filter(m => m.category_id === catId).length;
+  };
   const countForMediaType = (mt: string | null) => models.filter(m => !activeCategory || m.category_id === activeCategory).filter(m => !mt || (m.media_type || "glb") === mt).length;
 
   const filteredModels = models.filter(m => !activeCategory || m.category_id === activeCategory).filter(m => !activeMediaType || (m.media_type || "glb") === activeMediaType);
