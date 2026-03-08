@@ -13,6 +13,7 @@ import { useMeshMappings, useCloudLayers } from "@/hooks/useMeshMappings";
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
 import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager/index";
+import ModelGallery from "./ModelGallery";
 import DevPanel from "./DevPanel";
 import InteractiveOrgans, { type LayerType } from "./InteractiveOrgans";
 import AnatomySourcesPanel from "./AnatomySourcesPanel";
