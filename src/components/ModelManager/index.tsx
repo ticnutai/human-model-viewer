@@ -141,6 +141,29 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     })();
   }, [models.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-generate thumbnails for models missing them (runs once after load)
+  const [autoThumbTriggered, setAutoThumbTriggered] = useState(false);
+  useEffect(() => {
+    if (autoThumbTriggered || models.length === 0 || batchGenerating) return;
+    const missing = models.filter(m => !m.thumbnail_url && m.file_url && (m.media_type || "glb") === "glb");
+    if (missing.length === 0) return;
+    setAutoThumbTriggered(true);
+    console.log(`[ModelManager] Auto-generating thumbnails for ${missing.length} models`);
+    (async () => {
+      setBatchGenerating(true);
+      for (const m of missing) {
+        setGeneratingThumbId(m.id);
+        try {
+          const blob = await generateThumbnailFromUrl(m.file_url!);
+          if (blob) await uploadThumbnailBlob(blob, m.id);
+        } catch (e) { console.warn("Auto-thumb failed for", m.id, e); }
+      }
+      setGeneratingThumbId(null);
+      setBatchGenerating(false);
+      await load();
+    })();
+  }, [models, autoThumbTriggered, batchGenerating]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Upload logic ──
   const updateUploadItem = (id: string, patch: Partial<UploadItem>) => {
     setUploads(prev => prev.map(u => u.id === id ? { ...u, ...patch } : u));
