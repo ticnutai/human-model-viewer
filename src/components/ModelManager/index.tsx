@@ -60,11 +60,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     console.log("[ModelManager] load() called, retry:", retryCount);
     setModelsLoading(true);
 
-    const maxRetries = 2;
+    const maxRetries = 3;
     let catLoaded = false;
     let modLoaded = false;
 
     try {
+      console.log("[ModelManager] Fetching categories...");
       const catResult = await supabase.from("model_categories").select("*").order("sort_order");
       console.log("[ModelManager] catResult:", catResult.data?.length, "error:", catResult.error?.message);
       if (catResult.error) {
@@ -74,11 +75,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         setCategories(catResult.data);
         catLoaded = true;
       }
-    } catch (err) {
-      console.warn("[ModelManager] categories load exception:", err);
+    } catch (err: any) {
+      console.error("[ModelManager] categories load exception:", err?.message || err);
     }
 
     try {
+      console.log("[ModelManager] Fetching models...");
       const modResult = await supabase.from("models").select("*").order("created_at", { ascending: false });
       console.log("[ModelManager] modResult:", modResult.data?.length, "error:", modResult.error?.message);
       if (modResult.error) {
@@ -86,17 +88,18 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       } else if (modResult.data) {
         setModels(modResult.data);
         modLoaded = true;
+        console.log("[ModelManager] ✅ Loaded", modResult.data.length, "models from cloud");
       }
-    } catch (err) {
-      console.warn("[ModelManager] models load exception:", err);
+    } catch (err: any) {
+      console.error("[ModelManager] models load exception:", err?.message || err);
     }
 
     setModelsLoading(false);
 
-    // Retry if nothing loaded (common with React StrictMode abort)
-    if (!catLoaded && !modLoaded && retryCount < maxRetries) {
-      console.log("[ModelManager] Nothing loaded, retrying in 1s...");
-      setTimeout(() => load(retryCount + 1), 1000);
+    // Retry if either failed (common with React StrictMode abort)
+    if ((!catLoaded || !modLoaded) && retryCount < maxRetries) {
+      console.log(`[ModelManager] Incomplete load (cat=${catLoaded}, mod=${modLoaded}), retrying in ${500 + retryCount * 500}ms...`);
+      setTimeout(() => load(retryCount + 1), 500 + retryCount * 500);
     }
   }, []);
 
