@@ -28,9 +28,11 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
   const [previewUid, setPreviewUid] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-col gap-2.5 p-3 border border-border rounded-xl bg-accent/10">
-      <div className="text-xs font-bold text-foreground">🔎 חיפוש מודלים ב-Sketchfab</div>
-      <div className="text-[10px] text-muted-foreground">חפש, צפה בתצוגה מוקדמת וייבא GLB ישירות</div>
+    <div className="flex flex-col gap-2.5 p-3 rounded-xl"
+      style={{ background: "hsl(220 20% 97%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}
+    >
+      <div className="text-xs font-bold" style={{ color: "hsl(220 40% 13%)" }}>🔎 חיפוש מודלים ב-Sketchfab</div>
+      <div className="text-[10px]" style={{ color: "hsl(220 15% 55%)" }}>חפש, צפה בתצוגה מוקדמת וייבא GLB ישירות</div>
 
       {/* Quick searches */}
       <div className="flex gap-1.5 flex-wrap">
@@ -39,7 +41,8 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
             key={q}
             onClick={() => { setQuery(q); onSearch(q); }}
             disabled={searching}
-            className="bg-transparent border border-primary/40 rounded-full px-2.5 py-1 text-[10px] font-semibold text-primary cursor-pointer hover:bg-primary/10 transition-all disabled:opacity-50"
+            className="rounded-full px-2.5 py-1 text-[10px] font-semibold cursor-pointer transition-all disabled:opacity-50 border-none"
+            style={{ background: "hsl(0 0% 100%)", color: "hsl(43 78% 40%)", border: "1px solid hsl(43 60% 55% / 0.4)" }}
           >{label}</button>
         ))}
       </div>
@@ -50,25 +53,29 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="human heart anatomy"
-          className="flex-1 bg-card border border-border rounded-lg px-2.5 py-2 text-xs text-foreground outline-none focus:border-primary transition-colors"
-          style={{ direction: "ltr", textAlign: "left" }}
+          className="flex-1 rounded-lg px-2.5 py-2 text-xs outline-none transition-colors"
+          style={{ direction: "ltr", textAlign: "left", background: "hsl(0 0% 100%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 60% 55% / 0.35)" }}
           onKeyDown={(e) => e.key === "Enter" && onSearch(query)}
         />
         <button
           onClick={() => onSearch(query)}
           disabled={searching}
-          className="bg-primary text-primary-foreground rounded-lg px-3 py-2 text-xs font-bold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-60 border-none"
+          className="rounded-lg px-3 py-2 text-xs font-bold cursor-pointer transition-opacity disabled:opacity-60 border-none"
+          style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}
         >
           {searching ? "מחפש..." : "חפש"}
         </button>
       </div>
 
-      {error && <div className="text-[11px] text-destructive">{error}</div>}
+      {error && <div className="text-[11px]" style={{ color: "hsl(0 70% 45%)" }}>{error}</div>}
 
       {/* Results */}
       {results.length > 0 && (
-        <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto sidebar-scroll">
-          {results.slice(0, 8).map((result) => {
+        <div className="flex flex-col gap-2">
+          <div className="text-[10px] font-bold" style={{ color: "hsl(220 15% 55%)" }}>
+            {results.length} תוצאות נמצאו
+          </div>
+          {results.slice(0, 12).map((result) => {
             const isPreview = previewUid === result.uid;
             const isImporting = importingUid === result.uid;
             const thumb = pickBestThumb(result);
@@ -76,22 +83,24 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
             const importUpload = uploads.find(u => u.fileName.toLowerCase().includes(result.uid.toLowerCase()));
 
             return (
-              <div key={result.uid} className="border border-border rounded-xl p-2.5 bg-card/50">
-                <div className="flex gap-2 items-center">
+              <div key={result.uid} className="rounded-xl p-2.5 transition-all"
+                style={{ background: "hsl(0 0% 100%)", border: "1px solid hsl(43 60% 55% / 0.25)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
+              >
+                <div className="flex gap-2.5 items-center">
                   {thumb ? (
-                    <img src={thumb} alt={result.name} className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                    <img src={thumb} alt={result.name} className="w-16 h-16 rounded-lg object-cover shrink-0" style={{ border: "1px solid hsl(43 60% 55% / 0.2)" }} />
                   ) : (
-                    <div className="w-14 h-14 rounded-lg bg-secondary flex items-center justify-center text-xl shrink-0">🧬</div>
+                    <div className="w-16 h-16 rounded-lg flex items-center justify-center text-xl shrink-0" style={{ background: "hsl(220 20% 96%)" }}>🧬</div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-foreground truncate">{result.name}</div>
-                    <div className="flex gap-1.5 flex-wrap items-center mt-1 text-[10px] text-muted-foreground">
+                    <div className="text-xs font-bold leading-tight" style={{ color: "hsl(220 40% 13%)" }}>{result.name}</div>
+                    <div className="flex gap-1.5 flex-wrap items-center mt-1 text-[10px]" style={{ color: "hsl(220 15% 55%)" }}>
                       <span>⬇ {Number(result.downloadCount ?? 0).toLocaleString()}</span>
                       <span>👁 {Number(result.viewCount ?? 0).toLocaleString()}</span>
                       <span>👍 {Number(result.likeCount ?? 0).toLocaleString()}</span>
                       {result.license?.label && <span>📄 {result.license.label}</span>}
                       {hasOrgan && (
-                        <Badge className="bg-primary/15 text-primary border-primary/35 text-[9px] px-1.5 py-0 h-3.5 font-bold">🧬 MASH</Badge>
+                        <Badge className="text-[9px] px-1.5 py-0 h-3.5 font-bold" style={{ background: "hsl(43 78% 47% / 0.15)", color: "hsl(43 78% 40%)", border: "1px solid hsl(43 78% 47% / 0.35)" }}>🧬 MASH</Badge>
                       )}
                     </div>
                   </div>
@@ -99,53 +108,56 @@ export default function SketchfabSearch({ onSearch, onImport, results, searching
 
                 {/* Import progress */}
                 {isImporting && importUpload && (
-                  <div className={`mt-2 p-2 rounded-lg border ${
-                    importUpload.status === "error" ? "border-destructive bg-destructive/5" :
-                    importUpload.status === "done" ? "border-green-500 bg-green-500/5" :
-                    "border-primary bg-primary/5"
-                  }`}>
+                  <div className="mt-2 p-2 rounded-lg" style={{
+                    background: importUpload.status === "error" ? "hsl(0 80% 97%)" : importUpload.status === "done" ? "hsl(145 50% 96%)" : "hsl(43 78% 47% / 0.08)",
+                    border: `1px solid ${importUpload.status === "error" ? "hsl(0 70% 80%)" : importUpload.status === "done" ? "hsl(145 50% 60%)" : "hsl(43 78% 47% / 0.3)"}`,
+                  }}>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] font-semibold text-foreground">
-                        {importUpload.status === "analyzing" ? "🔬 מנתח..." : importUpload.status === "done" ? "✅ הועלה" : importUpload.status === "error" ? `❌ ${importUpload.error}` : "⬆ מעלה..."}
+                      <span className="text-[10px] font-semibold" style={{ color: "hsl(220 40% 13%)" }}>
+                        {importUpload.status === "analyzing" ? "🔬 מנתח..." : importUpload.status === "done" ? "✅ הועלה בהצלחה!" : importUpload.status === "error" ? `❌ ${importUpload.error}` : "⬆ מעלה..."}
                       </span>
-                      {importUpload.status === "uploading" && <span className="text-[11px] font-bold text-primary">{importUpload.progress}%</span>}
+                      {importUpload.status === "uploading" && <span className="text-[11px] font-bold" style={{ color: "hsl(43 78% 40%)" }}>{importUpload.progress}%</span>}
                     </div>
                     {importUpload.status === "uploading" && <Progress value={importUpload.progress} className="h-1" />}
-                    {importUpload.status === "analyzing" && <div className="h-1 rounded-full bg-secondary overflow-hidden"><div className="h-full rounded-full bg-purple-500 animate-pulse w-full" /></div>}
+                    {importUpload.status === "analyzing" && <div className="h-1 rounded-full overflow-hidden" style={{ background: "hsl(220 20% 93%)" }}><div className="h-full rounded-full animate-pulse w-full" style={{ background: "hsl(270 60% 55%)" }} /></div>}
                   </div>
                 )}
                 {isImporting && !importUpload && (
-                  <div className="text-[10px] text-muted-foreground mt-2 py-1">⬇ מוריד מ-Sketchfab...</div>
+                  <div className="text-[10px] mt-2 py-1" style={{ color: "hsl(220 15% 55%)" }}>⬇ מוריד מ-Sketchfab...</div>
                 )}
 
                 {/* Actions */}
                 <div className="flex gap-1.5 mt-2">
                   <button
                     onClick={() => setPreviewUid(prev => prev === result.uid ? null : result.uid)}
-                    className={`rounded-lg px-2.5 py-1.5 text-[11px] cursor-pointer border transition-colors ${
-                      isPreview ? "bg-primary/10 border-primary text-primary" : "bg-transparent border-border text-muted-foreground hover:text-foreground"
-                    }`}
-                  >{isPreview ? "סגור תצוגה" : "תצוגה מקדימה"}</button>
+                    className="rounded-lg px-2.5 py-1.5 text-[11px] cursor-pointer transition-colors border-none"
+                    style={{
+                      background: isPreview ? "hsl(43 78% 47% / 0.12)" : "hsl(220 20% 96%)",
+                      color: isPreview ? "hsl(43 78% 40%)" : "hsl(220 30% 35%)",
+                    }}
+                  >{isPreview ? "סגור תצוגה" : "👁 תצוגה מקדימה"}</button>
                   <button
                     onClick={() => onImport(result)}
                     disabled={isImporting}
-                    className="rounded-lg px-2.5 py-1.5 text-[11px] font-bold cursor-pointer bg-primary/10 border border-primary text-foreground hover:bg-primary/20 transition-colors disabled:opacity-50"
-                  >{isImporting ? "מייבא..." : "ייבוא למערכת"}</button>
+                    className="rounded-lg px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-opacity disabled:opacity-50 border-none"
+                    style={{ background: "hsl(43 78% 47%)", color: "hsl(220 40% 13%)" }}
+                  >{isImporting ? "⏳ מייבא..." : "📥 ייבוא למאגר"}</button>
                   <a
                     href={result.viewerUrl || `https://sketchfab.com/models/${result.uid}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-[11px] text-primary self-center hover:underline"
+                    className="text-[11px] self-center hover:underline"
+                    style={{ color: "hsl(43 78% 40%)" }}
                   >פתח ↗</a>
                 </div>
 
                 {isPreview && (
-                  <div className="mt-2 border border-border rounded-lg overflow-hidden">
+                  <div className="mt-2 rounded-lg overflow-hidden" style={{ border: "1px solid hsl(43 60% 55% / 0.3)" }}>
                     <iframe
                       title={`preview-${result.uid}`}
                       src={`https://sketchfab.com/models/${result.uid}/embed?autostart=0&ui_infos=1&ui_controls=1`}
                       width="100%"
-                      height="200"
+                      height="220"
                       className="border-none"
                       allow="autoplay; fullscreen; xr-spatial-tracking"
                     />
