@@ -340,7 +340,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   skeleton_m: {
-    path: "/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb",
+    path: resolveModelPath("/models/sketchfab/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb"),
     titleHe: "שלד גברי", titleEn: "Male Skeleton", icon: "🦴",
     hasAnimation: false, description: "שלד אנושי גברי מפורט — מחקר אנטומי",
     layers: [
