@@ -1025,7 +1025,8 @@ export default function AdvancedAnatomyViewer() {
       style={{ background: theme.bg, color: theme.text, fontFamily: "'Segoe UI', system-ui, sans-serif", filter: `brightness(${brightness}%)` }}
     >
       {/* ── RIGHT PANEL (RTL → appears on right) ── */}
-      <div className="flex flex-col overflow-y-auto shrink-0" style={{ width: 300, background: theme.panel, borderLeft: `1px solid ${theme.border}` }}>
+      <div className="flex flex-col shrink-0 h-full" style={{ width: 300, background: theme.panel, borderLeft: `1px solid ${theme.border}`, maxHeight: '100vh', overflow: 'hidden' }}>
+        <div className="flex-1 overflow-y-auto min-h-0">
         {/* Header */}
         <div className="p-4 pb-2" style={{ borderBottom: `1px solid ${theme.border}` }}>
           <div className="flex items-center justify-between mb-2">
@@ -1482,6 +1483,7 @@ export default function AdvancedAnatomyViewer() {
             })}
           </ScrollArea>
         </div>
+        </div>
       </div>
 
       {/* ── 3D CANVAS ── */}
@@ -1552,7 +1554,8 @@ export default function AdvancedAnatomyViewer() {
 
       {/* ── LEFT INFO PANEL ── */}
       {showInfoPanel && (
-        <div className="flex flex-col overflow-y-auto shrink-0" style={{ width: 300, background: theme.panel, borderRight: `1px solid ${theme.border}` }}>
+        <div className="flex flex-col shrink-0 h-full" style={{ width: 300, background: theme.panel, borderRight: `1px solid ${theme.border}`, maxHeight: '100vh', overflow: 'hidden' }}>
+          <div className="flex-1 overflow-y-auto min-h-0">
           <div className="flex items-center justify-between p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
             <span className="text-sm font-bold">📋 מידע אנטומי</span>
             <button onClick={() => setShowInfoPanel(false)} className="text-xs p-1 rounded-md cursor-pointer border-none"
@@ -1568,6 +1571,7 @@ export default function AdvancedAnatomyViewer() {
               <div className="text-[11px]">לחץ על חלק במודל התלת-ממדי או בחר מהרשימה</div>
             </div>
           )}
+          </div>
         </div>
       )}
 
