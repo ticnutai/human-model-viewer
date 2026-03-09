@@ -516,14 +516,20 @@ function meshDisplayName(rawName: string): string {
   return deduped.join(" ").replace(/_/g, " ");
 }
 
-function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers: Layer[], contextNameHe: string = ""): MeshInfo {
+function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers: Layer[], contextNameHe: string = "", meshIndex?: number): MeshInfo {
   const key = getMeshKey(rawName);
   // 1. Exact match in infoMap
   if (infoMap[key]) return infoMap[key];
+  // 1b. Try by mesh index (from AI mapping)
+  if (meshIndex !== undefined && infoMap[`__idx_${meshIndex}`]) return infoMap[`__idx_${meshIndex}`];
   // 2. Case-insensitive match
   const lkey = key.toLowerCase();
   for (const k of Object.keys(infoMap)) {
     if (k.toLowerCase() === lkey) return infoMap[k];
+  }
+  // 2b. Partial match for mesh_N_ prefixed keys
+  for (const k of Object.keys(infoMap)) {
+    if (k.startsWith("mesh_") && k.includes(key.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 20))) return infoMap[k];
   }
   // 3. Try rich organ detection from OrganData
   const organInfo = getOrganInfoForMesh(key);
