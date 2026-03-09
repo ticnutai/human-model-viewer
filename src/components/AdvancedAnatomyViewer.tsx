@@ -923,6 +923,67 @@ export default function AdvancedAnatomyViewer() {
     setCtxMenu({ mod, x: e.clientX, y: e.clientY });
   };
 
+  const [showDuplicates, setShowDuplicates] = useState(false);
+
+  // Detect duplicate cloud models by display_name or file_url
+  const duplicateGroups = useMemo(() => {
+    const byName: Record<string, typeof cloudModels> = {};
+    for (const mod of cloudModels) {
+      const key = (mod.hebrew_name || mod.display_name).trim().toLowerCase();
+      if (!byName[key]) byName[key] = [];
+      byName[key].push(mod);
+    }
+    return Object.entries(byName)
+      .filter(([, mods]) => mods.length > 1)
+      .map(([name, mods]) => ({
+        name: mods[0].hebrew_name || mods[0].display_name,
+        keep: mods[0],
+        dupes: mods.slice(1),
+      }));
+  }, [cloudModels]);
+
+  const deleteAllDuplicates = async () => {
+    if (!confirm(`למחוק ${duplicateGroups.reduce((s, g) => s + g.dupes.length, 0)} כפילויות?`)) return;
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const ids = duplicateGroups.flatMap(g => g.dupes.map(d => d.id));
+    for (const id of ids) {
+      await fetch(`${baseUrl}/rest/v1/models?id=eq.${id}`, {
+        method: "DELETE", headers: { apikey, Authorization: `Bearer ${apikey}` },
+      });
+    }
+    setCloudModels(prev => prev.filter(m => !ids.includes(m.id)));
+    setShowDuplicates(false);
+  };
+
+  const [meshCtxMenu, setMeshCtxMenu] = useState<{ key: string; idx: number; x: number; y: number } | null>(null);
+
+  const handleMeshCtx = (e: React.MouseEvent, key: string, idx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMeshCtxMenu({ key, idx, x: e.clientX, y: e.clientY });
+  };
+
+  const deleteMeshMapping = async (meshKey: string) => {
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const modelUrl = meta.path;
+    await fetch(`${baseUrl}/rest/v1/model_mesh_mappings?model_url=eq.${encodeURIComponent(modelUrl)}&mesh_key=like.*${encodeURIComponent(meshKey)}*`, {
+      method: "DELETE", headers: { apikey, Authorization: `Bearer ${apikey}` },
+    });
+    refetchMappings();
+    setMeshCtxMenu(null);
+  };
+
+  const toggleMeshVisibility = (key: string) => {
+    setHiddenMeshes(prev => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+    setMeshCtxMenu(null);
+  };
+
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, themeId);
   }, [themeId]);
@@ -1162,7 +1223,45 @@ export default function AdvancedAnatomyViewer() {
           {/* Cloud models */}
           {cloudModels.length > 0 && (
             <div className="mb-2">
-              <div className="text-[10px] font-bold mb-1" style={{ color: theme.textDim }}>☁️ מודלים מהענן ({cloudModels.filter(m => m.file_url).length})</div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-[10px] font-bold" style={{ color: theme.textDim }}>☁️ מודלים מהענן ({cloudModels.filter(m => m.file_url).length})</div>
+                {duplicateGroups.length > 0 && (
+                  <button onClick={() => setShowDuplicates(!showDuplicates)}
+                    className="text-[9px] px-1.5 py-0.5 rounded cursor-pointer border-none"
+                    style={{ background: "rgba(248,81,73,0.15)", color: "#f85149" }}>
+                    ⚠️ {duplicateGroups.length} כפילויות
+                  </button>
+                )}
+              </div>
+
+              {/* Duplicate manager */}
+              {showDuplicates && duplicateGroups.length > 0 && (
+                <div className="mb-2 rounded-lg p-2" style={{ background: "rgba(248,81,73,0.08)", border: "1px solid rgba(248,81,73,0.3)" }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="text-[10px] font-bold" style={{ color: "#f85149" }}>🔍 כפילויות שזוהו</div>
+                    <button onClick={deleteAllDuplicates}
+                      className="text-[9px] px-2 py-0.5 rounded cursor-pointer border-none"
+                      style={{ background: "#f85149", color: "#fff" }}>
+                      🗑️ מחק הכל ({duplicateGroups.reduce((s, g) => s + g.dupes.length, 0)})
+                    </button>
+                  </div>
+                  {duplicateGroups.map(group => (
+                    <div key={group.name} className="mb-1.5 rounded p-1.5" style={{ background: theme.bg }}>
+                      <div className="text-[10px] font-semibold mb-0.5">{group.name} × {group.dupes.length + 1}</div>
+                      <div className="flex gap-1 flex-wrap">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(63,185,80,0.15)", color: "#3fb950" }}>✓ שמור</span>
+                        {group.dupes.map(d => (
+                          <button key={d.id} onClick={() => deleteCloudModel(d.id)}
+                            className="text-[9px] px-1.5 py-0.5 rounded cursor-pointer border-none"
+                            style={{ background: "rgba(248,81,73,0.15)", color: "#f85149" }}>
+                            🗑️ כפיל
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Pinned models first */}
               {(() => {
@@ -1521,6 +1620,7 @@ export default function AdvancedAnatomyViewer() {
               const layerColor = meta.layers.find(l => l.id === info.layer)?.color ?? theme.textDim;
               return (
                 <div key={key} onClick={() => setSelectedMesh(isSelected ? null : key)}
+                  onContextMenu={e => handleMeshCtx(e, key, idx)}
                   className="flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer text-xs mb-0.5 transition-all"
                   style={{
                     background: isSelected ? theme.accentBg : "transparent",
@@ -1529,6 +1629,9 @@ export default function AdvancedAnatomyViewer() {
                   }}>
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: isHidden ? theme.textDim : layerColor }} />
                   <span className="truncate flex-1">{info.displayNameHe || info.displayName}</span>
+                  {info.displayNameHe && info.displayNameHe !== info.displayName && (
+                    <span className="text-[9px]" style={{ color: theme.textDim }}>🗺️</span>
+                  )}
                 </div>
               );
             })}
@@ -1677,6 +1780,62 @@ export default function AdvancedAnatomyViewer() {
               onClick={() => { if (confirm("למחוק את המודל?")) deleteCloudModel(ctxMenu.mod.id); }}>
               <span>🗑️</span><span>מחק מודל</span>
             </button>
+          </div>
+        </>
+      )}
+
+      {/* Context menu for mesh parts */}
+      {meshCtxMenu && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setMeshCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setMeshCtxMenu(null); }} />
+          <div className="fixed z-[9999] rounded-xl shadow-2xl py-1.5 min-w-[160px]"
+            style={{
+              left: Math.min(meshCtxMenu.x, window.innerWidth - 180),
+              top: Math.min(meshCtxMenu.y, window.innerHeight - 200),
+              background: theme.panel,
+              border: `1px solid ${theme.border}`,
+              direction: "rtl",
+            }}>
+            {(() => {
+              const info = getMeshInfo(meshCtxMenu.key, meta.infoMap, meta.layers, meta.titleHe, meshCtxMenu.idx);
+              const isHidden = hiddenMeshes.has(meshCtxMenu.key);
+              return (
+                <>
+                  <div className="px-3 py-1.5 text-[10px] font-bold truncate" style={{ color: theme.textDim, borderBottom: `1px solid ${theme.border}` }}>
+                    {info.displayNameHe || info.displayName}
+                  </div>
+                  <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+                    style={{ background: "transparent", color: theme.text }}
+                    onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    onClick={() => { setSelectedMesh(meshCtxMenu.key); setMeshCtxMenu(null); }}>
+                    <span>🔍</span><span>הצג מידע</span>
+                  </button>
+                  <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+                    style={{ background: "transparent", color: isHidden ? "#3fb950" : theme.text }}
+                    onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    onClick={() => toggleMeshVisibility(meshCtxMenu.key)}>
+                    <span>{isHidden ? "👁️" : "🙈"}</span><span>{isHidden ? "הצג חלק" : "הסתר חלק"}</span>
+                  </button>
+                  <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+                    style={{ background: "transparent", color: theme.text }}
+                    onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    onClick={() => { setXRayMode(true); setSelectedMesh(meshCtxMenu.key); setMeshCtxMenu(null); }}>
+                    <span>🔬</span><span>X-Ray על חלק זה</span>
+                  </button>
+                  <div style={{ borderTop: `1px solid ${theme.border}`, margin: "2px 0" }} />
+                  <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+                    style={{ background: "transparent", color: "#f85149" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(248,81,73,0.1)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    onClick={() => { if (confirm("למחוק את מיפוי ה-AI לחלק זה?")) deleteMeshMapping(meshCtxMenu.key); }}>
+                    <span>🗑️</span><span>מחק מיפוי AI</span>
+                  </button>
+                </>
+              );
+            })()}
           </div>
         </>
       )}
