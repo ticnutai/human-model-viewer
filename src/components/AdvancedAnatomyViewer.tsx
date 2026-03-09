@@ -25,6 +25,9 @@ import { Badge } from "@/components/ui/badge";
 import ClippingPlane from "./anatomy/ClippingPlane";
 import type { ClipAxis } from "./anatomy/ClippingPlane";
 import XRayShader from "./anatomy/XRayShader";
+import AnatomyLabels3D from "./anatomy/AnatomyLabels3D";
+import BloodFlowParticles from "./anatomy/BloodFlowParticles";
+import CameraTour from "./anatomy/CameraTour";
 
 // ─── Model definitions ───────────────────────────────────────────────────────
 
@@ -839,6 +842,11 @@ export default function AdvancedAnatomyViewer() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showInfoPanel, setShowInfoPanel] = useState(true);
   const [brightness, setBrightness] = useState(100);
+  const [showLabels, setShowLabels] = useState(false);
+  const [showBloodFlow, setShowBloodFlow] = useState(false);
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStopIndex, setTourStopIndex] = useState(-1);
+  const [smartMapping, setSmartMapping] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, themeId);
@@ -893,6 +901,38 @@ export default function AdvancedAnatomyViewer() {
   const handleMeshesLoaded = useCallback((names: string[]) => setLoadedMeshKeys(names), []);
   const skullAnimTime = meta.hasAnimation ? animTime ?? explodeAmount : null;
   const manualExplode = meta.hasAnimation ? 0 : explodeAmount;
+
+  // Smart AI mesh mapping
+  const runSmartMapping = async () => {
+    if (loadedMeshKeys.length === 0) return;
+    setSmartMapping(true);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const response = await fetch(`${supabaseUrl}/functions/v1/ai-smart-mesh-map`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          meshNames: loadedMeshKeys.slice(0, 50), // Limit to 50 parts
+          modelName: meta.titleEn,
+          hebrewName: meta.titleHe,
+          modelUrl: meta.path,
+        })
+      });
+      if (!response.ok) throw new Error(`${response.status}`);
+      const data = await response.json();
+      console.log("[AdvancedViewer] Smart mapping:", data.mappings?.length, "mappings saved:", data.saved);
+      // Reload mappings by refreshing
+      window.location.reload();
+    } catch (e) {
+      console.error("[AdvancedViewer] Smart mapping error:", e);
+    } finally {
+      setSmartMapping(false);
+    }
+  };
+
+  // Tour stop labels  
+  const TOUR_LABELS = ["סקירה", "מוח", "לב", "ריאות", "כבד", "קיבה", "כליות", "מעיים", "חזרה"];
 
   // Select a cloud model
   const selectCloudModel = (mod: typeof cloudModels[0]) => {
@@ -1202,6 +1242,61 @@ export default function AdvancedAnatomyViewer() {
           )}
         </div>
 
+        {/* Animations & Visualization */}
+        <div className="p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
+          <div className="text-[10px] font-bold mb-2" style={{ color: theme.textDim }}>✨ הדמיות ותיוגים</div>
+          
+          {/* Labels */}
+          <button onClick={() => setShowLabels(v => !v)}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all mb-1.5"
+            style={{
+              background: showLabels ? "rgba(34,197,94,0.15)" : "transparent",
+              borderColor: showLabels ? "#22c55e" : theme.border,
+              color: showLabels ? "#22c55e" : theme.textDim,
+            }}>
+            🏷️ תיוגים 3D {showLabels ? "פעיל" : "כבוי"}
+          </button>
+
+          {/* Blood Flow */}
+          <button onClick={() => setShowBloodFlow(v => !v)}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all mb-1.5"
+            style={{
+              background: showBloodFlow ? "rgba(239,68,68,0.15)" : "transparent",
+              borderColor: showBloodFlow ? "#ef4444" : theme.border,
+              color: showBloodFlow ? "#ef4444" : theme.textDim,
+            }}>
+            🩸 זרימת דם {showBloodFlow ? "פעילה" : "כבויה"}
+          </button>
+
+          {/* Camera Tour */}
+          <button onClick={() => { setTourActive(v => !v); setTourStopIndex(-1); }}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all mb-1.5"
+            style={{
+              background: tourActive ? "rgba(168,85,247,0.15)" : "transparent",
+              borderColor: tourActive ? "#a855f7" : theme.border,
+              color: tourActive ? "#a855f7" : theme.textDim,
+            }}>
+            🎬 סיור מודרך {tourActive ? "פעיל" : "כבוי"}
+          </button>
+
+          {tourActive && tourStopIndex >= 0 && (
+            <div className="text-[10px] text-center py-1 mb-1.5 rounded" style={{ background: theme.accentBg, color: theme.accent }}>
+              📍 {TOUR_LABELS[tourStopIndex] || `תחנה ${tourStopIndex + 1}`}
+            </div>
+          )}
+
+          {/* Smart AI Mapping */}
+          <button onClick={runSmartMapping} disabled={smartMapping || loadedMeshKeys.length === 0}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all"
+            style={{
+              background: smartMapping ? "rgba(251,191,36,0.15)" : "transparent",
+              borderColor: smartMapping ? "#fbbf24" : theme.border,
+              color: smartMapping ? "#fbbf24" : theme.textDim,
+            }}>
+            {smartMapping ? "⏳ ממפה..." : "🧠 מיפוי AI חכם"} ({loadedMeshKeys.length} חלקים)
+          </button>
+        </div>
+
         {/* Layers */}
         <div className="p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
           <div className="text-[10px] font-bold mb-2" style={{ color: theme.textDim }}>🧩 שכבות</div>
@@ -1263,7 +1358,7 @@ export default function AdvancedAnatomyViewer() {
             <ambientLight intensity={0.6} />
             <directionalLight position={[5, 10, 7]} intensity={1.2} />
             <directionalLight position={[-5, -5, -5]} intensity={0.3} />
-            <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
+            <OrbitControls makeDefault enableDamping dampingFactor={0.08} enabled={!tourActive} />
             <Suspense fallback={null}>
               <ModelScene
                 key={isCloudModel ? cloudModelUrl : modelId}
@@ -1280,6 +1375,19 @@ export default function AdvancedAnatomyViewer() {
             </Suspense>
             <ClippingPlane enabled={clipEnabled} axis={clipAxis} position={clipPosition} negate={clipNegate} />
             <XRayShader enabled={xRayMode && !selectedMesh} intensity={xRayIntensity} color={xRayColor} />
+            <AnatomyLabels3D
+              enabled={showLabels}
+              lang="he"
+              accent={theme.accent}
+              selectedKey={effectiveSelectedMesh}
+              explodeAmount={explodeAmount}
+            />
+            <BloodFlowParticles enabled={showBloodFlow} />
+            <CameraTour
+              active={tourActive}
+              onStopChange={(idx) => setTourStopIndex(idx)}
+              onComplete={() => { setTourActive(false); setTourStopIndex(-1); }}
+            />
           </Canvas>
         </ErrorBoundary>
 
