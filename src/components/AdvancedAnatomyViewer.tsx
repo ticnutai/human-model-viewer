@@ -1313,7 +1313,8 @@ export default function AdvancedAnatomyViewer() {
                       <CloudModelBtn key={mod.id} mod={mod} theme={theme} isCloudModel={isCloudModel} cloudModelUrl={cloudModelUrl}
                         isFav={favoriteModels.has(mod.id)} isPinned={pinnedModels.has(mod.id)} onSelect={() => selectCloudModel(mod)} onCtx={e => handleCtxMenu(e, mod)}
                         isEditing={editingModelId === mod.id} editName={editingName} setEditName={setEditingName}
-                        onRename={() => renameCloudModel(mod.id, editingName)} onCancelEdit={() => setEditingModelId(null)} />
+                        editDisplayName={editingDisplayName} setEditDisplayName={setEditingDisplayName}
+                        onRename={() => renameCloudModel(mod.id, editingName, editingDisplayName)} onCancelEdit={() => setEditingModelId(null)} />
                     ))}
                   </div>
                 </div>
