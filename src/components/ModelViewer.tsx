@@ -13,6 +13,7 @@ import { useMeshMappings, useCloudLayers } from "@/hooks/useMeshMappings";
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
 import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager/index";
+import AnalysisPanel from "./ModelManager/AnalysisPanel";
 import ModelGallery from "./ModelGallery";
 import DevPanel from "./DevPanel";
 import InteractiveOrgans, { type LayerType } from "./InteractiveOrgans";
@@ -428,7 +429,7 @@ const ModelViewer = () => {
   const [showViewPopup, setShowViewPopup] = useState(false);
   const [showHintTooltip, setShowHintTooltip] = useState(false);
   const [showOrganSidebar, setShowOrganSidebar] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "gallery" | "info">("organs");
+  const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "gallery" | "info" | "analysis">("organs");
   const [showLayerPanel, setShowLayerPanel] = useState(true);
   const [exploredOrgans, setExploredOrgans] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem("anatomy-explored") || "[]")); } catch { return new Set(); }
@@ -992,6 +993,7 @@ const ModelViewer = () => {
               { id: "organs" as const, label: "איברים", icon: "🫀" },
               { id: "gallery" as const, label: "צופה", icon: "🎬" },
               { id: "models" as const, label: "קבצים", icon: "📂" },
+              { id: "analysis" as const, label: "ניתוח", icon: "🧠" },
               { id: "info" as const, label: "מידע", icon: "ℹ️" },
             ]).map(tab => (
               <button key={tab.id} onClick={() => setSidebarTab(tab.id)}
@@ -1068,6 +1070,9 @@ const ModelViewer = () => {
             )}
             {sidebarTab === "models" && (
               <ModelManager onSelectModel={handleSelectModel} currentModelUrl={modelUrl} />
+            )}
+            {sidebarTab === "analysis" && (
+              <AnalysisPanel />
             )}
             {sidebarTab === "info" && selectedOrgan && (
               <div className="flex flex-col gap-3">

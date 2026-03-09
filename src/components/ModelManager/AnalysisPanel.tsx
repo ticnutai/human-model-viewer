@@ -6,11 +6,13 @@ import { Loader2, Brain, CheckCircle2, XCircle, AlertCircle, PlayCircle, StopCir
 import { useToast } from "@/hooks/use-toast";
 
 interface AnalysisPanelProps {
-  models: ModelRecord[];
-  onLoad: () => void;
+  models?: ModelRecord[];
+  onLoad?: () => void;
 }
 
-export default function AnalysisPanel({ models, onLoad }: AnalysisPanelProps) {
+export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisPanelProps) {
+  const [localModels, setLocalModels] = useState<ModelRecord[]>([]);
+  const [loading, setLoading] = useState(!propsModels);
   const [engine] = useState(() => new ParallelAnalysisEngine(4));
   const [jobs, setJobs] = useState<Record<string, AnalysisJob>>({});
   const [stats, setStats] = useState({ active: 0, completed: 0, total: 0 });
@@ -19,7 +21,24 @@ export default function AnalysisPanel({ models, onLoad }: AnalysisPanelProps) {
   const [aiAnalyzing, setAiAnalyzing] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  const unanalyzedModels = models.filter(m => !m.mesh_parts || (Array.isArray(m.mesh_parts) && m.mesh_parts.length === 0));
+  const fetchModels = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('models').select('*').order('created_at', { ascending: false });
+    if (data) setLocalModels(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (propsModels) {
+      setLocalModels(propsModels);
+      setLoading(false);
+    } else {
+      fetchModels();
+    }
+  }, [propsModels]);
+
+  const modelsToUse = propsModels || localModels;
+  const unanalyzedModels = modelsToUse.filter(m => !m.mesh_parts || (Array.isArray(m.mesh_parts) && m.mesh_parts.length === 0));
   
   useEffect(() => {
     return () => {
@@ -29,7 +48,7 @@ export default function AnalysisPanel({ models, onLoad }: AnalysisPanelProps) {
 
   const handleStartAll = () => {
     setIsRunning(true);
-    engine.start(models, (state) => {
+    engine.start(modelsToUse, (state) => {
       setJobs(state.jobs);
       setStats({
         active: state.activeCount,
@@ -38,7 +57,8 @@ export default function AnalysisPanel({ models, onLoad }: AnalysisPanelProps) {
       });
       if (state.completedCount === state.totalCount) {
         setIsRunning(false);
-        onLoad();
+        if (onLoad) onLoad();
+        else fetchModels();
       }
     });
   };
@@ -54,7 +74,8 @@ export default function AnalysisPanel({ models, onLoad }: AnalysisPanelProps) {
       });
       if (state.completedCount === state.totalCount) {
         setIsRunning(false);
-        onLoad();
+        if (onLoad) onLoad();
+        else fetchModels();
       }
     });
   };
@@ -82,7 +103,8 @@ export default function AnalysisPanel({ models, onLoad }: AnalysisPanelProps) {
       if (error) throw error;
       
       toast({ title: "ניתוח AI הושלם", description: `זוהו ${data.results?.length || 0} מבנים` });
-      onLoad();
+      if (onLoad) onLoad();
+      else fetchModels();
     } catch (e: any) {
       console.error(e);
       toast({ title: "שגיאת AI", description: e.message, variant: "destructive" });
@@ -95,7 +117,7 @@ export default function AnalysisPanel({ models, onLoad }: AnalysisPanelProps) {
     }
   };
 
-  const displayList = models.filter(m => {
+  const displayList = modelsToUse.filter(m => {
     const job = jobs[m.id];
     if (filter === "all") return true;
     if (filter === "pending") return !job || job.status === "pending";
@@ -134,7 +156,7 @@ export default function AnalysisPanel({ models, onLoad }: AnalysisPanelProps) {
                   className="flex items-center gap-2 px-3 py-1.5 bg-secondary text-secondary-foreground rounded-md text-sm font-medium hover:bg-secondary/80"
                 >
                   <PlayCircle className="w-4 h-4" />
-                  נתח הכל ({models.length})
+                  נתח הכל ({modelsToUse.length})
                 </button>
               </>
             ) : (
