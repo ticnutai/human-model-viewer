@@ -72,13 +72,20 @@ export class ParallelAnalysisEngine {
   }
   
   private async processQueue() {
-    if (this.abortController?.signal.aborted) return;
+    if (this.abortController?.signal.aborted) {
+      console.log(`[AnalysisEngine] Queue aborted`);
+      return;
+    }
+    
+    console.log(`[AnalysisEngine] processQueue: activeCount=${this.activeCount}, queueLength=${this.queue.length}`);
     
     while (this.activeCount < this.concurrency && this.queue.length > 0) {
       const job = this.queue.shift()!;
       this.activeCount++;
+      console.log(`[AnalysisEngine] Starting job for model: ${job.model.display_name}`);
       this.runJob(job).finally(() => {
         this.activeCount--;
+        console.log(`[AnalysisEngine] Job finished: ${job.model.display_name}, status=${job.status}`);
         this.reportProgress();
         this.processQueue();
       });
