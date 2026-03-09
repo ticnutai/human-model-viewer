@@ -1239,6 +1239,61 @@ export default function AdvancedAnatomyViewer() {
           )}
         </div>
 
+        {/* Animations & Visualization */}
+        <div className="p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
+          <div className="text-[10px] font-bold mb-2" style={{ color: theme.textDim }}>✨ הדמיות ותיוגים</div>
+          
+          {/* Labels */}
+          <button onClick={() => setShowLabels(v => !v)}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all mb-1.5"
+            style={{
+              background: showLabels ? "rgba(34,197,94,0.15)" : "transparent",
+              borderColor: showLabels ? "#22c55e" : theme.border,
+              color: showLabels ? "#22c55e" : theme.textDim,
+            }}>
+            🏷️ תיוגים 3D {showLabels ? "פעיל" : "כבוי"}
+          </button>
+
+          {/* Blood Flow */}
+          <button onClick={() => setShowBloodFlow(v => !v)}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all mb-1.5"
+            style={{
+              background: showBloodFlow ? "rgba(239,68,68,0.15)" : "transparent",
+              borderColor: showBloodFlow ? "#ef4444" : theme.border,
+              color: showBloodFlow ? "#ef4444" : theme.textDim,
+            }}>
+            🩸 זרימת דם {showBloodFlow ? "פעילה" : "כבויה"}
+          </button>
+
+          {/* Camera Tour */}
+          <button onClick={() => { setTourActive(v => !v); setTourStopIndex(-1); }}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all mb-1.5"
+            style={{
+              background: tourActive ? "rgba(168,85,247,0.15)" : "transparent",
+              borderColor: tourActive ? "#a855f7" : theme.border,
+              color: tourActive ? "#a855f7" : theme.textDim,
+            }}>
+            🎬 סיור מודרך {tourActive ? "פעיל" : "כבוי"}
+          </button>
+
+          {tourActive && tourStopIndex >= 0 && (
+            <div className="text-[10px] text-center py-1 mb-1.5 rounded" style={{ background: theme.accentBg, color: theme.accent }}>
+              📍 {TOUR_LABELS[tourStopIndex] || `תחנה ${tourStopIndex + 1}`}
+            </div>
+          )}
+
+          {/* Smart AI Mapping */}
+          <button onClick={runSmartMapping} disabled={smartMapping || loadedMeshKeys.length === 0}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all"
+            style={{
+              background: smartMapping ? "rgba(251,191,36,0.15)" : "transparent",
+              borderColor: smartMapping ? "#fbbf24" : theme.border,
+              color: smartMapping ? "#fbbf24" : theme.textDim,
+            }}>
+            {smartMapping ? "⏳ ממפה..." : "🧠 מיפוי AI חכם"} ({loadedMeshKeys.length} חלקים)
+          </button>
+        </div>
+
         {/* Layers */}
         <div className="p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
           <div className="text-[10px] font-bold mb-2" style={{ color: theme.textDim }}>🧩 שכבות</div>
