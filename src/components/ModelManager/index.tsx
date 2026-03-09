@@ -556,7 +556,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         try {
           const { error, data } = await supabase.storage
             .from("models")
-            .upload(fileName, uploadBlob, { contentType: "model/gltf-binary", upsert: false });
+            .upload(fileName, uploadBlob, { contentType: "model/gltf-binary", upsert: true });
           
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
           console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt} finished in ${elapsed}s, error: ${error?.message ?? 'none'}, data: ${JSON.stringify(data)}`);
