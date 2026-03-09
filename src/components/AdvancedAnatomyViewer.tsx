@@ -509,7 +509,7 @@ function meshDisplayName(rawName: string): string {
   return deduped.join(" ").replace(/_/g, " ");
 }
 
-function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers: Layer[]): MeshInfo {
+function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers: Layer[], contextNameHe: string = ""): MeshInfo {
   const key = getMeshKey(rawName);
   // 1. Exact match in infoMap
   if (infoMap[key]) return infoMap[key];
@@ -556,8 +556,23 @@ function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers:
   }
   // 5. Fallback: auto-detect layer and use raw name
   const autoLayer = layers.find(l => l.meshPatterns.some(re => re.test(key)))?.id ?? "other";
+  
+  const baseName = meshDisplayName(rawName);
+  let finalHe = baseName;
+  
+  // Smart contextual naming for generic names like Object_224
+  if (baseName.toLowerCase().includes("object") || baseName.toLowerCase() === "mesh") {
+    if (contextNameHe.includes("שלד") || contextNameHe.includes("עצם") || contextNameHe.includes("גולגולת")) {
+      finalHe = `עצם (${baseName})`;
+    } else if (contextNameHe.includes("שריר")) {
+      finalHe = `שריר (${baseName})`;
+    } else if (contextNameHe) {
+      finalHe = `חלק מ-${contextNameHe} (${baseName})`;
+    }
+  }
+
   return {
-    displayName: meshDisplayName(rawName), displayNameHe: meshDisplayName(rawName),
+    displayName: baseName, displayNameHe: finalHe,
     layer: autoLayer, facts: [], factsHe: [], latinName: "",
     function: "", functionHe: "", diseases: [], diseasesHe: [],
   };
@@ -821,7 +836,7 @@ export default function AdvancedAnatomyViewer() {
   const meshKeysByLayer = useMemo(() => {
     const map: Record<string, string[]> = {};
     for (const key of loadedMeshKeys) {
-      const info = getMeshInfo(key, meta.infoMap, meta.layers);
+      const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe);
       if (!map[info.layer]) map[info.layer] = [];
       map[info.layer].push(key);
     }
@@ -845,7 +860,7 @@ export default function AdvancedAnatomyViewer() {
     if (!searchQuery.trim()) return null;
     const q = searchQuery.toLowerCase();
     for (const key of loadedMeshKeys) {
-      const info = getMeshInfo(key, meta.infoMap, meta.layers);
+      const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe);
       const haystack = [info.displayName, info.displayNameHe, info.latinName, info.functionHe, ...info.factsHe, ...info.diseasesHe].join(" ").toLowerCase();
       if (haystack.includes(q)) return key;
     }
@@ -858,7 +873,7 @@ export default function AdvancedAnatomyViewer() {
     setHiddenLayers(prev => { const next = new Set(prev); next.has(layerId) ? next.delete(layerId) : next.add(layerId); return next; });
   };
 
-  const selectedInfo = effectiveSelectedMesh ? getMeshInfo(effectiveSelectedMesh, meta.infoMap, meta.layers) : null;
+  const selectedInfo = effectiveSelectedMesh ? getMeshInfo(effectiveSelectedMesh, meta.infoMap, meta.layers, meta.titleHe) : null;
   const handleMeshesLoaded = useCallback((names: string[]) => setLoadedMeshKeys(names), []);
   const skullAnimTime = meta.hasAnimation ? animTime ?? explodeAmount : null;
   const manualExplode = meta.hasAnimation ? 0 : explodeAmount;
@@ -1054,7 +1069,7 @@ export default function AdvancedAnatomyViewer() {
             style={{ background: theme.bg, borderColor: theme.border, color: theme.text }} />
           {searchHighlighted && (
             <div className="text-[10px] mt-1" style={{ color: "#3fb950" }}>
-              ✓ נמצא: {getMeshInfo(searchHighlighted, meta.infoMap, meta.layers).displayNameHe}
+              ✓ נמצא: {getMeshInfo(searchHighlighted, meta.infoMap, meta.layers, meta.titleHe).displayNameHe}
             </div>
           )}
         </div>
@@ -1139,7 +1154,7 @@ export default function AdvancedAnatomyViewer() {
           </div>
           <ScrollArea className="max-h-60">
             {loadedMeshKeys.map(key => {
-              const info = getMeshInfo(key, meta.infoMap, meta.layers);
+              const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe);
               const isHidden = hiddenMeshes.has(key);
               const isSelected = effectiveSelectedMesh === key;
               const layerColor = meta.layers.find(l => l.id === info.layer)?.color ?? theme.textDim;
