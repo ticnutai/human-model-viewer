@@ -830,6 +830,12 @@ export default function AdvancedAnatomyViewer() {
   const [explodeAmount, setExplodeAmount] = useState(0);
   const [animTime, setAnimTime] = useState<number | null>(null);
   const [xRayMode, setXRayMode] = useState(false);
+  const [xRayIntensity, setXRayIntensity] = useState(1.0);
+  const [xRayColor, setXRayColor] = useState("#00aaff");
+  const [clipEnabled, setClipEnabled] = useState(false);
+  const [clipAxis, setClipAxis] = useState<ClipAxis>("y");
+  const [clipPosition, setClipPosition] = useState(0);
+  const [clipNegate, setClipNegate] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showInfoPanel, setShowInfoPanel] = useState(true);
   const [brightness, setBrightness] = useState(100);
