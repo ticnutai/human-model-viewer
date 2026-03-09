@@ -22,6 +22,9 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import ClippingPlane from "./anatomy/ClippingPlane";
+import type { ClipAxis } from "./anatomy/ClippingPlane";
+import XRayShader from "./anatomy/XRayShader";
 
 // ─── Model definitions ───────────────────────────────────────────────────────
 
