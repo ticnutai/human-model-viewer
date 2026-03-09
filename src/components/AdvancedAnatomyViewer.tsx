@@ -1620,6 +1620,7 @@ export default function AdvancedAnatomyViewer() {
               const layerColor = meta.layers.find(l => l.id === info.layer)?.color ?? theme.textDim;
               return (
                 <div key={key} onClick={() => setSelectedMesh(isSelected ? null : key)}
+                  onContextMenu={e => handleMeshCtx(e, key, idx)}
                   className="flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer text-xs mb-0.5 transition-all"
                   style={{
                     background: isSelected ? theme.accentBg : "transparent",
@@ -1628,6 +1629,9 @@ export default function AdvancedAnatomyViewer() {
                   }}>
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: isHidden ? theme.textDim : layerColor }} />
                   <span className="truncate flex-1">{info.displayNameHe || info.displayName}</span>
+                  {info.displayNameHe && info.displayNameHe !== info.displayName && (
+                    <span className="text-[9px]" style={{ color: theme.textDim }}>🗺️</span>
+                  )}
                 </div>
               );
             })}
