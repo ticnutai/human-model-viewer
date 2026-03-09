@@ -1128,6 +1128,71 @@ export default function AdvancedAnatomyViewer() {
             🔬 X-Ray {xRayMode ? "פעיל" : "כבוי"}
           </button>
 
+          {/* X-Ray intensity */}
+          {xRayMode && (
+            <div className="mb-2 p-2 rounded-lg" style={{ background: theme.bg, border: `1px solid ${theme.border}` }}>
+              <div className="flex justify-between text-[10px] mb-1">
+                <span style={{ color: theme.textDim }}>עוצמה</span>
+                <span style={{ color: "#ffa600" }}>{Math.round(xRayIntensity * 100)}%</span>
+              </div>
+              <input type="range" min={10} max={100} value={Math.round(xRayIntensity * 100)}
+                onChange={e => setXRayIntensity(Number(e.target.value) / 100)}
+                className="w-full h-1" style={{ accentColor: "#ffa600" }} />
+              <div className="flex gap-1 mt-1.5">
+                {["#00aaff", "#ff6600", "#00ff88", "#ff00ff"].map(c => (
+                  <button key={c} onClick={() => setXRayColor(c)}
+                    className="w-5 h-5 rounded-full border-2 transition-all"
+                    style={{ background: c, borderColor: xRayColor === c ? "#fff" : "transparent" }} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Clipping Plane */}
+          <button onClick={() => setClipEnabled(v => !v)}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all mb-1.5"
+            style={{
+              background: clipEnabled ? "rgba(59,130,246,0.15)" : "transparent",
+              borderColor: clipEnabled ? "#3b82f6" : theme.border,
+              color: clipEnabled ? "#3b82f6" : theme.textDim,
+            }}>
+            ✂️ חתך אנטומי {clipEnabled ? "פעיל" : "כבוי"}
+          </button>
+
+          {clipEnabled && (
+            <div className="mb-2 p-2 rounded-lg" style={{ background: theme.bg, border: `1px solid ${theme.border}` }}>
+              <div className="flex gap-1 mb-2">
+                {(["x", "y", "z"] as const).map(ax => (
+                  <button key={ax} onClick={() => setClipAxis(ax)}
+                    className="flex-1 py-1 rounded text-[10px] font-bold cursor-pointer border transition-all"
+                    style={{
+                      background: clipAxis === ax ? (ax === "x" ? "rgba(239,68,68,0.15)" : ax === "y" ? "rgba(34,197,94,0.15)" : "rgba(59,130,246,0.15)") : "transparent",
+                      borderColor: clipAxis === ax ? (ax === "x" ? "#ef4444" : ax === "y" ? "#22c55e" : "#3b82f6") : theme.border,
+                      color: clipAxis === ax ? (ax === "x" ? "#ef4444" : ax === "y" ? "#22c55e" : "#3b82f6") : theme.textDim,
+                    }}>
+                    {ax === "x" ? "Sagittal" : ax === "y" ? "Coronal" : "Axial"}
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-between text-[10px] mb-1">
+                <span style={{ color: theme.textDim }}>מיקום חתך</span>
+                <span style={{ color: "#3b82f6" }}>{clipPosition.toFixed(1)}</span>
+              </div>
+              <input type="range" min={-300} max={300} value={Math.round(clipPosition * 100)}
+                onChange={e => setClipPosition(Number(e.target.value) / 100)}
+                className="w-full h-1" style={{ accentColor: "#3b82f6" }} />
+              <button onClick={() => setClipNegate(v => !v)}
+                className="w-full mt-1.5 py-1 rounded text-[10px] cursor-pointer border transition-all"
+                style={{
+                  background: clipNegate ? "rgba(168,85,247,0.1)" : "transparent",
+                  borderColor: theme.border,
+                  color: clipNegate ? "#a855f7" : theme.textDim,
+                }}>
+                🔄 {clipNegate ? "כיוון הפוך" : "כיוון רגיל"}
+              </button>
+            </div>
+          )}
+
           {effectiveSelectedMesh && (
             <button onClick={() => { setSelectedMesh(null); setSearchQuery(""); }}
               className="w-full py-1 rounded-lg text-[11px] cursor-pointer border transition-all"
