@@ -97,15 +97,15 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   };
 
   const handleStartNew = () => {
+    console.log("[AnalysisPanel] ▶ handleStartNew clicked, unanalyzed:", unanalyzedModels.length);
+    if (unanalyzedModels.length === 0) { console.error("[AnalysisPanel] ❌ No unanalyzed models!"); return; }
     setIsRunning(true);
     engine.start(unanalyzedModels, (state) => {
+      console.log("[AnalysisPanel] Progress:", state.completedCount, "/", state.totalCount);
       setJobs(state.jobs);
-      setStats({
-        active: state.activeCount,
-        completed: state.completedCount,
-        total: state.totalCount
-      });
+      setStats({ active: state.activeCount, completed: state.completedCount, total: state.totalCount });
       if (state.completedCount === state.totalCount) {
+        console.log("[AnalysisPanel] ✅ New models done!");
         setIsRunning(false);
         if (onLoad) onLoad();
         else fetchModels();
