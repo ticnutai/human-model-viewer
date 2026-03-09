@@ -1355,7 +1355,7 @@ export default function AdvancedAnatomyViewer() {
             <ambientLight intensity={0.6} />
             <directionalLight position={[5, 10, 7]} intensity={1.2} />
             <directionalLight position={[-5, -5, -5]} intensity={0.3} />
-            <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
+            <OrbitControls makeDefault enableDamping dampingFactor={0.08} enabled={!tourActive} />
             <Suspense fallback={null}>
               <ModelScene
                 key={isCloudModel ? cloudModelUrl : modelId}
@@ -1372,6 +1372,19 @@ export default function AdvancedAnatomyViewer() {
             </Suspense>
             <ClippingPlane enabled={clipEnabled} axis={clipAxis} position={clipPosition} negate={clipNegate} />
             <XRayShader enabled={xRayMode && !selectedMesh} intensity={xRayIntensity} color={xRayColor} />
+            <AnatomyLabels3D
+              enabled={showLabels}
+              lang="he"
+              accent={theme.accent}
+              selectedKey={effectiveSelectedMesh}
+              explodeAmount={explodeAmount}
+            />
+            <BloodFlowParticles enabled={showBloodFlow} />
+            <CameraTour
+              active={tourActive}
+              onStopChange={(idx) => setTourStopIndex(idx)}
+              onComplete={() => { setTourActive(false); setTourStopIndex(-1); }}
+            />
           </Canvas>
         </ErrorBoundary>
 
