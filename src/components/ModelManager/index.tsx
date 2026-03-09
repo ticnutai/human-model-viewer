@@ -539,35 +539,62 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       console.log(`[Sketchfab Import] 📊 Buffer type: ${buffer.constructor.name}, byteLength: ${buffer.byteLength}`);
       updateUploadItem(uploadId, { progress: 70, statusLabel: `💾 מעלה לאחסון...` });
       
-      // Step 3: Upload directly to Supabase Storage from browser
+      // Step 3: Upload directly to Supabase Storage using raw fetch (SDK hangs)
       const fileName = urlData.fileName;
       console.log(`[Sketchfab Import] 📁 Target fileName: ${fileName}`);
       
       const uploadBlob = new Blob([buffer], { type: "model/gltf-binary" });
       console.log(`[Sketchfab Import] 📦 Blob created, size: ${uploadBlob.size} bytes, type: ${uploadBlob.type}`);
       
-      // Retry upload up to 3 times with upsert (UPDATE policy now exists)
+      // Use raw fetch instead of SDK - SDK seems to hang
+      const uploadUrl = `${SUPABASE_URL}/storage/v1/object/models/${fileName}`;
+      console.log(`[Sketchfab Import] 🌐 Upload URL: ${uploadUrl}`);
+      
       let uploadErr: any = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         const startTime = Date.now();
-        console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt}/3 starting at ${new Date().toISOString()}...`);
+        console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt}/3 via raw fetch at ${new Date().toISOString()}...`);
         updateUploadItem(uploadId, { progress: 70 + (attempt - 1) * 3, statusLabel: `💾 מעלה... ניסיון ${attempt}/3` });
         
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          console.error(`[Sketchfab Import] ⏰ Upload timeout after 120s, aborting...`);
+          controller.abort();
+        }, 120000);
+        
         try {
-          const { error, data } = await supabase.storage
-            .from("models")
-            .upload(fileName, uploadBlob, { contentType: "model/gltf-binary", upsert: true });
+          console.log(`[Sketchfab Import] 💾 Sending POST request...`);
+          const response = await fetch(uploadUrl, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              "Content-Type": "model/gltf-binary",
+              "x-upsert": "true",
+            },
+            body: uploadBlob,
+            signal: controller.signal,
+          });
           
+          clearTimeout(timeoutId);
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-          console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt} finished in ${elapsed}s, error: ${error?.message ?? 'none'}, data: ${JSON.stringify(data)}`);
+          const responseText = await response.text();
+          console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt} response: status=${response.status}, statusText=${response.statusText}, elapsed=${elapsed}s`);
+          console.log(`[Sketchfab Import] 💾 Response body: ${responseText.substring(0, 500)}`);
+          console.log(`[Sketchfab Import] 💾 Response headers:`, Object.fromEntries(response.headers.entries()));
           
-          if (!error) { uploadErr = null; break; }
-          uploadErr = error;
-          console.warn(`[Sketchfab Import] ⚠️ Upload attempt ${attempt} failed: ${error.message}, statusCode: ${(error as any)?.statusCode}, status: ${(error as any)?.status}`);
+          if (response.ok) {
+            uploadErr = null;
+            console.log(`[Sketchfab Import] ✅ Upload succeeded!`);
+            break;
+          }
+          uploadErr = new Error(`HTTP ${response.status}: ${responseText.substring(0, 200)}`);
+          console.warn(`[Sketchfab Import] ⚠️ Upload attempt ${attempt} failed: ${uploadErr.message}`);
         } catch (fetchErr: any) {
+          clearTimeout(timeoutId);
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-          console.error(`[Sketchfab Import] ❌ Upload attempt ${attempt} threw exception after ${elapsed}s: ${fetchErr.message}`);
-          console.error(`[Sketchfab Import] ❌ Exception details:`, fetchErr);
+          console.error(`[Sketchfab Import] ❌ Upload attempt ${attempt} threw after ${elapsed}s: ${fetchErr.message}`);
+          console.error(`[Sketchfab Import] ❌ Error name: ${fetchErr.name}, type: ${fetchErr.constructor.name}`);
           uploadErr = fetchErr;
         }
         
