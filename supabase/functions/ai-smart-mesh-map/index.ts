@@ -39,38 +39,36 @@ serve(async (req) => {
       `Total parts: ${meshNames.length}`,
     ].filter(Boolean).join("\n");
 
-    const systemPrompt = `You are an expert anatomist and 3D model analyst. You are given mesh part names from a 3D anatomical model file (.glb).
+    const systemPrompt = `You are an expert anatomist and 3D model analyst. You receive mesh part names from a 3D anatomical model file (.glb).
 
-Your task: Identify what anatomical structure each mesh part represents and create detailed information cards.
+TASK: For EACH mesh part (by index), identify its anatomical structure and create a detailed info card.
 
-CRITICAL RULES:
-1. The "meshIndex" field MUST match the index provided in the input. This is used as a unique key.
-2. Use the MODEL NAME and CONTEXT to deduce what each part is - even if names are generic like "Object_0" or all parts share the same material name.
-3. If a model is called "Heart" with 3 parts, those are likely different heart structures (ventricles, atria, aorta, etc.)
-4. If a model is called "Brain" with 15 parts, those are brain regions.
-5. If parts have descriptive names (like "Cortex", "Medulla"), use those directly.
-6. Each part MUST get a UNIQUE identification - never repeat the same structure for different indices.
-7. If you truly cannot determine what a specific part is, label it as "חלק אנטומי #{index}" with a reasonable guess.
+ABSOLUTE RULES:
+1. You MUST return EXACTLY ${meshNames.length} mappings - one per input index (0 to ${meshNames.length - 1}).
+2. Even if multiple meshes share the same name, each index represents a DIFFERENT geometric segment. Identify each differently.
+3. Use the MODEL NAME to understand context. Example: "Cardiac Anatomy External View" with 3 mesh segments named the same → these are likely different sub-regions (e.g., posterior wall, anterior wall, ostium).
+4. If parts have descriptive names, use them. If generic (Object_0), deduce from model context.
+5. NEVER merge parts. NEVER skip an index. Return ${meshNames.length} items.
 
-For EACH mesh part provide:
-- meshIndex: number (from input)
-- originalMeshName: string (from input)  
-- hebrewName: Hebrew anatomical name (UNIQUE per part)
-- englishName: English anatomical name (UNIQUE per part)
+For EACH part provide ALL these fields:
+- meshIndex: number (MUST match input index)
+- originalMeshName: string (from input)
+- hebrewName: Hebrew anatomical name (prefer unique per part)
+- englishName: English anatomical name (prefer unique per part)
 - latinName: Latin anatomical name
-- system: Body system in Hebrew (e.g. "מערכת לב וכלי דם", "מערכת השלד", "מערכת השרירים", "מערכת העיכול", "מערכת הנשימה", "מערכת העצבים", "מערכת השתן", "מערכת הכסות")
-- icon: Single emoji representing the structure
-- summary: One detailed sentence description in Hebrew
-- functionHe: Function description in Hebrew (2-3 sentences)
-- facts: Array of 3 interesting facts in Hebrew
-- diseases: Array of 2-3 related diseases/conditions in Hebrew
+- system: Body system in Hebrew
+- icon: Single emoji
+- summary: One detailed sentence in Hebrew
+- functionHe: Function in Hebrew (2-3 sentences)
+- facts: Array of 3 facts in Hebrew
+- diseases: Array of 2-3 diseases in Hebrew
 
 Context:
 ${contextInfo}
 
-Return ONLY valid JSON: {"mappings": [...]}`;
+Return ONLY valid JSON: {"mappings": [<exactly ${meshNames.length} items>]}`;
 
-    const userContent = `Mesh parts to identify and map:\n${JSON.stringify(indexedMeshes, null, 2)}`;
+    const userContent = `Map these ${meshNames.length} mesh parts (return exactly ${meshNames.length} mappings):\n${JSON.stringify(indexedMeshes, null, 2)}`;
 
     console.log(`[ai-smart-mesh-map] Analyzing ${meshNames.length} parts for model: ${modelName || "unknown"}`);
 
