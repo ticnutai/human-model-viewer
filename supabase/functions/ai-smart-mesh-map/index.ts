@@ -110,7 +110,7 @@ Return ONLY valid JSON: {"mappings": [<exactly ${meshNames.length} items>]}`;
     try { parsed = JSON.parse(content); } catch { parsed = { mappings: [] }; }
 
     const mappings = parsed.mappings || [];
-    console.log(`[ai-smart-mesh-map] Generated ${mappings.length} mappings for ${modelName}`);
+    console.log(`[ai-smart-mesh-map] v2 - Generated ${mappings.length} mappings for ${modelName}`);
 
     // Save to model_mesh_mappings table using mesh index as unique key
     if (modelUrl && mappings.length > 0) {
