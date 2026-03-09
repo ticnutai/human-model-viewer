@@ -1,5 +1,4 @@
 import { analyzeGlbSmart } from "./SmartAnalysis";
-import { supabase } from "@/integrations/supabase/client";
 import type { ModelRecord } from "./types";
 
 export type JobStatus = "pending" | "running" | "success" | "failed";
@@ -112,17 +111,28 @@ export class ParallelAnalysisEngine {
       console.log(`[AnalysisEngine] Analysis result:`, result.translatedNames?.length || 0, "parts");
       
       if (result.translatedNames && result.translatedNames.length > 0) {
-        console.log(`[AnalysisEngine] Saving to DB...`);
-        const { error } = await supabase
-          .from("models")
-          .update({ mesh_parts: result.translatedNames })
-          .eq("id", job.model.id);
-          
-        if (error) {
-          console.error(`[AnalysisEngine] DB save error:`, error);
-          throw error;
+        console.log(`[AnalysisEngine] Saving to DB via REST...`);
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const saveRes = await fetch(
+          `${supabaseUrl}/rest/v1/models?id=eq.${job.model.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ mesh_parts: result.translatedNames })
+          }
+        );
+        if (!saveRes.ok) {
+          const errText = await saveRes.text();
+          console.error(`[AnalysisEngine] DB save error:`, saveRes.status, errText);
+          throw new Error(`DB save failed: ${saveRes.status}`);
         }
-        console.log(`[AnalysisEngine] Saved ${result.translatedNames.length} parts to DB`);
+        console.log(`[AnalysisEngine] ✅ Saved ${result.translatedNames.length} parts to DB`);
       }
       
       job.status = "success";
