@@ -1767,8 +1767,8 @@ export default function AdvancedAnatomyViewer() {
               style={{ background: "transparent", color: theme.text }}
               onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              onClick={() => { setEditingModelId(ctxMenu.mod.id); setEditingName(ctxMenu.mod.hebrew_name || ctxMenu.mod.display_name); setCtxMenu(null); }}>
-              <span>✏️</span><span>שנה שם</span>
+              onClick={() => { setEditingModelId(ctxMenu.mod.id); setEditingName(ctxMenu.mod.hebrew_name || ctxMenu.mod.display_name); setEditingDisplayName(ctxMenu.mod.display_name); setCtxMenu(null); }}>
+              <span>✏️</span><span>ערוך שמות</span>
             </button>
             <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
               style={{ background: "transparent", color: favoriteModels.has(ctxMenu.mod.id) ? "#f59e0b" : theme.text }}
