@@ -899,6 +899,38 @@ export default function AdvancedAnatomyViewer() {
   const skullAnimTime = meta.hasAnimation ? animTime ?? explodeAmount : null;
   const manualExplode = meta.hasAnimation ? 0 : explodeAmount;
 
+  // Smart AI mesh mapping
+  const runSmartMapping = async () => {
+    if (loadedMeshKeys.length === 0) return;
+    setSmartMapping(true);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const response = await fetch(`${supabaseUrl}/functions/v1/ai-smart-mesh-map`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          meshNames: loadedMeshKeys.slice(0, 50), // Limit to 50 parts
+          modelName: meta.titleEn,
+          hebrewName: meta.titleHe,
+          modelUrl: meta.path,
+        })
+      });
+      if (!response.ok) throw new Error(`${response.status}`);
+      const data = await response.json();
+      console.log("[AdvancedViewer] Smart mapping:", data.mappings?.length, "mappings saved:", data.saved);
+      // Reload mappings by refreshing
+      window.location.reload();
+    } catch (e) {
+      console.error("[AdvancedViewer] Smart mapping error:", e);
+    } finally {
+      setSmartMapping(false);
+    }
+  };
+
+  // Tour stop labels  
+  const TOUR_LABELS = ["סקירה", "מוח", "לב", "ריאות", "כבד", "קיבה", "כליות", "מעיים", "חזרה"];
+
   // Select a cloud model
   const selectCloudModel = (mod: typeof cloudModels[0]) => {
     if (!mod.file_url) return;
