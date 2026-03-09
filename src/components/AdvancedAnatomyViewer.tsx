@@ -923,6 +923,39 @@ export default function AdvancedAnatomyViewer() {
     setCtxMenu({ mod, x: e.clientX, y: e.clientY });
   };
 
+  const [showDuplicates, setShowDuplicates] = useState(false);
+
+  // Detect duplicate cloud models by display_name or file_url
+  const duplicateGroups = useMemo(() => {
+    const byName: Record<string, typeof cloudModels> = {};
+    for (const mod of cloudModels) {
+      const key = (mod.hebrew_name || mod.display_name).trim().toLowerCase();
+      if (!byName[key]) byName[key] = [];
+      byName[key].push(mod);
+    }
+    return Object.entries(byName)
+      .filter(([, mods]) => mods.length > 1)
+      .map(([name, mods]) => ({
+        name: mods[0].hebrew_name || mods[0].display_name,
+        keep: mods[0],
+        dupes: mods.slice(1),
+      }));
+  }, [cloudModels]);
+
+  const deleteAllDuplicates = async () => {
+    if (!confirm(`למחוק ${duplicateGroups.reduce((s, g) => s + g.dupes.length, 0)} כפילויות?`)) return;
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const ids = duplicateGroups.flatMap(g => g.dupes.map(d => d.id));
+    for (const id of ids) {
+      await fetch(`${baseUrl}/rest/v1/models?id=eq.${id}`, {
+        method: "DELETE", headers: { apikey, Authorization: `Bearer ${apikey}` },
+      });
+    }
+    setCloudModels(prev => prev.filter(m => !ids.includes(m.id)));
+    setShowDuplicates(false);
+  };
+
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, themeId);
   }, [themeId]);
