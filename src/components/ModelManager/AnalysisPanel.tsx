@@ -54,10 +54,13 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   };
 
   useEffect(() => {
+    console.log("[AnalysisPanel] useEffect triggered, propsModels:", propsModels?.length ?? "null");
     if (propsModels) {
+      console.log("[AnalysisPanel] Using propsModels:", propsModels.length);
       setLocalModels(propsModels);
       setLoading(false);
     } else {
+      console.log("[AnalysisPanel] No propsModels, fetching from DB...");
       fetchModels();
     }
   }, [propsModels]);
