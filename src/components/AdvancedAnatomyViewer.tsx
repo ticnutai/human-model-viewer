@@ -1633,6 +1633,53 @@ export default function AdvancedAnatomyViewer() {
           ℹ️ מידע
         </button>
       )}
+      {/* Context menu for cloud models */}
+      {ctxMenu && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setCtxMenu(null); }} />
+          <div className="fixed z-[9999] rounded-xl shadow-2xl py-1.5 min-w-[160px]"
+            style={{
+              left: Math.min(ctxMenu.x, window.innerWidth - 180),
+              top: Math.min(ctxMenu.y, window.innerHeight - 200),
+              background: theme.panel,
+              border: `1px solid ${theme.border}`,
+              direction: "rtl",
+            }}>
+            <div className="px-3 py-1.5 text-[10px] font-bold truncate" style={{ color: theme.textDim, borderBottom: `1px solid ${theme.border}` }}>
+              {ctxMenu.mod.hebrew_name || ctxMenu.mod.display_name}
+            </div>
+            <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+              style={{ background: "transparent", color: theme.text }}
+              onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              onClick={() => { setEditingModelId(ctxMenu.mod.id); setEditingName(ctxMenu.mod.hebrew_name || ctxMenu.mod.display_name); setCtxMenu(null); }}>
+              <span>✏️</span><span>שנה שם</span>
+            </button>
+            <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+              style={{ background: "transparent", color: favoriteModels.has(ctxMenu.mod.id) ? "#f59e0b" : theme.text }}
+              onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              onClick={() => { toggleFavorite(ctxMenu.mod.id); setCtxMenu(null); }}>
+              <span>{favoriteModels.has(ctxMenu.mod.id) ? "⭐" : "☆"}</span><span>{favoriteModels.has(ctxMenu.mod.id) ? "הסר מהמועדפים" : "הוסף למועדפים"}</span>
+            </button>
+            <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+              style={{ background: "transparent", color: pinnedModels.has(ctxMenu.mod.id) ? theme.accent : theme.text }}
+              onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              onClick={() => { togglePin(ctxMenu.mod.id); setCtxMenu(null); }}>
+              <span>{pinnedModels.has(ctxMenu.mod.id) ? "📌" : "📍"}</span><span>{pinnedModels.has(ctxMenu.mod.id) ? "בטל הצמדה" : "הצמד למעלה"}</span>
+            </button>
+            <div style={{ borderTop: `1px solid ${theme.border}`, margin: "2px 0" }} />
+            <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+              style={{ background: "transparent", color: "#f85149" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(248,81,73,0.1)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              onClick={() => { if (confirm("למחוק את המודל?")) deleteCloudModel(ctxMenu.mod.id); }}>
+              <span>🗑️</span><span>מחק מודל</span>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
