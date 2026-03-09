@@ -839,6 +839,11 @@ export default function AdvancedAnatomyViewer() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showInfoPanel, setShowInfoPanel] = useState(true);
   const [brightness, setBrightness] = useState(100);
+  const [showLabels, setShowLabels] = useState(false);
+  const [showBloodFlow, setShowBloodFlow] = useState(false);
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStopIndex, setTourStopIndex] = useState(-1);
+  const [smartMapping, setSmartMapping] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, themeId);
