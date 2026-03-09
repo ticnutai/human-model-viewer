@@ -521,7 +521,7 @@ function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers:
   const key = getMeshKey(rawName);
   // 1. Exact match in infoMap
   if (infoMap[key]) return infoMap[key];
-  // 1b. Try by mesh index (from AI mapping)
+  // 1b. Try by mesh index (from AI mapping) — most reliable for cloud-mapped parts
   if (meshIndex !== undefined && infoMap[`__idx_${meshIndex}`]) return infoMap[`__idx_${meshIndex}`];
   // 2. Case-insensitive match
   const lkey = key.toLowerCase();
@@ -531,6 +531,14 @@ function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers:
   // 2b. Partial match for mesh_N_ prefixed keys
   for (const k of Object.keys(infoMap)) {
     if (k.startsWith("mesh_") && k.includes(key.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 20))) return infoMap[k];
+  }
+  // 2c. Normalized match — strip special chars and compare
+  const normalizedKey = key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  if (normalizedKey.length > 3) {
+    for (const k of Object.keys(infoMap)) {
+      const normalizedK = k.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+      if (normalizedK === normalizedKey) return infoMap[k];
+    }
   }
   // 3. Try rich organ detection from OrganData
   const organInfo = getOrganInfoForMesh(key);
