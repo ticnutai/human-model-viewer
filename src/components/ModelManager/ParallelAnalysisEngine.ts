@@ -36,6 +36,8 @@ export class ParallelAnalysisEngine {
     this.abortController = new AbortController();
     this.onProgress = onProgress;
     
+    console.log(`[AnalysisEngine] Starting analysis for ${models.length} models`);
+    
     this.jobs = {};
     this.queue = models.map(model => {
       const job: AnalysisJob = { model, status: "pending" };
@@ -43,6 +45,7 @@ export class ParallelAnalysisEngine {
       return job;
     });
     
+    console.log(`[AnalysisEngine] Queue initialized with ${this.queue.length} jobs`);
     this.reportProgress();
     this.processQueue();
   }
