@@ -99,21 +99,30 @@ export class ParallelAnalysisEngine {
     try {
       if (!job.model.file_url) throw new Error("No file URL");
       
-      // Simulate fetch to blob
+      console.log(`[AnalysisEngine] Fetching GLB: ${job.model.file_url}`);
       const res = await fetch(job.model.file_url, { signal: this.abortController?.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
+      console.log(`[AnalysisEngine] Downloaded ${blob.size} bytes for ${job.model.display_name}`);
+      
       const file = new File([blob], job.model.file_name, { type: job.model.media_type || "model/gltf-binary" });
       
+      console.log(`[AnalysisEngine] Analyzing GLB...`);
       const result = await analyzeGlbSmart(file, job.model.id);
+      console.log(`[AnalysisEngine] Analysis result:`, result.translatedNames?.length || 0, "parts");
       
       if (result.translatedNames && result.translatedNames.length > 0) {
+        console.log(`[AnalysisEngine] Saving to DB...`);
         const { error } = await supabase
           .from("models")
           .update({ mesh_parts: result.translatedNames })
           .eq("id", job.model.id);
           
-        if (error) throw error;
+        if (error) {
+          console.error(`[AnalysisEngine] DB save error:`, error);
+          throw error;
+        }
+        console.log(`[AnalysisEngine] Saved ${result.translatedNames.length} parts to DB`);
       }
       
       job.status = "success";
