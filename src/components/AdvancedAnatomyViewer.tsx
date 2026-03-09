@@ -1968,14 +1968,17 @@ function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinne
   }
 
   return (
-    <div className="relative group inline-flex">
+    <span className="inline-flex items-center gap-0">
       <button onClick={onSelect} onContextMenu={onCtx}
-        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all"
+        className="flex items-center gap-1 px-2 py-1 rounded-r-lg text-[10px] cursor-pointer border transition-all"
         style={{
           background: isActive ? theme.accentBg : "transparent",
           borderColor: isActive ? theme.accent : theme.border,
           color: isActive ? theme.accent : theme.textDim,
           fontWeight: isActive ? 600 : 400,
+          borderLeft: "none",
+          borderTopLeftRadius: 0,
+          borderBottomLeftRadius: 0,
         }}>
         {isFav && <span className="text-[8px]">⭐</span>}
         {isPinned && <span className="text-[8px]">📌</span>}
@@ -1983,10 +1986,17 @@ function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinne
         <span className="truncate max-w-[90px]">{mod.hebrew_name || mod.display_name}</span>
       </button>
       <button onClick={(e) => { e.stopPropagation(); onCtx(e); }}
-        className="opacity-0 group-hover:opacity-100 absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] cursor-pointer border-none transition-opacity z-10"
-        style={{ background: theme.accent, color: "#fff" }}>
+        className="flex items-center justify-center px-1 py-1 rounded-l-lg text-[10px] cursor-pointer border transition-all"
+        style={{
+          background: isActive ? theme.accent : "transparent",
+          borderColor: isActive ? theme.accent : theme.border,
+          color: isActive ? "#fff" : theme.textDim,
+          borderRight: "none",
+          borderTopRightRadius: 0,
+          borderBottomRightRadius: 0,
+        }}>
         ⋮
       </button>
-    </div>
+    </span>
   );
 }
