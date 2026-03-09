@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type CloudMeshInfo = {
@@ -19,6 +19,9 @@ export function useMeshMappings(modelId?: string) {
   const [mappings, setMappings] = useState<Map<string, CloudMeshInfo>>(new Map());
   const [allMappings, setAllMappings] = useState<CloudMeshInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refetch = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,9 +53,9 @@ export function useMeshMappings(modelId?: string) {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [modelId]);
+  }, [modelId, refreshKey]);
 
-  return { mappings, allMappings, loading };
+  return { mappings, allMappings, loading, refetch };
 }
 
 /** Layer definition from cloud */

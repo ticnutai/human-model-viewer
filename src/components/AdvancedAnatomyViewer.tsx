@@ -516,14 +516,20 @@ function meshDisplayName(rawName: string): string {
   return deduped.join(" ").replace(/_/g, " ");
 }
 
-function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers: Layer[], contextNameHe: string = ""): MeshInfo {
+function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers: Layer[], contextNameHe: string = "", meshIndex?: number): MeshInfo {
   const key = getMeshKey(rawName);
   // 1. Exact match in infoMap
   if (infoMap[key]) return infoMap[key];
+  // 1b. Try by mesh index (from AI mapping)
+  if (meshIndex !== undefined && infoMap[`__idx_${meshIndex}`]) return infoMap[`__idx_${meshIndex}`];
   // 2. Case-insensitive match
   const lkey = key.toLowerCase();
   for (const k of Object.keys(infoMap)) {
     if (k.toLowerCase() === lkey) return infoMap[k];
+  }
+  // 2b. Partial match for mesh_N_ prefixed keys
+  for (const k of Object.keys(infoMap)) {
+    if (k.startsWith("mesh_") && k.includes(key.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 20))) return infoMap[k];
   }
   // 3. Try rich organ detection from OrganData
   const organInfo = getOrganInfoForMesh(key);
@@ -804,14 +810,14 @@ export default function AdvancedAnatomyViewer() {
     : MODEL_META[modelId as ModelId];
 
   // Fetch cloud mesh mappings and merge with hardcoded data
-  const { mappings: cloudMappings, loading: cloudLoading } = useMeshMappings(isCloudModel ? undefined : modelId);
+  const { mappings: cloudMappings, loading: cloudLoading, refetch: refetchMappings } = useMeshMappings(isCloudModel ? (baseMeta.path || undefined) : modelId);
 
   const meta = useMemo(() => {
     if (cloudMappings.size === 0) return baseMeta;
     const mergedInfoMap = { ...baseMeta.infoMap };
     cloudMappings.forEach((cm, meshKey) => {
       const factsData = cm.facts || {};
-      mergedInfoMap[meshKey] = {
+      const infoEntry: MeshInfo = {
         displayName: cm.name,
         displayNameHe: factsData.displayNameHe || cm.summary || cm.name,
         layer: cm.system,
@@ -823,6 +829,20 @@ export default function AdvancedAnatomyViewer() {
         diseases: factsData.diseases || [],
         diseasesHe: factsData.diseasesHe || [],
       };
+      // Store by mesh_key (e.g. "mesh_0_Coronary_sinus835")
+      mergedInfoMap[meshKey] = infoEntry;
+      // Also store by original mesh name so getMeshInfo can find it
+      const originalName = factsData.originalMeshName;
+      if (originalName) {
+        const idx = factsData.meshIndex;
+        // Map by "originalName" for the first occurrence, and by index for subsequent
+        if (idx !== undefined && idx !== null) {
+          mergedInfoMap[`__idx_${idx}`] = infoEntry;
+        }
+        if (!mergedInfoMap[originalName]) {
+          mergedInfoMap[originalName] = infoEntry;
+        }
+      }
     });
     return { ...baseMeta, infoMap: mergedInfoMap };
   }, [baseMeta, cloudMappings]);
@@ -869,8 +889,9 @@ export default function AdvancedAnatomyViewer() {
 
   const meshKeysByLayer = useMemo(() => {
     const map: Record<string, string[]> = {};
-    for (const key of loadedMeshKeys) {
-      const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe);
+    for (let i = 0; i < loadedMeshKeys.length; i++) {
+      const key = loadedMeshKeys[i];
+      const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe, i);
       if (!map[info.layer]) map[info.layer] = [];
       map[info.layer].push(key);
     }
@@ -907,7 +928,8 @@ export default function AdvancedAnatomyViewer() {
     setHiddenLayers(prev => { const next = new Set(prev); next.has(layerId) ? next.delete(layerId) : next.add(layerId); return next; });
   };
 
-  const selectedInfo = effectiveSelectedMesh ? getMeshInfo(effectiveSelectedMesh, meta.infoMap, meta.layers, meta.titleHe) : null;
+  const selectedMeshIndex = effectiveSelectedMesh ? loadedMeshKeys.indexOf(effectiveSelectedMesh) : undefined;
+  const selectedInfo = effectiveSelectedMesh ? getMeshInfo(effectiveSelectedMesh, meta.infoMap, meta.layers, meta.titleHe, selectedMeshIndex !== -1 ? selectedMeshIndex : undefined) : null;
   const handleMeshesLoaded = useCallback((names: string[]) => setLoadedMeshKeys(names), []);
   const skullAnimTime = meta.hasAnimation ? animTime ?? explodeAmount : null;
   const manualExplode = meta.hasAnimation ? 0 : explodeAmount;
@@ -940,9 +962,14 @@ export default function AdvancedAnatomyViewer() {
       setSmartMappingLog(prev => [
         ...prev,
         `✅ מופו ${mappings.length} חלקים בהצלחה!`,
-        ...(data.saved ? ["💾 נשמר בענן"] : []),
+        ...(data.saved ? ["💾 נשמר בענן, מרענן מידע..."] : []),
       ]);
       console.log("[AdvancedViewer] Smart mapping:", mappings.length, "mappings saved:", data.saved);
+      // Refetch cloud mappings so clicking on parts shows the new info
+      if (data.saved) {
+        refetchMappings();
+        setSmartMappingLog(prev => [...prev, "🔄 המידע עודכן!"]);
+      }
     } catch (e: any) {
       console.error("[AdvancedViewer] Smart mapping error:", e);
       setSmartMappingLog(prev => [...prev, `❌ שגיאה: ${e.message}`]);
@@ -1435,8 +1462,8 @@ export default function AdvancedAnatomyViewer() {
             🦴 חלקים ({loadedMeshKeys.length})
           </div>
           <ScrollArea className="max-h-60">
-            {loadedMeshKeys.map(key => {
-              const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe);
+            {loadedMeshKeys.map((key, idx) => {
+              const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe, idx);
               const isHidden = hiddenMeshes.has(key);
               const isSelected = effectiveSelectedMesh === key;
               const layerColor = meta.layers.find(l => l.id === info.layer)?.color ?? theme.textDim;
