@@ -1571,6 +1571,7 @@ export default function AdvancedAnatomyViewer() {
               <div className="text-[11px]">לחץ על חלק במודל התלת-ממדי או בחר מהרשימה</div>
             </div>
           )}
+          </div>
         </div>
       )}
 
