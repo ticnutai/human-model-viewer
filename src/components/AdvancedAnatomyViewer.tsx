@@ -904,11 +904,12 @@ export default function AdvancedAnatomyViewer() {
       if (model?.file_url) {
         await supabase.from("model_mesh_mappings").delete().eq("model_url", model.file_url);
       }
-      // 2. Delete files from storage
-      if (model?.file_name) {
-        const filesToRemove = [model.file_name];
-        if (model.thumbnail_url) {
-          const thumbMatch = model.thumbnail_url.match(/\/models\/(.+)$/);
+      // 2. Delete storage files via a separate query to get file_name
+      const { data: fullModel } = await supabase.from("models").select("file_name, thumbnail_url").eq("id", id).single();
+      if (fullModel?.file_name) {
+        const filesToRemove = [fullModel.file_name];
+        if (fullModel.thumbnail_url) {
+          const thumbMatch = fullModel.thumbnail_url.match(/\/models\/(.+)$/);
           if (thumbMatch) filesToRemove.push(thumbMatch[1]);
         }
         await supabase.storage.from("models").remove(filesToRemove);
