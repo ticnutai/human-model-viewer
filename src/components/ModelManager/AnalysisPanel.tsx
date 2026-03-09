@@ -24,9 +24,26 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   const fetchModels = async () => {
     setLoading(true);
     console.log("[AnalysisPanel] Fetching models from DB...");
-    const { data, error } = await supabase.from('models').select('*').order('created_at', { ascending: false });
-    console.log("[AnalysisPanel] Fetch result:", { count: data?.length ?? 0, error: error?.message });
-    if (data) setLocalModels(data);
+    try {
+      // Add timeout to prevent infinite hang
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Query timeout after 10s")), 10000)
+      );
+      const queryPromise = supabase.from('models').select('*').order('created_at', { ascending: false });
+      
+      const result = await Promise.race([queryPromise, timeoutPromise]) as { data: ModelRecord[] | null, error: any };
+      const { data, error } = result;
+      
+      console.log("[AnalysisPanel] Fetch result:", { count: data?.length ?? 0, error: error?.message });
+      if (error) {
+        console.error("[AnalysisPanel] DB Error:", error);
+        toast({ title: "שגיאה בטעינת מודלים", description: error.message, variant: "destructive" });
+      }
+      if (data) setLocalModels(data);
+    } catch (e: any) {
+      console.error("[AnalysisPanel] Fetch failed:", e);
+      toast({ title: "שגיאה בטעינת מודלים", description: e.message, variant: "destructive" });
+    }
     setLoading(false);
   };
 
