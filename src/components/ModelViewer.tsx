@@ -468,16 +468,29 @@ const ModelViewer = () => {
   // Fetch cloud models for body model picker and analysis panel
   useEffect(() => {
     const fetchCloudModels = async () => {
-      console.log("[ModelViewer] Fetching cloud models...");
-      console.log("[ModelViewer] Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      console.log("[ModelViewer] Fetching cloud models via REST...");
+      
       try {
-        const startTime = Date.now();
-        const { data, error } = await supabase.from("models").select("*").order("display_name");
-        const duration = Date.now() - startTime;
-        console.log("[ModelViewer] Cloud models loaded in", duration, "ms:", data?.length ?? 0, "models", error?.message || "no error");
-        if (error) {
-          console.error("[ModelViewer] Supabase error:", error);
+        // Use direct REST API call instead of Supabase client to avoid hanging
+        const response = await fetch(
+          `${supabaseUrl}/rest/v1/models?select=*&order=display_name`,
+          {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        
+        const data = await response.json();
+        console.log("[ModelViewer] Cloud models loaded:", data?.length ?? 0, "models");
         if (data) {
           setCloudModels(data);
         }
