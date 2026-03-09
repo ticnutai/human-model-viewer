@@ -54,10 +54,13 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   };
 
   useEffect(() => {
+    console.log("[AnalysisPanel] useEffect triggered, propsModels:", propsModels?.length ?? "null");
     if (propsModels) {
+      console.log("[AnalysisPanel] Using propsModels:", propsModels.length);
       setLocalModels(propsModels);
       setLoading(false);
     } else {
+      console.log("[AnalysisPanel] No propsModels, fetching from DB...");
       fetchModels();
     }
   }, [propsModels]);
@@ -72,15 +75,20 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   }, [engine]);
 
   const handleStartAll = () => {
+    console.log("[AnalysisPanel] ▶ handleStartAll clicked");
+    console.log("[AnalysisPanel] modelsToUse count:", modelsToUse.length);
+    console.log("[AnalysisPanel] First 3:", modelsToUse.slice(0, 3).map(m => ({ id: m.id, name: m.display_name, url: m.file_url?.substring(0, 60) })));
+    if (modelsToUse.length === 0) {
+      console.error("[AnalysisPanel] ❌ No models! propsModels:", propsModels?.length, "localModels:", localModels.length);
+      return;
+    }
     setIsRunning(true);
     engine.start(modelsToUse, (state) => {
+      console.log("[AnalysisPanel] Progress:", state.completedCount, "/", state.totalCount, "active:", state.activeCount);
       setJobs(state.jobs);
-      setStats({
-        active: state.activeCount,
-        completed: state.completedCount,
-        total: state.totalCount
-      });
+      setStats({ active: state.activeCount, completed: state.completedCount, total: state.totalCount });
       if (state.completedCount === state.totalCount) {
+        console.log("[AnalysisPanel] ✅ All done!");
         setIsRunning(false);
         if (onLoad) onLoad();
         else fetchModels();
@@ -89,15 +97,15 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   };
 
   const handleStartNew = () => {
+    console.log("[AnalysisPanel] ▶ handleStartNew clicked, unanalyzed:", unanalyzedModels.length);
+    if (unanalyzedModels.length === 0) { console.error("[AnalysisPanel] ❌ No unanalyzed models!"); return; }
     setIsRunning(true);
     engine.start(unanalyzedModels, (state) => {
+      console.log("[AnalysisPanel] Progress:", state.completedCount, "/", state.totalCount);
       setJobs(state.jobs);
-      setStats({
-        active: state.activeCount,
-        completed: state.completedCount,
-        total: state.totalCount
-      });
+      setStats({ active: state.activeCount, completed: state.completedCount, total: state.totalCount });
       if (state.completedCount === state.totalCount) {
+        console.log("[AnalysisPanel] ✅ New models done!");
         setIsRunning(false);
         if (onLoad) onLoad();
         else fetchModels();
