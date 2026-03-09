@@ -25,6 +25,10 @@ import { Badge } from "@/components/ui/badge";
 import ClippingPlane from "./anatomy/ClippingPlane";
 import type { ClipAxis } from "./anatomy/ClippingPlane";
 import XRayShader from "./anatomy/XRayShader";
+import AnatomyLabels3D from "./anatomy/AnatomyLabels3D";
+import BloodFlowParticles from "./anatomy/BloodFlowParticles";
+import CameraTour from "./anatomy/CameraTour";
+import XRayShader from "./anatomy/XRayShader";
 
 // ─── Model definitions ───────────────────────────────────────────────────────
 
