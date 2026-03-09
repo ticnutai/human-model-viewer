@@ -804,14 +804,14 @@ export default function AdvancedAnatomyViewer() {
     : MODEL_META[modelId as ModelId];
 
   // Fetch cloud mesh mappings and merge with hardcoded data
-  const { mappings: cloudMappings, loading: cloudLoading } = useMeshMappings(isCloudModel ? undefined : modelId);
+  const { mappings: cloudMappings, loading: cloudLoading, refetch: refetchMappings } = useMeshMappings(isCloudModel ? (baseMeta.path || undefined) : modelId);
 
   const meta = useMemo(() => {
     if (cloudMappings.size === 0) return baseMeta;
     const mergedInfoMap = { ...baseMeta.infoMap };
     cloudMappings.forEach((cm, meshKey) => {
       const factsData = cm.facts || {};
-      mergedInfoMap[meshKey] = {
+      const infoEntry: MeshInfo = {
         displayName: cm.name,
         displayNameHe: factsData.displayNameHe || cm.summary || cm.name,
         layer: cm.system,
@@ -823,6 +823,20 @@ export default function AdvancedAnatomyViewer() {
         diseases: factsData.diseases || [],
         diseasesHe: factsData.diseasesHe || [],
       };
+      // Store by mesh_key (e.g. "mesh_0_Coronary_sinus835")
+      mergedInfoMap[meshKey] = infoEntry;
+      // Also store by original mesh name so getMeshInfo can find it
+      const originalName = factsData.originalMeshName;
+      if (originalName) {
+        const idx = factsData.meshIndex;
+        // Map by "originalName" for the first occurrence, and by index for subsequent
+        if (idx !== undefined && idx !== null) {
+          mergedInfoMap[`__idx_${idx}`] = infoEntry;
+        }
+        if (!mergedInfoMap[originalName]) {
+          mergedInfoMap[originalName] = infoEntry;
+        }
+      }
     });
     return { ...baseMeta, infoMap: mergedInfoMap };
   }, [baseMeta, cloudMappings]);
