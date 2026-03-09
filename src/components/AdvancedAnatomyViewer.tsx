@@ -848,6 +848,8 @@ export default function AdvancedAnatomyViewer() {
   const [tourActive, setTourActive] = useState(false);
   const [tourStopIndex, setTourStopIndex] = useState(-1);
   const [smartMapping, setSmartMapping] = useState(false);
+  const [smartMappingLog, setSmartMappingLog] = useState<string[]>([]);
+  const [smartMappingResults, setSmartMappingResults] = useState<any[]>([]);
   const [systemAnimEnabled, setSystemAnimEnabled] = useState(false);
   const [animHeartbeat, setAnimHeartbeat] = useState(true);
   const [animBreathing, setAnimBreathing] = useState(true);
