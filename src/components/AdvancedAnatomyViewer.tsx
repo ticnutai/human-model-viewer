@@ -1390,7 +1390,15 @@ export default function AdvancedAnatomyViewer() {
               selectedKey={effectiveSelectedMesh}
               explodeAmount={explodeAmount}
             />
-            <BloodFlowParticles enabled={showBloodFlow} />
+            <BloodFlowParticles enabled={showBloodFlow} globalSpeed={bloodFlowSpeed} />
+            <SystemAnimations
+              enabled={systemAnimEnabled}
+              heartbeat={animHeartbeat}
+              breathing={animBreathing}
+              digestion={animDigestion}
+              speed={animSpeed}
+              intensity={animIntensity}
+            />
             <CameraTour
               active={tourActive}
               onStopChange={(idx) => setTourStopIndex(idx)}
