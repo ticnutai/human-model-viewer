@@ -1621,7 +1621,7 @@ export default function AdvancedAnatomyViewer() {
               return (
                 <div key={key} onClick={() => setSelectedMesh(isSelected ? null : key)}
                   onContextMenu={e => handleMeshCtx(e, key, idx)}
-                  className="flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer text-xs mb-0.5 transition-all"
+                  className="group flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer text-xs mb-0.5 transition-all relative"
                   style={{
                     background: isSelected ? theme.accentBg : "transparent",
                     color: isHidden ? theme.textDim + "60" : isSelected ? theme.accent : theme.text,
@@ -1632,6 +1632,11 @@ export default function AdvancedAnatomyViewer() {
                   {info.displayNameHe && info.displayNameHe !== info.displayName && (
                     <span className="text-[9px]" style={{ color: theme.textDim }}>🗺️</span>
                   )}
+                  <button onClick={e => { e.stopPropagation(); handleMeshCtx(e, key, idx); }}
+                    className="opacity-0 group-hover:opacity-100 text-[9px] px-1 rounded cursor-pointer border-none transition-opacity"
+                    style={{ background: theme.accentBg, color: theme.textDim }}>
+                    ⋮
+                  </button>
                 </div>
               );
             })}
