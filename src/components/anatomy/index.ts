@@ -6,5 +6,6 @@ export { default as XRayShader } from "./XRayShader";
 export { default as CameraTour } from "./CameraTour";
 export { default as PerformanceMonitor } from "./PerformanceMonitor";
 export { default as SelectionOutline } from "./SelectionOutline";
+export { default as SystemAnimations } from "./SystemAnimations";
 export type { ClipAxis } from "./ClippingPlane";
 export type { TourStop } from "./CameraTour";
