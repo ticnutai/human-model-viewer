@@ -1162,7 +1162,45 @@ export default function AdvancedAnatomyViewer() {
           {/* Cloud models */}
           {cloudModels.length > 0 && (
             <div className="mb-2">
-              <div className="text-[10px] font-bold mb-1" style={{ color: theme.textDim }}>☁️ מודלים מהענן ({cloudModels.filter(m => m.file_url).length})</div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-[10px] font-bold" style={{ color: theme.textDim }}>☁️ מודלים מהענן ({cloudModels.filter(m => m.file_url).length})</div>
+                {duplicateGroups.length > 0 && (
+                  <button onClick={() => setShowDuplicates(!showDuplicates)}
+                    className="text-[9px] px-1.5 py-0.5 rounded cursor-pointer border-none"
+                    style={{ background: "rgba(248,81,73,0.15)", color: "#f85149" }}>
+                    ⚠️ {duplicateGroups.length} כפילויות
+                  </button>
+                )}
+              </div>
+
+              {/* Duplicate manager */}
+              {showDuplicates && duplicateGroups.length > 0 && (
+                <div className="mb-2 rounded-lg p-2" style={{ background: "rgba(248,81,73,0.08)", border: "1px solid rgba(248,81,73,0.3)" }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="text-[10px] font-bold" style={{ color: "#f85149" }}>🔍 כפילויות שזוהו</div>
+                    <button onClick={deleteAllDuplicates}
+                      className="text-[9px] px-2 py-0.5 rounded cursor-pointer border-none"
+                      style={{ background: "#f85149", color: "#fff" }}>
+                      🗑️ מחק הכל ({duplicateGroups.reduce((s, g) => s + g.dupes.length, 0)})
+                    </button>
+                  </div>
+                  {duplicateGroups.map(group => (
+                    <div key={group.name} className="mb-1.5 rounded p-1.5" style={{ background: theme.bg }}>
+                      <div className="text-[10px] font-semibold mb-0.5">{group.name} × {group.dupes.length + 1}</div>
+                      <div className="flex gap-1 flex-wrap">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(63,185,80,0.15)", color: "#3fb950" }}>✓ שמור</span>
+                        {group.dupes.map(d => (
+                          <button key={d.id} onClick={() => deleteCloudModel(d.id)}
+                            className="text-[9px] px-1.5 py-0.5 rounded cursor-pointer border-none"
+                            style={{ background: "rgba(248,81,73,0.15)", color: "#f85149" }}>
+                            🗑️ כפיל
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Pinned models first */}
               {(() => {
