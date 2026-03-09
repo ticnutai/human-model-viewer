@@ -566,8 +566,17 @@ function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers:
       finalHe = `עצם (${baseName})`;
     } else if (contextNameHe.includes("שריר")) {
       finalHe = `שריר (${baseName})`;
+    } else if (contextNameHe.includes("ריא")) {
+      finalHe = `רקמת ריאה (${baseName})`;
+    } else if (contextNameHe.includes("כבד")) {
+      finalHe = `רקמת כבד (${baseName})`;
+    } else if (contextNameHe.includes("כלי")) {
+      finalHe = `כליה (${baseName})`;
     } else if (contextNameHe) {
-      finalHe = `חלק מ-${contextNameHe} (${baseName})`;
+      const cleanContext = contextNameHe.replace(/מודל אנטומי של|מודל של|מודל|תלת-ממד|תלת ממד/g, "").trim();
+      finalHe = `חלק מ-${cleanContext || contextNameHe} (${baseName})`;
+    }
+  }
     }
   }
 
