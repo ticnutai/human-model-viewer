@@ -116,9 +116,11 @@ Return ONLY valid JSON: {"mappings": [...]}`;
 
     // Save to model_mesh_mappings table using mesh index as unique key
     if (modelUrl && mappings.length > 0) {
-      const rows = mappings.map((m: any) => {
-        // Use index-based key to guarantee uniqueness
-        const meshKey = `mesh_${m.meshIndex ?? mappings.indexOf(m)}_${(m.originalMeshName || "part").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 30)}`;
+      const rows = mappings.map((m: any, idx: number) => {
+        // Use index-based key to guarantee uniqueness regardless of AI output
+        const meshIndex = m.meshIndex ?? idx;
+        const safeName = (m.originalMeshName || m.englishName || "part").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 30);
+        const meshKey = `mesh_${meshIndex}_${safeName}`;
         return {
           model_url: modelUrl,
           mesh_key: meshKey,
@@ -131,8 +133,8 @@ Return ONLY valid JSON: {"mappings": [...]}`;
             englishName: m.englishName,
             latinName: m.latinName,
             functionHe: m.functionHe,
-            originalMeshName: m.originalMeshName || meshNames[m.meshIndex] || "",
-            meshIndex: m.meshIndex,
+            originalMeshName: m.originalMeshName || meshNames[meshIndex] || "",
+            meshIndex: meshIndex,
             facts: [],
             factsHe: m.facts || [],
             diseases: [],
