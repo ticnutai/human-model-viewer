@@ -509,7 +509,7 @@ function meshDisplayName(rawName: string): string {
   return deduped.join(" ").replace(/_/g, " ");
 }
 
-function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers: Layer[]): MeshInfo {
+function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers: Layer[], contextNameHe: string = ""): MeshInfo {
   const key = getMeshKey(rawName);
   // 1. Exact match in infoMap
   if (infoMap[key]) return infoMap[key];
@@ -556,8 +556,23 @@ function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers:
   }
   // 5. Fallback: auto-detect layer and use raw name
   const autoLayer = layers.find(l => l.meshPatterns.some(re => re.test(key)))?.id ?? "other";
+  
+  const baseName = meshDisplayName(rawName);
+  let finalHe = baseName;
+  
+  // Smart contextual naming for generic names like Object_224
+  if (baseName.toLowerCase().includes("object") || baseName.toLowerCase() === "mesh") {
+    if (contextNameHe.includes("שלד") || contextNameHe.includes("עצם") || contextNameHe.includes("גולגולת")) {
+      finalHe = `עצם (${baseName})`;
+    } else if (contextNameHe.includes("שריר")) {
+      finalHe = `שריר (${baseName})`;
+    } else if (contextNameHe) {
+      finalHe = `חלק מ-${contextNameHe} (${baseName})`;
+    }
+  }
+
   return {
-    displayName: meshDisplayName(rawName), displayNameHe: meshDisplayName(rawName),
+    displayName: baseName, displayNameHe: finalHe,
     layer: autoLayer, facts: [], factsHe: [], latinName: "",
     function: "", functionHe: "", diseases: [], diseasesHe: [],
   };
