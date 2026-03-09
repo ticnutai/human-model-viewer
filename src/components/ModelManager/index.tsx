@@ -536,29 +536,69 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.byteLength; }
       
       console.log(`[Sketchfab Import] ✅ Downloaded ${(totalSize / 1048576).toFixed(1)}MB in browser`);
+      console.log(`[Sketchfab Import] 📊 Buffer type: ${buffer.constructor.name}, byteLength: ${buffer.byteLength}`);
       updateUploadItem(uploadId, { progress: 70, statusLabel: `💾 מעלה לאחסון...` });
       
-      // Step 3: Upload directly to Supabase Storage from browser using Blob (more reliable for large files)
+      // Step 3: Upload directly to Supabase Storage from browser
       const fileName = urlData.fileName;
-      const uploadBlob = new Blob([buffer], { type: "model/gltf-binary" });
+      console.log(`[Sketchfab Import] 📁 Target fileName: ${fileName}`);
       
-      // Retry upload up to 3 times
-      let uploadErr: any = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt}/3...`);
-        const { error } = await supabase.storage
-          .from("models")
-          .upload(fileName, uploadBlob, { contentType: "model/gltf-binary", upsert: true });
-        if (!error) { uploadErr = null; break; }
-        uploadErr = error;
-        console.warn(`[Sketchfab Import] ⚠️ Upload attempt ${attempt} failed: ${error.message}`);
-        if (attempt < 3) {
-          updateUploadItem(uploadId, { statusLabel: `💾 ניסיון ${attempt + 1}/3...` });
-          await new Promise(r => setTimeout(r, 2000 * attempt));
+      // Check if file already exists - if so, delete first then upload (avoids PATCH/upsert issues)
+      console.log(`[Sketchfab Import] 🔍 Checking if ${fileName} already exists in storage...`);
+      const { data: existingFiles } = await supabase.storage.from("models").list("", { search: fileName });
+      const fileExists = existingFiles?.some(f => f.name === fileName);
+      console.log(`[Sketchfab Import] 🔍 File exists: ${fileExists}, existingFiles count: ${existingFiles?.length ?? 0}`);
+      
+      if (fileExists) {
+        console.log(`[Sketchfab Import] 🗑️ Deleting existing file before re-upload...`);
+        const { error: delErr } = await supabase.storage.from("models").remove([fileName]);
+        if (delErr) {
+          console.warn(`[Sketchfab Import] ⚠️ Delete failed (continuing anyway): ${delErr.message}`);
+        } else {
+          console.log(`[Sketchfab Import] ✅ Existing file deleted`);
         }
       }
       
-      if (uploadErr) throw new Error(`העלאה נכשלה אחרי 3 ניסיונות: ${uploadErr.message}`);
+      const uploadBlob = new Blob([buffer], { type: "model/gltf-binary" });
+      console.log(`[Sketchfab Import] 📦 Blob created, size: ${uploadBlob.size} bytes, type: ${uploadBlob.type}`);
+      
+      // Retry upload up to 3 times - use INSERT (no upsert) since we deleted first
+      let uploadErr: any = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const startTime = Date.now();
+        console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt}/3 starting at ${new Date().toISOString()}...`);
+        updateUploadItem(uploadId, { progress: 70 + (attempt - 1) * 3, statusLabel: `💾 מעלה... ניסיון ${attempt}/3` });
+        
+        try {
+          const { error, data } = await supabase.storage
+            .from("models")
+            .upload(fileName, uploadBlob, { contentType: "model/gltf-binary", upsert: false });
+          
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt} finished in ${elapsed}s, error: ${error?.message ?? 'none'}, data: ${JSON.stringify(data)}`);
+          
+          if (!error) { uploadErr = null; break; }
+          uploadErr = error;
+          console.warn(`[Sketchfab Import] ⚠️ Upload attempt ${attempt} failed: ${error.message}, statusCode: ${(error as any)?.statusCode}, status: ${(error as any)?.status}`);
+        } catch (fetchErr: any) {
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.error(`[Sketchfab Import] ❌ Upload attempt ${attempt} threw exception after ${elapsed}s: ${fetchErr.message}`);
+          console.error(`[Sketchfab Import] ❌ Exception details:`, fetchErr);
+          uploadErr = fetchErr;
+        }
+        
+        if (attempt < 3) {
+          const waitSec = 2 * attempt;
+          console.log(`[Sketchfab Import] ⏳ Waiting ${waitSec}s before retry...`);
+          updateUploadItem(uploadId, { statusLabel: `💾 ניסיון ${attempt + 1}/3 (ממתין ${waitSec}שׁ)...` });
+          await new Promise(r => setTimeout(r, waitSec * 1000));
+        }
+      }
+      
+      if (uploadErr) {
+        console.error(`[Sketchfab Import] ❌ All 3 upload attempts failed. Last error:`, uploadErr);
+        throw new Error(`העלאה נכשלה אחרי 3 ניסיונות: ${uploadErr.message}`);
+      }
       
       const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
       console.log(`[Sketchfab Import] ✅ Uploaded to Storage`);
