@@ -1069,7 +1069,7 @@ export default function AdvancedAnatomyViewer() {
             style={{ background: theme.bg, borderColor: theme.border, color: theme.text }} />
           {searchHighlighted && (
             <div className="text-[10px] mt-1" style={{ color: "#3fb950" }}>
-              ✓ נמצא: {getMeshInfo(searchHighlighted, meta.infoMap, meta.layers).displayNameHe}
+              ✓ נמצא: {getMeshInfo(searchHighlighted, meta.infoMap, meta.layers, meta.titleHe).displayNameHe}
             </div>
           )}
         </div>
