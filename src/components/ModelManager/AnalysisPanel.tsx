@@ -75,15 +75,20 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   }, [engine]);
 
   const handleStartAll = () => {
+    console.log("[AnalysisPanel] ▶ handleStartAll clicked");
+    console.log("[AnalysisPanel] modelsToUse count:", modelsToUse.length);
+    console.log("[AnalysisPanel] First 3:", modelsToUse.slice(0, 3).map(m => ({ id: m.id, name: m.display_name, url: m.file_url?.substring(0, 60) })));
+    if (modelsToUse.length === 0) {
+      console.error("[AnalysisPanel] ❌ No models! propsModels:", propsModels?.length, "localModels:", localModels.length);
+      return;
+    }
     setIsRunning(true);
     engine.start(modelsToUse, (state) => {
+      console.log("[AnalysisPanel] Progress:", state.completedCount, "/", state.totalCount, "active:", state.activeCount);
       setJobs(state.jobs);
-      setStats({
-        active: state.activeCount,
-        completed: state.completedCount,
-        total: state.totalCount
-      });
+      setStats({ active: state.activeCount, completed: state.completedCount, total: state.totalCount });
       if (state.completedCount === state.totalCount) {
+        console.log("[AnalysisPanel] ✅ All done!");
         setIsRunning(false);
         if (onLoad) onLoad();
         else fetchModels();
