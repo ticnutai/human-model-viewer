@@ -1276,6 +1276,65 @@ export default function AdvancedAnatomyViewer() {
             🩸 זרימת דם {showBloodFlow ? "פעילה" : "כבויה"}
           </button>
 
+          {showBloodFlow && (
+            <div className="mb-2 p-2 rounded-lg" style={{ background: theme.bg, border: `1px solid ${theme.border}` }}>
+              <div className="flex justify-between text-[10px] mb-1">
+                <span style={{ color: theme.textDim }}>מהירות זרימה</span>
+                <span style={{ color: "#ef4444" }}>×{bloodFlowSpeed.toFixed(1)}</span>
+              </div>
+              <input type="range" min={20} max={300} value={Math.round(bloodFlowSpeed * 100)}
+                onChange={e => setBloodFlowSpeed(Number(e.target.value) / 100)}
+                className="w-full h-1" style={{ accentColor: "#ef4444" }} />
+            </div>
+          )}
+
+          {/* System Animations */}
+          <button onClick={() => setSystemAnimEnabled(v => !v)}
+            className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all mb-1.5"
+            style={{
+              background: systemAnimEnabled ? "rgba(251,146,60,0.15)" : "transparent",
+              borderColor: systemAnimEnabled ? "#fb923c" : theme.border,
+              color: systemAnimEnabled ? "#fb923c" : theme.textDim,
+            }}>
+            💓 אנימציות מערכות {systemAnimEnabled ? "פעיל" : "כבוי"}
+          </button>
+
+          {systemAnimEnabled && (
+            <div className="mb-2 p-2 rounded-lg" style={{ background: theme.bg, border: `1px solid ${theme.border}` }}>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {([
+                  { key: "heartbeat", label: "❤️ לב", active: animHeartbeat, toggle: () => setAnimHeartbeat(v => !v) },
+                  { key: "breathing", label: "🫁 נשימה", active: animBreathing, toggle: () => setAnimBreathing(v => !v) },
+                  { key: "digestion", label: "🍽️ עיכול", active: animDigestion, toggle: () => setAnimDigestion(v => !v) },
+                ] as const).map(s => (
+                  <button key={s.key} onClick={s.toggle}
+                    className="px-2 py-1 rounded text-[10px] font-semibold cursor-pointer border transition-all"
+                    style={{
+                      background: s.active ? "rgba(251,146,60,0.15)" : "transparent",
+                      borderColor: s.active ? "#fb923c" : theme.border,
+                      color: s.active ? "#fb923c" : theme.textDim,
+                    }}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-between text-[10px] mb-1">
+                <span style={{ color: theme.textDim }}>מהירות</span>
+                <span style={{ color: "#fb923c" }}>×{animSpeed.toFixed(1)}</span>
+              </div>
+              <input type="range" min={20} max={300} value={Math.round(animSpeed * 100)}
+                onChange={e => setAnimSpeed(Number(e.target.value) / 100)}
+                className="w-full h-1 mb-2" style={{ accentColor: "#fb923c" }} />
+              <div className="flex justify-between text-[10px] mb-1">
+                <span style={{ color: theme.textDim }}>עוצמה</span>
+                <span style={{ color: "#fb923c" }}>×{animIntensity.toFixed(1)}</span>
+              </div>
+              <input type="range" min={20} max={300} value={Math.round(animIntensity * 100)}
+                onChange={e => setAnimIntensity(Number(e.target.value) / 100)}
+                className="w-full h-1" style={{ accentColor: "#fb923c" }} />
+            </div>
+          )}
+
           {/* Camera Tour */}
           <button onClick={() => { setTourActive(v => !v); setTourStopIndex(-1); }}
             className="w-full py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-all mb-1.5"
