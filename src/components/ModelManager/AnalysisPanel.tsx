@@ -21,7 +21,24 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   const [aiAnalyzing, setAiAnalyzing] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  const unanalyzedModels = models.filter(m => !m.mesh_parts || (Array.isArray(m.mesh_parts) && m.mesh_parts.length === 0));
+  const fetchModels = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('models').select('*').order('created_at', { ascending: false });
+    if (data) setLocalModels(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (propsModels) {
+      setLocalModels(propsModels);
+      setLoading(false);
+    } else {
+      fetchModels();
+    }
+  }, [propsModels]);
+
+  const modelsToUse = propsModels || localModels;
+  const unanalyzedModels = modelsToUse.filter(m => !m.mesh_parts || (Array.isArray(m.mesh_parts) && m.mesh_parts.length === 0));
   
   useEffect(() => {
     return () => {
