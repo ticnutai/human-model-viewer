@@ -878,6 +878,51 @@ export default function AdvancedAnatomyViewer() {
   const [animIntensity, setAnimIntensity] = useState(1);
   const [bloodFlowSpeed, setBloodFlowSpeed] = useState(1);
 
+  // Context menu for cloud models
+  const [ctxMenu, setCtxMenu] = useState<{ mod: typeof cloudModels[0]; x: number; y: number } | null>(null);
+  const [editingModelId, setEditingModelId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [pinnedModels, setPinnedModels] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("pinned_models") || "[]")); } catch { return new Set(); }
+  });
+  const [favoriteModels, setFavoriteModels] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("favorite_models") || "[]")); } catch { return new Set(); }
+  });
+
+  useEffect(() => { localStorage.setItem("pinned_models", JSON.stringify([...pinnedModels])); }, [pinnedModels]);
+  useEffect(() => { localStorage.setItem("favorite_models", JSON.stringify([...favoriteModels])); }, [favoriteModels]);
+
+  const togglePin = (id: string) => setPinnedModels(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleFavorite = (id: string) => setFavoriteModels(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const deleteCloudModel = async (id: string) => {
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    await fetch(`${baseUrl}/rest/v1/models?id=eq.${id}`, {
+      method: "DELETE", headers: { apikey, Authorization: `Bearer ${apikey}` },
+    });
+    setCloudModels(prev => prev.filter(m => m.id !== id));
+    setCtxMenu(null);
+  };
+
+  const renameCloudModel = async (id: string, newName: string) => {
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    await fetch(`${baseUrl}/rest/v1/models?id=eq.${id}`, {
+      method: "PATCH",
+      headers: { apikey, Authorization: `Bearer ${apikey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ hebrew_name: newName }),
+    });
+    setCloudModels(prev => prev.map(m => m.id === id ? { ...m, hebrew_name: newName } : m));
+    setEditingModelId(null);
+  };
+
+  const handleCtxMenu = (e: React.MouseEvent, mod: typeof cloudModels[0]) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ mod, x: e.clientX, y: e.clientY });
+  };
+
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, themeId);
   }, [themeId]);
