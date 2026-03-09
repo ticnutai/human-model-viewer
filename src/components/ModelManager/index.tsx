@@ -543,26 +543,10 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       const fileName = urlData.fileName;
       console.log(`[Sketchfab Import] 📁 Target fileName: ${fileName}`);
       
-      // Check if file already exists - if so, delete first then upload (avoids PATCH/upsert issues)
-      console.log(`[Sketchfab Import] 🔍 Checking if ${fileName} already exists in storage...`);
-      const { data: existingFiles } = await supabase.storage.from("models").list("", { search: fileName });
-      const fileExists = existingFiles?.some(f => f.name === fileName);
-      console.log(`[Sketchfab Import] 🔍 File exists: ${fileExists}, existingFiles count: ${existingFiles?.length ?? 0}`);
-      
-      if (fileExists) {
-        console.log(`[Sketchfab Import] 🗑️ Deleting existing file before re-upload...`);
-        const { error: delErr } = await supabase.storage.from("models").remove([fileName]);
-        if (delErr) {
-          console.warn(`[Sketchfab Import] ⚠️ Delete failed (continuing anyway): ${delErr.message}`);
-        } else {
-          console.log(`[Sketchfab Import] ✅ Existing file deleted`);
-        }
-      }
-      
       const uploadBlob = new Blob([buffer], { type: "model/gltf-binary" });
       console.log(`[Sketchfab Import] 📦 Blob created, size: ${uploadBlob.size} bytes, type: ${uploadBlob.type}`);
       
-      // Retry upload up to 3 times - use INSERT (no upsert) since we deleted first
+      // Retry upload up to 3 times with upsert (UPDATE policy now exists)
       let uploadErr: any = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         const startTime = Date.now();
@@ -572,7 +556,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         try {
           const { error, data } = await supabase.storage
             .from("models")
-            .upload(fileName, uploadBlob, { contentType: "model/gltf-binary", upsert: false });
+            .upload(fileName, uploadBlob, { contentType: "model/gltf-binary", upsert: true });
           
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
           console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt} finished in ${elapsed}s, error: ${error?.message ?? 'none'}, data: ${JSON.stringify(data)}`);
