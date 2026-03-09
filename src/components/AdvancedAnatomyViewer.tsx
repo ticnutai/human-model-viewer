@@ -1750,3 +1750,51 @@ function InfoSection({ title, theme, children }: { title: string; theme: typeof 
     </div>
   );
 }
+
+// ─── Cloud Model Button ─────────────────────────────────────────────────────
+
+function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinned, onSelect, onCtx, isEditing, editName, setEditName, onRename, onCancelEdit }: {
+  mod: { id: string; display_name: string; hebrew_name: string | null; file_url: string | null };
+  theme: typeof THEMES["dark"];
+  isCloudModel: boolean;
+  cloudModelUrl: string | null;
+  isFav: boolean;
+  isPinned: boolean;
+  onSelect: () => void;
+  onCtx: (e: React.MouseEvent) => void;
+  isEditing: boolean;
+  editName: string;
+  setEditName: (v: string) => void;
+  onRename: () => void;
+  onCancelEdit: () => void;
+}) {
+  const isActive = isCloudModel && cloudModelUrl === mod.file_url;
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] border" style={{ borderColor: theme.accent, background: theme.accentBg }}>
+        <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus
+          onKeyDown={e => { if (e.key === "Enter") onRename(); if (e.key === "Escape") onCancelEdit(); }}
+          className="bg-transparent border-none outline-none text-[10px] w-[100px]" style={{ color: theme.text }} />
+        <button onClick={onRename} className="text-[9px] cursor-pointer border-none px-1 rounded" style={{ background: theme.accent, color: "#fff" }}>✓</button>
+        <button onClick={onCancelEdit} className="text-[9px] cursor-pointer border-none px-1 rounded" style={{ background: "transparent", color: theme.textDim }}>✕</button>
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={onSelect} onContextMenu={onCtx}
+      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all relative group"
+      style={{
+        background: isActive ? theme.accentBg : "transparent",
+        borderColor: isActive ? theme.accent : theme.border,
+        color: isActive ? theme.accent : theme.textDim,
+        fontWeight: isActive ? 600 : 400,
+      }}>
+      {isFav && <span className="text-[8px]">⭐</span>}
+      {isPinned && <span className="text-[8px]">📌</span>}
+      <span>☁️</span>
+      <span className="truncate max-w-[100px]">{mod.hebrew_name || mod.display_name}</span>
+    </button>
+  );
+}
