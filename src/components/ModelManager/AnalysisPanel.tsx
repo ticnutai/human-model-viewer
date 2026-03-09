@@ -158,8 +158,9 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
       
       // Save AI-identified names back to DB
       if (data.results && data.results.length > 0) {
+        // Handle both formats: array of strings or array of objects
         const identifiedNames = data.results.map((r: any) => 
-          r.hebrewName ? `${r.hebrewName} (${r.meshName})` : r.meshName
+          typeof r === 'string' ? r : (r.hebrewName ? `${r.hebrewName} (${r.meshName})` : r.meshName)
         );
         console.log("[AnalysisPanel] Saving AI names to DB:", identifiedNames.length);
         
