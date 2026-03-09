@@ -467,12 +467,25 @@ const ModelViewer = () => {
 
   // Fetch cloud models for body model picker and analysis panel
   useEffect(() => {
-    console.log("[ModelViewer] Fetching cloud models...");
-    supabase.from("models").select("*").order("display_name")
-      .then(({ data, error }) => { 
-        console.log("[ModelViewer] Cloud models loaded:", data?.length ?? 0, error?.message);
-        if (data) setCloudModels(data); 
-      });
+    const fetchCloudModels = async () => {
+      console.log("[ModelViewer] Fetching cloud models...");
+      console.log("[ModelViewer] Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
+      try {
+        const startTime = Date.now();
+        const { data, error } = await supabase.from("models").select("*").order("display_name");
+        const duration = Date.now() - startTime;
+        console.log("[ModelViewer] Cloud models loaded in", duration, "ms:", data?.length ?? 0, "models", error?.message || "no error");
+        if (error) {
+          console.error("[ModelViewer] Supabase error:", error);
+        }
+        if (data) {
+          setCloudModels(data);
+        }
+      } catch (e) {
+        console.error("[ModelViewer] Fetch exception:", e);
+      }
+    };
+    fetchCloudModels();
   }, []);
 
   // Fetch all cloud mesh mappings for enriching organ info
