@@ -1338,7 +1338,7 @@ const ModelViewer = () => {
               <div className="text-sm font-bold text-foreground mb-1.5">⚖️ {lang === "en" ? "Compare" : "השוואה"}</div>
               {([
                 { label: lang === "en" ? "Front Body" : "גוף קדמי", url: cloudUrl("sketchfab_15f7ed2eefb244dc94d32b6a7d989355.glb") },
-                { label: lang === "en" ? "Male Torso" : "פלג גוף עליון", url: cloudUrl("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb") },
+                { label: lang === "en" ? "Heart in Thorax" : "לב בחזה", url: cloudUrl("sketchfab_22ebd4abce9440639563807e72e5f8d1.glb") },
                 { label: lang === "en" ? "🫀 Heart" : "🫀 לב", url: cloudUrl("sketchfab_3f8072336ce94d18b3d0d055a1ece089.glb") },
                 { label: lang === "en" ? "💪 Muscles" : "💪 שרירים", url: cloudUrl("sketchfab_991eb96938be4d0d8fadee241a1063d3.glb") },
                 { label: lang === "en" ? "🦴 Skeleton" : "🦴 שלד", url: cloudUrl("sketchfab_665890c542be433fb18ef235cf987cef.glb") },
