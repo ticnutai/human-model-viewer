@@ -1462,8 +1462,8 @@ export default function AdvancedAnatomyViewer() {
             🦴 חלקים ({loadedMeshKeys.length})
           </div>
           <ScrollArea className="max-h-60">
-            {loadedMeshKeys.map(key => {
-              const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe);
+            {loadedMeshKeys.map((key, idx) => {
+              const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe, idx);
               const isHidden = hiddenMeshes.has(key);
               const isSelected = effectiveSelectedMesh === key;
               const layerColor = meta.layers.find(l => l.id === info.layer)?.color ?? theme.textDim;
