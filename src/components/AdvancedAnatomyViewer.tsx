@@ -954,9 +954,14 @@ export default function AdvancedAnatomyViewer() {
       setSmartMappingLog(prev => [
         ...prev,
         `✅ מופו ${mappings.length} חלקים בהצלחה!`,
-        ...(data.saved ? ["💾 נשמר בענן"] : []),
+        ...(data.saved ? ["💾 נשמר בענן, מרענן מידע..."] : []),
       ]);
       console.log("[AdvancedViewer] Smart mapping:", mappings.length, "mappings saved:", data.saved);
+      // Refetch cloud mappings so clicking on parts shows the new info
+      if (data.saved) {
+        refetchMappings();
+        setSmartMappingLog(prev => [...prev, "🔄 המידע עודכן!"]);
+      }
     } catch (e: any) {
       console.error("[AdvancedViewer] Smart mapping error:", e);
       setSmartMappingLog(prev => [...prev, `❌ שגיאה: ${e.message}`]);
