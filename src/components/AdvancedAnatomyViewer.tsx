@@ -1621,7 +1621,7 @@ export default function AdvancedAnatomyViewer() {
               return (
                 <div key={key} onClick={() => setSelectedMesh(isSelected ? null : key)}
                   onContextMenu={e => handleMeshCtx(e, key, idx)}
-                  className="flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer text-xs mb-0.5 transition-all"
+                  className="group flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer text-xs mb-0.5 transition-all relative"
                   style={{
                     background: isSelected ? theme.accentBg : "transparent",
                     color: isHidden ? theme.textDim + "60" : isSelected ? theme.accent : theme.text,
@@ -1632,6 +1632,11 @@ export default function AdvancedAnatomyViewer() {
                   {info.displayNameHe && info.displayNameHe !== info.displayName && (
                     <span className="text-[9px]" style={{ color: theme.textDim }}>🗺️</span>
                   )}
+                  <button onClick={e => { e.stopPropagation(); handleMeshCtx(e, key, idx); }}
+                    className="opacity-0 group-hover:opacity-100 text-[9px] px-1 rounded cursor-pointer border-none transition-opacity"
+                    style={{ background: theme.accentBg, color: theme.textDim }}>
+                    ⋮
+                  </button>
                 </div>
               );
             })}
@@ -1928,6 +1933,7 @@ function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinne
   onCancelEdit: () => void;
 }) {
   const isActive = isCloudModel && cloudModelUrl === mod.file_url;
+  const [showMenu, setShowMenu] = useState(false);
 
   if (isEditing) {
     return (
@@ -1942,18 +1948,25 @@ function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinne
   }
 
   return (
-    <button onClick={onSelect} onContextMenu={onCtx}
-      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all relative group"
-      style={{
-        background: isActive ? theme.accentBg : "transparent",
-        borderColor: isActive ? theme.accent : theme.border,
-        color: isActive ? theme.accent : theme.textDim,
-        fontWeight: isActive ? 600 : 400,
-      }}>
-      {isFav && <span className="text-[8px]">⭐</span>}
-      {isPinned && <span className="text-[8px]">📌</span>}
-      <span>☁️</span>
-      <span className="truncate max-w-[100px]">{mod.hebrew_name || mod.display_name}</span>
-    </button>
+    <div className="relative group inline-flex">
+      <button onClick={onSelect} onContextMenu={onCtx}
+        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all"
+        style={{
+          background: isActive ? theme.accentBg : "transparent",
+          borderColor: isActive ? theme.accent : theme.border,
+          color: isActive ? theme.accent : theme.textDim,
+          fontWeight: isActive ? 600 : 400,
+        }}>
+        {isFav && <span className="text-[8px]">⭐</span>}
+        {isPinned && <span className="text-[8px]">📌</span>}
+        <span>☁️</span>
+        <span className="truncate max-w-[90px]">{mod.hebrew_name || mod.display_name}</span>
+      </button>
+      <button onClick={(e) => { e.stopPropagation(); onCtx(e); }}
+        className="opacity-0 group-hover:opacity-100 absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] cursor-pointer border-none transition-opacity z-10"
+        style={{ background: theme.accent, color: "#fff" }}>
+        ⋮
+      </button>
+    </div>
   );
 }
