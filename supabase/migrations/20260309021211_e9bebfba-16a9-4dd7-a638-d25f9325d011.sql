@@ -1,0 +1,1 @@
+DELETE FROM models WHERE file_url LIKE '%1772810%' OR file_url LIKE '%1772470980259%'
