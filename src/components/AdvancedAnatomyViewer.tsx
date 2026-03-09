@@ -836,7 +836,7 @@ export default function AdvancedAnatomyViewer() {
   const meshKeysByLayer = useMemo(() => {
     const map: Record<string, string[]> = {};
     for (const key of loadedMeshKeys) {
-      const info = getMeshInfo(key, meta.infoMap, meta.layers);
+      const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe);
       if (!map[info.layer]) map[info.layer] = [];
       map[info.layer].push(key);
     }
