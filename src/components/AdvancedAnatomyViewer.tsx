@@ -28,6 +28,7 @@ import XRayShader from "./anatomy/XRayShader";
 import AnatomyLabels3D from "./anatomy/AnatomyLabels3D";
 import BloodFlowParticles from "./anatomy/BloodFlowParticles";
 import CameraTour from "./anatomy/CameraTour";
+import SystemAnimations from "./anatomy/SystemAnimations";
 
 // ─── Model definitions ───────────────────────────────────────────────────────
 
