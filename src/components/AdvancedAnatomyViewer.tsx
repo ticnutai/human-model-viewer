@@ -1163,6 +1163,26 @@ export default function AdvancedAnatomyViewer() {
           {cloudModels.length > 0 && (
             <div className="mb-2">
               <div className="text-[10px] font-bold mb-1" style={{ color: theme.textDim }}>☁️ מודלים מהענן ({cloudModels.filter(m => m.file_url).length})</div>
+
+              {/* Pinned models first */}
+              {(() => {
+                const pinned = cloudModels.filter(m => m.file_url && pinnedModels.has(m.id));
+                if (!pinned.length) return null;
+                return (
+                  <div className="mb-1.5">
+                    <div className="text-[9px] font-semibold mb-0.5" style={{ color: theme.textDim }}>📌 מוצמדים</div>
+                    <div className="flex gap-1 flex-wrap">
+                      {pinned.map(mod => (
+                        <CloudModelBtn key={mod.id} mod={mod} theme={theme} isCloudModel={isCloudModel} cloudModelUrl={cloudModelUrl}
+                          isFav={favoriteModels.has(mod.id)} isPinned onSelect={() => selectCloudModel(mod)} onCtx={e => handleCtxMenu(e, mod)}
+                          isEditing={editingModelId === mod.id} editName={editingName} setEditName={setEditingName}
+                          onRename={() => renameCloudModel(mod.id, editingName)} onCancelEdit={() => setEditingModelId(null)} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {cloudCategories.map(cat => {
                 const catModels = cloudModelsByCategory.byCategory[cat.id];
                 if (!catModels?.length) return null;
@@ -1171,17 +1191,10 @@ export default function AdvancedAnatomyViewer() {
                     <div className="text-[9px] font-semibold mb-0.5" style={{ color: theme.textDim }}>{cat.icon || "📁"} {cat.name}</div>
                     <div className="flex gap-1 flex-wrap">
                       {catModels.map(mod => (
-                        <button key={mod.id} onClick={() => selectCloudModel(mod)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all"
-                          style={{
-                            background: isCloudModel && cloudModelUrl === mod.file_url ? theme.accentBg : "transparent",
-                            borderColor: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.border,
-                            color: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.textDim,
-                            fontWeight: isCloudModel && cloudModelUrl === mod.file_url ? 600 : 400,
-                          }}>
-                          <span>☁️</span>
-                          <span className="truncate max-w-[120px]">{mod.hebrew_name || mod.display_name}</span>
-                        </button>
+                        <CloudModelBtn key={mod.id} mod={mod} theme={theme} isCloudModel={isCloudModel} cloudModelUrl={cloudModelUrl}
+                          isFav={favoriteModels.has(mod.id)} isPinned={pinnedModels.has(mod.id)} onSelect={() => selectCloudModel(mod)} onCtx={e => handleCtxMenu(e, mod)}
+                          isEditing={editingModelId === mod.id} editName={editingName} setEditName={setEditingName}
+                          onRename={() => renameCloudModel(mod.id, editingName)} onCancelEdit={() => setEditingModelId(null)} />
                       ))}
                     </div>
                   </div>
@@ -1192,17 +1205,10 @@ export default function AdvancedAnatomyViewer() {
                   <div className="text-[9px] font-semibold mb-0.5" style={{ color: theme.textDim }}>📂 ללא קטגוריה</div>
                   <div className="flex gap-1 flex-wrap">
                     {cloudModelsByCategory.uncategorized.map(mod => (
-                      <button key={mod.id} onClick={() => selectCloudModel(mod)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all"
-                        style={{
-                          background: isCloudModel && cloudModelUrl === mod.file_url ? theme.accentBg : "transparent",
-                          borderColor: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.border,
-                          color: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.textDim,
-                          fontWeight: isCloudModel && cloudModelUrl === mod.file_url ? 600 : 400,
-                        }}>
-                        <span>☁️</span>
-                        <span className="truncate max-w-[120px]">{mod.hebrew_name || mod.display_name}</span>
-                      </button>
+                      <CloudModelBtn key={mod.id} mod={mod} theme={theme} isCloudModel={isCloudModel} cloudModelUrl={cloudModelUrl}
+                        isFav={favoriteModels.has(mod.id)} isPinned={pinnedModels.has(mod.id)} onSelect={() => selectCloudModel(mod)} onCtx={e => handleCtxMenu(e, mod)}
+                        isEditing={editingModelId === mod.id} editName={editingName} setEditName={setEditingName}
+                        onRename={() => renameCloudModel(mod.id, editingName)} onCancelEdit={() => setEditingModelId(null)} />
                     ))}
                   </div>
                 </div>
