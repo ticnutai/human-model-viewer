@@ -1278,6 +1278,8 @@ export default function AdvancedAnatomyViewer() {
                 accent={theme.accent}
               />
             </Suspense>
+            <ClippingPlane enabled={clipEnabled} axis={clipAxis} position={clipPosition} negate={clipNegate} />
+            <XRayShader enabled={xRayMode && !selectedMesh} intensity={xRayIntensity} color={xRayColor} />
           </Canvas>
         </ErrorBoundary>
 
