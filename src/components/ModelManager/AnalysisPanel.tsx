@@ -128,18 +128,34 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
     
     try {
       const parts = model.mesh_parts as string[];
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
-      const { data, error } = await supabase.functions.invoke('ai-analyze-mesh', {
-        body: { meshNames: parts }
+      console.log("[AnalysisPanel] Calling ai-analyze-mesh for", model.display_name, "with", parts.length, "parts");
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/ai-analyze-mesh`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ meshNames: parts })
       });
       
-      if (error) throw error;
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("[AnalysisPanel] AI function error:", response.status, errText);
+        throw new Error(`AI function returned ${response.status}: ${errText}`);
+      }
+      
+      const data = await response.json();
+      console.log("[AnalysisPanel] AI results:", data);
       
       toast({ title: "ניתוח AI הושלם", description: `זוהו ${data.results?.length || 0} מבנים` });
       if (onLoad) onLoad();
       else fetchModels();
     } catch (e: any) {
-      console.error(e);
+      console.error("[AnalysisPanel] AI error:", e);
       toast({ title: "שגיאת AI", description: e.message, variant: "destructive" });
     } finally {
       setAiAnalyzing(prev => {
