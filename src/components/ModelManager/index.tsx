@@ -896,9 +896,24 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         >
           📋 כל הרשומות
         </button>
+        <button
+          onClick={() => setManagerTab("analysis")}
+          className="flex-1 text-[10px] font-bold py-2 cursor-pointer border-none transition-colors"
+          style={{
+            background: managerTab === "analysis" ? "hsl(280 60% 50% / 0.1)" : "transparent",
+            color: managerTab === "analysis" ? "hsl(280 60% 40%)" : "hsl(220 15% 55%)",
+            borderBottom: managerTab === "analysis" ? "2px solid hsl(280 60% 50%)" : "2px solid transparent",
+          }}
+        >
+          🧠 ניתוח חכם
+        </button>
       </div>
 
-      {managerTab === "allmappings" ? (
+      {managerTab === "analysis" ? (
+        <div className="flex-1 overflow-hidden bg-background">
+          <AnalysisPanel models={models} onLoad={load} />
+        </div>
+      ) : managerTab === "allmappings" ? (
         <div className="flex-1 overflow-hidden">
           <MeshMappingManager />
         </div>
