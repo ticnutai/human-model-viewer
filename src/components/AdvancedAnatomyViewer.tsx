@@ -1554,7 +1554,8 @@ export default function AdvancedAnatomyViewer() {
 
       {/* ── LEFT INFO PANEL ── */}
       {showInfoPanel && (
-        <div className="flex flex-col overflow-y-auto shrink-0" style={{ width: 300, background: theme.panel, borderRight: `1px solid ${theme.border}` }}>
+        <div className="flex flex-col shrink-0 h-full" style={{ width: 300, background: theme.panel, borderRight: `1px solid ${theme.border}`, maxHeight: '100vh', overflow: 'hidden' }}>
+          <div className="flex-1 overflow-y-auto min-h-0">
           <div className="flex items-center justify-between p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
             <span className="text-sm font-bold">📋 מידע אנטומי</span>
             <button onClick={() => setShowInfoPanel(false)} className="text-xs p-1 rounded-md cursor-pointer border-none"
