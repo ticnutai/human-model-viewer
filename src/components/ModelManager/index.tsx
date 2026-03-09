@@ -738,15 +738,21 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       setBatchAnalysisProgress(prev => ({ ...prev, done: completed, currentName: name }));
       setReanalyzingId(m.id);
       try {
-        const result = await analyzeGlbSmart(m.file_url!, m.id);
+        const result = await Promise.race([
+          analyzeGlbSmart(m.file_url!, m.id),
+          new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Analysis timeout")), 25000))
+        ]);
         const translated = result.translatedNames.length > 0 ? result.translatedNames : result.meshNames.map(translateMeshName);
         const updateData: Record<string, any> = { mesh_parts: translated };
         // Auto-set hebrew_name if empty
-        if (!m.hebrew_name || m.hebrew_name.trim() === "") {
+        if (!m.hebrew_name || m.m.hebrew_name?.trim() === "") {
           const autoHeb = autoHebrewName(m.display_name, m.file_name);
           if (autoHeb) updateData.hebrew_name = autoHeb;
         }
-        await supabase.from("models").update(updateData).eq("id", m.id);
+        await Promise.race([
+          supabase.from("models").update(updateData).eq("id", m.id),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("DB Update timeout")), 15000))
+        ]);
         successNames.push(`${name} (${translated.length} · ${result.method})`);
         console.log(`[BatchAnalysis] ✅ ${name}: ${translated.length} meshes (${result.method}, ${result.durationMs}ms)`);
       } catch (e) {
