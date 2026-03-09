@@ -117,7 +117,7 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
     }
   };
 
-  const displayList = models.filter(m => {
+  const displayList = modelsToUse.filter(m => {
     const job = jobs[m.id];
     if (filter === "all") return true;
     if (filter === "pending") return !job || job.status === "pending";
