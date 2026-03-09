@@ -1924,7 +1924,7 @@ function InfoSection({ title, theme, children }: { title: string; theme: typeof 
 
 // ─── Cloud Model Button ─────────────────────────────────────────────────────
 
-function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinned, onSelect, onCtx, isEditing, editName, setEditName, onRename, onCancelEdit }: {
+function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinned, onSelect, onCtx, isEditing, editName, setEditName, editDisplayName, setEditDisplayName, onRename, onCancelEdit }: {
   mod: { id: string; display_name: string; hebrew_name: string | null; file_url: string | null };
   theme: typeof THEMES["dark"];
   isCloudModel: boolean;
@@ -1936,6 +1936,8 @@ function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinne
   isEditing: boolean;
   editName: string;
   setEditName: (v: string) => void;
+  editDisplayName: string;
+  setEditDisplayName: (v: string) => void;
   onRename: () => void;
   onCancelEdit: () => void;
 }) {
@@ -1944,12 +1946,23 @@ function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinne
 
   if (isEditing) {
     return (
-      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] border" style={{ borderColor: theme.accent, background: theme.accentBg }}>
-        <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus
-          onKeyDown={e => { if (e.key === "Enter") onRename(); if (e.key === "Escape") onCancelEdit(); }}
-          className="bg-transparent border-none outline-none text-[10px] w-[100px]" style={{ color: theme.text }} />
-        <button onClick={onRename} className="text-[9px] cursor-pointer border-none px-1 rounded" style={{ background: theme.accent, color: "#fff" }}>✓</button>
-        <button onClick={onCancelEdit} className="text-[9px] cursor-pointer border-none px-1 rounded" style={{ background: "transparent", color: theme.textDim }}>✕</button>
+      <div className="flex flex-col gap-1 px-1.5 py-1 rounded-lg text-[10px] border w-full" style={{ borderColor: theme.accent, background: theme.accentBg }}>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] shrink-0" style={{ color: theme.textDim }}>🇮🇱</span>
+          <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus placeholder="שם בעברית"
+            onKeyDown={e => { if (e.key === "Enter") onRename(); if (e.key === "Escape") onCancelEdit(); }}
+            className="bg-transparent border-none outline-none text-[10px] flex-1 min-w-0" style={{ color: theme.text }} />
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] shrink-0" style={{ color: theme.textDim }}>🇬🇧</span>
+          <input value={editDisplayName} onChange={e => setEditDisplayName(e.target.value)} placeholder="Display name"
+            onKeyDown={e => { if (e.key === "Enter") onRename(); if (e.key === "Escape") onCancelEdit(); }}
+            className="bg-transparent border-none outline-none text-[10px] flex-1 min-w-0" style={{ color: theme.text }} />
+        </div>
+        <div className="flex gap-1 justify-end">
+          <button onClick={onRename} className="text-[9px] cursor-pointer border-none px-1.5 py-0.5 rounded" style={{ background: theme.accent, color: "#fff" }}>✓ שמור</button>
+          <button onClick={onCancelEdit} className="text-[9px] cursor-pointer border-none px-1.5 py-0.5 rounded" style={{ background: "transparent", color: theme.textDim }}>✕</button>
+        </div>
       </div>
     );
   }
