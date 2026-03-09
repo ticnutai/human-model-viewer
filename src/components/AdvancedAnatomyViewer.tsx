@@ -1928,6 +1928,7 @@ function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinne
   onCancelEdit: () => void;
 }) {
   const isActive = isCloudModel && cloudModelUrl === mod.file_url;
+  const [showMenu, setShowMenu] = useState(false);
 
   if (isEditing) {
     return (
@@ -1940,8 +1941,6 @@ function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinne
       </div>
     );
   }
-
-  const [showMenu, setShowMenu] = useState(false);
 
   return (
     <div className="relative group inline-flex">
