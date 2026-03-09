@@ -8,6 +8,7 @@
  */
 
 import { useMeshMappings } from "@/hooks/useMeshMappings";
+import { supabase } from "@/integrations/supabase/client";
 import { getOrganInfoForMesh, MESH_HEBREW } from "./ModelManager/utils";
 import {
   Canvas, useLoader, useThree, useFrame, ThreeEvent,
@@ -897,12 +898,34 @@ export default function AdvancedAnatomyViewer() {
   const toggleFavorite = (id: string) => setFavoriteModels(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const deleteCloudModel = async (id: string) => {
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    await fetch(`${baseUrl}/rest/v1/models?id=eq.${id}`, {
-      method: "DELETE", headers: { apikey, Authorization: `Bearer ${apikey}` },
-    });
-    setCloudModels(prev => prev.filter(m => m.id !== id));
+    try {
+      const model = cloudModels.find(m => m.id === id);
+      // 1. Delete mesh mappings referencing this model
+      if (model?.file_url) {
+        await supabase.from("model_mesh_mappings").delete().eq("model_url", model.file_url);
+      }
+      // 2. Delete storage files via a separate query to get file_name
+      const { data: fullModel } = await supabase.from("models").select("file_name, thumbnail_url").eq("id", id).single();
+      if (fullModel?.file_name) {
+        const filesToRemove = [fullModel.file_name];
+        if (fullModel.thumbnail_url) {
+          const thumbMatch = fullModel.thumbnail_url.match(/\/models\/(.+)$/);
+          if (thumbMatch) filesToRemove.push(thumbMatch[1]);
+        }
+        await supabase.storage.from("models").remove(filesToRemove);
+      }
+      // 3. Delete model record from DB
+      const { error } = await supabase.from("models").delete().eq("id", id);
+      if (error) {
+        console.error("[deleteCloudModel] DB error:", error.message);
+        alert("שגיאה במחיקה: " + error.message);
+        return;
+      }
+      setCloudModels(prev => prev.filter(m => m.id !== id));
+    } catch (err) {
+      console.error("[deleteCloudModel] Exception:", err);
+      alert("שגיאה במחיקת המודל");
+    }
     setCtxMenu(null);
   };
 
