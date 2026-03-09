@@ -1,0 +1,1 @@
+CREATE POLICY "Anyone can update models" ON storage.objects FOR UPDATE USING (bucket_id = 'models') WITH CHECK (bucket_id = 'models');
