@@ -848,6 +848,13 @@ export default function AdvancedAnatomyViewer() {
   const [tourActive, setTourActive] = useState(false);
   const [tourStopIndex, setTourStopIndex] = useState(-1);
   const [smartMapping, setSmartMapping] = useState(false);
+  const [systemAnimEnabled, setSystemAnimEnabled] = useState(false);
+  const [animHeartbeat, setAnimHeartbeat] = useState(true);
+  const [animBreathing, setAnimBreathing] = useState(true);
+  const [animDigestion, setAnimDigestion] = useState(true);
+  const [animSpeed, setAnimSpeed] = useState(1);
+  const [animIntensity, setAnimIntensity] = useState(1);
+  const [bloodFlowSpeed, setBloodFlowSpeed] = useState(1);
 
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, themeId);
