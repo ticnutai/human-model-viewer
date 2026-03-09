@@ -74,7 +74,8 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
       });
       if (state.completedCount === state.totalCount) {
         setIsRunning(false);
-        onLoad();
+        if (onLoad) onLoad();
+        else fetchModels();
       }
     });
   };
