@@ -1483,6 +1483,7 @@ export default function AdvancedAnatomyViewer() {
             })}
           </ScrollArea>
         </div>
+        </div>
       </div>
 
       {/* ── 3D CANVAS ── */}
