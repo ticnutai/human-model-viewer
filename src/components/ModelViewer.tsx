@@ -1071,6 +1071,9 @@ const ModelViewer = () => {
             {sidebarTab === "models" && (
               <ModelManager onSelectModel={handleSelectModel} currentModelUrl={modelUrl} />
             )}
+            {sidebarTab === "analysis" && (
+              <AnalysisPanel />
+            )}
             {sidebarTab === "info" && selectedOrgan && (
               <div className="flex flex-col gap-3">
                 <div className="text-center">
