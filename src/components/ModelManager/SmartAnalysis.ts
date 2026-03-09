@@ -84,11 +84,15 @@ export async function analyzeGlbSmart(
     console.warn("[SmartAnalysis] ❌ Worker path FAILED:", e);
   }
 
-  // ── Tier 3: Cloud Edge Function fallback ──
+  // ── Tier 3: Cloud Edge Function fallback (with 8s timeout) ──
   if (typeof fileOrUrl === "string") {
     try {
       console.log(`[SmartAnalysis] Tier 3: Cloud Edge Function...`);
-      const cloudResult = await analyzeWithCloud(fileOrUrl, modelId);
+      const cloudPromise = analyzeWithCloud(fileOrUrl, modelId);
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error("Cloud analysis timeout")), 8000)
+      );
+      const cloudResult = await Promise.race([cloudPromise, timeoutPromise]);
       console.log(`[SmartAnalysis] Tier 3 result: ${cloudResult.meshNames.length} meshes`);
       if (cloudResult.meshNames.length > 0) {
         const result: AnalysisResult = {
