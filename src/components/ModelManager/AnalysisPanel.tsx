@@ -6,11 +6,13 @@ import { Loader2, Brain, CheckCircle2, XCircle, AlertCircle, PlayCircle, StopCir
 import { useToast } from "@/hooks/use-toast";
 
 interface AnalysisPanelProps {
-  models: ModelRecord[];
-  onLoad: () => void;
+  models?: ModelRecord[];
+  onLoad?: () => void;
 }
 
-export default function AnalysisPanel({ models, onLoad }: AnalysisPanelProps) {
+export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisPanelProps) {
+  const [localModels, setLocalModels] = useState<ModelRecord[]>([]);
+  const [loading, setLoading] = useState(!propsModels);
   const [engine] = useState(() => new ParallelAnalysisEngine(4));
   const [jobs, setJobs] = useState<Record<string, AnalysisJob>>({});
   const [stats, setStats] = useState({ active: 0, completed: 0, total: 0 });
