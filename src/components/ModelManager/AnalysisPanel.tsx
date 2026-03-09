@@ -1,13 +1,50 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ParallelAnalysisEngine, AnalysisJob } from "./ParallelAnalysisEngine";
 import type { ModelRecord } from "./types";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Brain, CheckCircle2, XCircle, AlertCircle, PlayCircle, StopCircle, Bot } from "lucide-react";
+import { Loader2, Brain, CheckCircle2, XCircle, AlertCircle, PlayCircle, StopCircle, Bot, Zap, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface AnalysisPanelProps {
   models?: ModelRecord[];
   onLoad?: () => void;
+}
+
+// --- Stats Dashboard Component ---
+function StatsDashboard({ models }: { models: ModelRecord[] }) {
+  const total = models.length;
+  const withParts = models.filter(m => m.mesh_parts && Array.isArray(m.mesh_parts) && (m.mesh_parts as any[]).length > 0);
+  const analyzed = withParts.length;
+  const totalParts = withParts.reduce((sum, m) => sum + (m.mesh_parts as any[]).length, 0);
+  const genericCount = withParts.filter(m => {
+    const parts = m.mesh_parts as string[];
+    return parts.some(p => /^Object[_\s]*\d*$/i.test(p) || /^Mesh[_\s]*\d*$/i.test(p));
+  }).length;
+  const pending = total - analyzed;
+
+  return (
+    <div className="grid grid-cols-2 gap-2 p-3">
+      <StatCard icon={<BarChart3 className="w-4 h-4 text-blue-400" />} label="סה״כ מודלים" value={total} color="blue" />
+      <StatCard icon={<CheckCircle2 className="w-4 h-4 text-green-400" />} label="נותחו" value={analyzed} color="green" />
+      <StatCard icon={<Brain className="w-4 h-4 text-purple-400" />} label="חלקים זוהו" value={totalParts} color="purple" />
+      <StatCard icon={<AlertCircle className="w-4 h-4 text-amber-400" />} label="ממתינים" value={pending} color="amber" />
+      <div className="col-span-2">
+        <StatCard icon={<Bot className="w-4 h-4 text-orange-400" />} label="עם שמות גנריים (דורשים AI)" value={genericCount} color="orange" />
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
+  return (
+    <div className={`rounded-lg p-2.5 border border-border bg-card/50`}>
+      <div className="flex items-center gap-2 mb-1">
+        {icon}
+        <span className="text-xs text-muted-foreground">{label}</span>
+      </div>
+      <div className="text-xl font-bold text-foreground">{value.toLocaleString()}</div>
+    </div>
+  );
 }
 
 export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisPanelProps) {
@@ -17,15 +54,17 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   const [jobs, setJobs] = useState<Record<string, AnalysisJob>>({});
   const [stats, setStats] = useState({ active: 0, completed: 0, total: 0 });
   const [isRunning, setIsRunning] = useState(false);
-  const [filter, setFilter] = useState<"all" | "pending" | "failed" | "success">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "failed" | "success" | "stats">("stats");
   const [aiAnalyzing, setAiAnalyzing] = useState<Set<string>>(new Set());
+  const [batchAiRunning, setBatchAiRunning] = useState(false);
+  const [batchAiProgress, setBatchAiProgress] = useState({ done: 0, total: 0 });
+  const batchAbortRef = useRef(false);
   const { toast } = useToast();
 
   const fetchModels = async () => {
     setLoading(true);
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    console.log("[AnalysisPanel] Fetching models via REST...");
     
     try {
       const response = await fetch(
@@ -39,28 +78,20 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
         }
       );
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       const data = await response.json();
-      console.log("[AnalysisPanel] Loaded", data?.length ?? 0, "models");
       if (data) setLocalModels(data);
     } catch (e: any) {
-      console.error("[AnalysisPanel] Fetch failed:", e);
       toast({ title: "שגיאה בטעינת מודלים", description: e.message, variant: "destructive" });
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    console.log("[AnalysisPanel] useEffect triggered, propsModels:", propsModels?.length ?? "null");
     if (propsModels) {
-      console.log("[AnalysisPanel] Using propsModels:", propsModels.length);
       setLocalModels(propsModels);
       setLoading(false);
     } else {
-      console.log("[AnalysisPanel] No propsModels, fetching from DB...");
       fetchModels();
     }
   }, [propsModels]);
@@ -68,47 +99,39 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   const modelsToUse = propsModels || localModels;
   const unanalyzedModels = modelsToUse.filter(m => !m.mesh_parts || (Array.isArray(m.mesh_parts) && m.mesh_parts.length === 0));
   
+  // Models with generic names that need AI identification
+  const genericNameModels = modelsToUse.filter(m => {
+    if (!m.mesh_parts || !Array.isArray(m.mesh_parts) || m.mesh_parts.length === 0) return false;
+    const parts = m.mesh_parts as string[];
+    return parts.some(p => /^Object[_\s]*\d*$/i.test(p) || /^Mesh[_\s]*\d*$/i.test(p));
+  });
+
   useEffect(() => {
-    return () => {
-      engine.stop();
-    };
+    return () => { engine.stop(); };
   }, [engine]);
 
   const handleStartAll = () => {
-    console.log("[AnalysisPanel] ▶ handleStartAll clicked");
-    console.log("[AnalysisPanel] modelsToUse count:", modelsToUse.length);
-    console.log("[AnalysisPanel] First 3:", modelsToUse.slice(0, 3).map(m => ({ id: m.id, name: m.display_name, url: m.file_url?.substring(0, 60) })));
-    if (modelsToUse.length === 0) {
-      console.error("[AnalysisPanel] ❌ No models! propsModels:", propsModels?.length, "localModels:", localModels.length);
-      return;
-    }
+    if (modelsToUse.length === 0) return;
     setIsRunning(true);
     engine.start(modelsToUse, (state) => {
-      console.log("[AnalysisPanel] Progress:", state.completedCount, "/", state.totalCount, "active:", state.activeCount);
       setJobs(state.jobs);
       setStats({ active: state.activeCount, completed: state.completedCount, total: state.totalCount });
       if (state.completedCount === state.totalCount) {
-        console.log("[AnalysisPanel] ✅ All done!");
         setIsRunning(false);
-        if (onLoad) onLoad();
-        else fetchModels();
+        if (onLoad) onLoad(); else fetchModels();
       }
     });
   };
 
   const handleStartNew = () => {
-    console.log("[AnalysisPanel] ▶ handleStartNew clicked, unanalyzed:", unanalyzedModels.length);
-    if (unanalyzedModels.length === 0) { console.error("[AnalysisPanel] ❌ No unanalyzed models!"); return; }
+    if (unanalyzedModels.length === 0) return;
     setIsRunning(true);
     engine.start(unanalyzedModels, (state) => {
-      console.log("[AnalysisPanel] Progress:", state.completedCount, "/", state.totalCount);
       setJobs(state.jobs);
       setStats({ active: state.activeCount, completed: state.completedCount, total: state.totalCount });
       if (state.completedCount === state.totalCount) {
-        console.log("[AnalysisPanel] ✅ New models done!");
         setIsRunning(false);
-        if (onLoad) onLoad();
-        else fetchModels();
+        if (onLoad) onLoad(); else fetchModels();
       }
     });
   };
@@ -119,10 +142,7 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
   };
 
   const runAiIdentification = async (model: ModelRecord) => {
-    if (!model.mesh_parts || !Array.isArray(model.mesh_parts) || model.mesh_parts.length === 0) {
-      toast({ title: "אין חלקים לניתוח", variant: "destructive" });
-      return;
-    }
+    if (!model.mesh_parts || !Array.isArray(model.mesh_parts) || model.mesh_parts.length === 0) return;
     
     setAiAnalyzing(prev => new Set(prev).add(model.id));
     
@@ -130,8 +150,6 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
       const parts = model.mesh_parts as string[];
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      
-      console.log("[AnalysisPanel] Calling ai-analyze-mesh for", model.display_name, "with", parts.length, "parts");
       
       const response = await fetch(`${supabaseUrl}/functions/v1/ai-analyze-mesh`, {
         method: 'POST',
@@ -149,22 +167,17 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
       
       if (!response.ok) {
         const errText = await response.text();
-        console.error("[AnalysisPanel] AI function error:", response.status, errText);
         throw new Error(`AI function returned ${response.status}: ${errText}`);
       }
       
       const data = await response.json();
-      console.log("[AnalysisPanel] AI results:", data);
       
-      // Save AI-identified names back to DB
       if (data.results && data.results.length > 0) {
-        // Handle both formats: array of strings or array of objects
         const identifiedNames = data.results.map((r: any) => 
           typeof r === 'string' ? r : (r.hebrewName ? `${r.hebrewName} (${r.meshName})` : r.meshName)
         );
-        console.log("[AnalysisPanel] Saving AI names to DB:", identifiedNames.length);
         
-        const saveRes = await fetch(
+        await fetch(
           `${supabaseUrl}/rest/v1/models?id=eq.${model.id}`,
           {
             method: 'PATCH',
@@ -177,15 +190,12 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
             body: JSON.stringify({ mesh_parts: identifiedNames })
           }
         );
-        if (!saveRes.ok) console.error("[AnalysisPanel] Save error:", await saveRes.text());
       }
       
-      toast({ title: "ניתוח AI הושלם", description: `זוהו ${data.results?.length || 0} מבנים` });
-      if (onLoad) onLoad();
-      else fetchModels();
+      return data.results?.length || 0;
     } catch (e: any) {
       console.error("[AnalysisPanel] AI error:", e);
-      toast({ title: "שגיאת AI", description: e.message, variant: "destructive" });
+      throw e;
     } finally {
       setAiAnalyzing(prev => {
         const next = new Set(prev);
@@ -195,9 +205,63 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
     }
   };
 
+  // Batch AI identification for all generic-name models
+  const handleBatchAi = async () => {
+    if (genericNameModels.length === 0) {
+      toast({ title: "אין מודלים עם שמות גנריים" });
+      return;
+    }
+    
+    setBatchAiRunning(true);
+    batchAbortRef.current = false;
+    setBatchAiProgress({ done: 0, total: genericNameModels.length });
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (let i = 0; i < genericNameModels.length; i++) {
+      if (batchAbortRef.current) break;
+      
+      const model = genericNameModels[i];
+      try {
+        const identified = await runAiIdentification(model);
+        successCount++;
+      } catch (e: any) {
+        failCount++;
+        // If rate limited, wait and retry
+        if (e.message?.includes("429")) {
+          toast({ title: "מוגבל קצב — ממתין 10 שניות...", variant: "destructive" });
+          await new Promise(r => setTimeout(r, 10000));
+          i--; // retry this model
+          failCount--;
+          continue;
+        }
+      }
+      
+      setBatchAiProgress({ done: i + 1, total: genericNameModels.length });
+      
+      // Small delay between requests to avoid rate limiting
+      if (i < genericNameModels.length - 1) {
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+    
+    setBatchAiRunning(false);
+    toast({ 
+      title: "זיהוי AI קבוצתי הושלם", 
+      description: `הצלחות: ${successCount} | שגיאות: ${failCount}` 
+    });
+    if (onLoad) onLoad(); else fetchModels();
+  };
+
+  const handleStopBatchAi = () => {
+    batchAbortRef.current = true;
+    setBatchAiRunning(false);
+  };
+
   const displayList = modelsToUse.filter(m => {
     const job = jobs[m.id];
-    if (filter === "all") return true;
+    if (filter === "all" || filter === "stats") return true;
     if (filter === "pending") return !job || job.status === "pending";
     if (filter === "failed") return job?.status === "failed";
     if (filter === "success") return job?.status === "success" || (m.mesh_parts && (m.mesh_parts as any[]).length > 0);
@@ -215,7 +279,7 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
               זיהוי וניתוח חכם
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              ניתוח מקבילי של מודלים תלת-ממדיים לזיהוי מבנים אנטומיים
+              ניתוח מקבילי + זיהוי AI של מבנים אנטומיים
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -249,6 +313,47 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
           </div>
         </div>
 
+        {/* Batch AI Button */}
+        <div className="flex gap-2 mb-3">
+          {!batchAiRunning ? (
+            <button
+              onClick={handleBatchAi}
+              disabled={genericNameModels.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition-colors"
+            >
+              <Zap className="w-4 h-4" />
+              זיהוי AI קבוצתי — {genericNameModels.length} מודלים עם שמות גנריים
+            </button>
+          ) : (
+            <div className="flex items-center gap-3 flex-1">
+              <button
+                onClick={handleStopBatchAi}
+                className="flex items-center gap-2 px-3 py-2 bg-destructive text-destructive-foreground rounded-lg text-sm font-medium"
+              >
+                <StopCircle className="w-4 h-4" />
+                עצור
+              </button>
+              <div className="flex-1">
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    מריץ זיהוי AI...
+                  </span>
+                  <span className="font-bold text-purple-500">
+                    {batchAiProgress.done}/{batchAiProgress.total}
+                  </span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="bg-purple-500 h-full transition-all duration-300"
+                    style={{ width: `${batchAiProgress.total ? (batchAiProgress.done / batchAiProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Progress Stats */}
         {stats.total > 0 && (
           <div className="bg-background rounded-lg p-3 border border-border">
@@ -273,16 +378,19 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
 
       {/* Toolbar */}
       <div className="flex gap-2 p-2 border-b border-border bg-muted/20">
-        {(["all", "pending", "success", "failed"] as const).map(f => (
+        {(["stats", "all", "pending", "success", "failed"] as const).map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${filter === f ? "bg-background shadow-sm border border-border" : "text-muted-foreground hover:bg-background/50"}`}
           >
-            {f === "all" ? "הכל" : f === "pending" ? "ממתינים" : f === "success" ? "הושלמו" : "שגיאות"}
+            {f === "stats" ? "📊 סטטיסטיקות" : f === "all" ? "הכל" : f === "pending" ? "ממתינים" : f === "success" ? "הושלמו" : "שגיאות"}
           </button>
         ))}
       </div>
+
+      {/* Stats Dashboard */}
+      {filter === "stats" && <StatsDashboard models={modelsToUse} />}
 
       {/* List */}
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
@@ -290,6 +398,7 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
           const job = jobs[model.id];
           const hasParts = model.mesh_parts && Array.isArray(model.mesh_parts) && model.mesh_parts.length > 0;
           const isProcessingAi = aiAnalyzing.has(model.id);
+          const hasGenericNames = hasParts && (model.mesh_parts as string[]).some(p => /^Object[_\s]*\d*$/i.test(p) || /^Mesh[_\s]*\d*$/i.test(p));
           
           return (
             <div key={model.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
@@ -297,8 +406,10 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
                 <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0">
                   {job?.status === "running" ? (
                     <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
-                  ) : job?.status === "success" || hasParts ? (
+                  ) : job?.status === "success" || (hasParts && !hasGenericNames) ? (
                     <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  ) : hasParts && hasGenericNames ? (
+                    <Bot className="w-4 h-4 text-amber-500" />
                   ) : job?.status === "failed" ? (
                     <XCircle className="w-4 h-4 text-red-500" />
                   ) : (
@@ -308,7 +419,13 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
                 <div>
                   <h4 className="text-sm font-bold text-foreground">{model.hebrew_name || model.display_name}</h4>
                   <div className="text-xs text-muted-foreground flex items-center gap-2">
-                    <span>{job?.status === "running" ? "מנתח עכשיו..." : job?.status === "failed" ? job.error : hasParts ? `${(model.mesh_parts as any[]).length} חלקים זוהו` : "ממתין לניתוח"}</span>
+                    <span>
+                      {job?.status === "running" ? "מנתח עכשיו..." 
+                        : job?.status === "failed" ? job.error 
+                        : hasParts && hasGenericNames ? `${(model.mesh_parts as any[]).length} חלקים — שמות גנריים ⚠️`
+                        : hasParts ? `${(model.mesh_parts as any[]).length} חלקים זוהו ✓` 
+                        : "ממתין לניתוח"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -316,7 +433,10 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
               <div className="flex gap-2">
                 {hasParts && (
                   <button
-                    onClick={() => runAiIdentification(model)}
+                    onClick={() => runAiIdentification(model).then(() => {
+                      toast({ title: "זיהוי AI הושלם" });
+                      if (onLoad) onLoad(); else fetchModels();
+                    }).catch(e => toast({ title: "שגיאת AI", description: e.message, variant: "destructive" }))}
                     disabled={isProcessingAi}
                     className="flex items-center gap-1.5 px-2 py-1 bg-purple-500/10 text-purple-600 rounded text-xs font-semibold hover:bg-purple-500/20 disabled:opacity-50 transition-colors"
                   >
