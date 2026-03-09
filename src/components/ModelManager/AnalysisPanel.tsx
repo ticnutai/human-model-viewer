@@ -48,7 +48,7 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
 
   const handleStartAll = () => {
     setIsRunning(true);
-    engine.start(models, (state) => {
+    engine.start(modelsToUse, (state) => {
       setJobs(state.jobs);
       setStats({
         active: state.activeCount,
