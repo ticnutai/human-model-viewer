@@ -878,6 +878,51 @@ export default function AdvancedAnatomyViewer() {
   const [animIntensity, setAnimIntensity] = useState(1);
   const [bloodFlowSpeed, setBloodFlowSpeed] = useState(1);
 
+  // Context menu for cloud models
+  const [ctxMenu, setCtxMenu] = useState<{ mod: typeof cloudModels[0]; x: number; y: number } | null>(null);
+  const [editingModelId, setEditingModelId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [pinnedModels, setPinnedModels] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("pinned_models") || "[]")); } catch { return new Set(); }
+  });
+  const [favoriteModels, setFavoriteModels] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("favorite_models") || "[]")); } catch { return new Set(); }
+  });
+
+  useEffect(() => { localStorage.setItem("pinned_models", JSON.stringify([...pinnedModels])); }, [pinnedModels]);
+  useEffect(() => { localStorage.setItem("favorite_models", JSON.stringify([...favoriteModels])); }, [favoriteModels]);
+
+  const togglePin = (id: string) => setPinnedModels(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleFavorite = (id: string) => setFavoriteModels(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const deleteCloudModel = async (id: string) => {
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    await fetch(`${baseUrl}/rest/v1/models?id=eq.${id}`, {
+      method: "DELETE", headers: { apikey, Authorization: `Bearer ${apikey}` },
+    });
+    setCloudModels(prev => prev.filter(m => m.id !== id));
+    setCtxMenu(null);
+  };
+
+  const renameCloudModel = async (id: string, newName: string) => {
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    await fetch(`${baseUrl}/rest/v1/models?id=eq.${id}`, {
+      method: "PATCH",
+      headers: { apikey, Authorization: `Bearer ${apikey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ hebrew_name: newName }),
+    });
+    setCloudModels(prev => prev.map(m => m.id === id ? { ...m, hebrew_name: newName } : m));
+    setEditingModelId(null);
+  };
+
+  const handleCtxMenu = (e: React.MouseEvent, mod: typeof cloudModels[0]) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ mod, x: e.clientX, y: e.clientY });
+  };
+
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, themeId);
   }, [themeId]);
@@ -1118,6 +1163,26 @@ export default function AdvancedAnatomyViewer() {
           {cloudModels.length > 0 && (
             <div className="mb-2">
               <div className="text-[10px] font-bold mb-1" style={{ color: theme.textDim }}>☁️ מודלים מהענן ({cloudModels.filter(m => m.file_url).length})</div>
+
+              {/* Pinned models first */}
+              {(() => {
+                const pinned = cloudModels.filter(m => m.file_url && pinnedModels.has(m.id));
+                if (!pinned.length) return null;
+                return (
+                  <div className="mb-1.5">
+                    <div className="text-[9px] font-semibold mb-0.5" style={{ color: theme.textDim }}>📌 מוצמדים</div>
+                    <div className="flex gap-1 flex-wrap">
+                      {pinned.map(mod => (
+                        <CloudModelBtn key={mod.id} mod={mod} theme={theme} isCloudModel={isCloudModel} cloudModelUrl={cloudModelUrl}
+                          isFav={favoriteModels.has(mod.id)} isPinned onSelect={() => selectCloudModel(mod)} onCtx={e => handleCtxMenu(e, mod)}
+                          isEditing={editingModelId === mod.id} editName={editingName} setEditName={setEditingName}
+                          onRename={() => renameCloudModel(mod.id, editingName)} onCancelEdit={() => setEditingModelId(null)} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {cloudCategories.map(cat => {
                 const catModels = cloudModelsByCategory.byCategory[cat.id];
                 if (!catModels?.length) return null;
@@ -1126,17 +1191,10 @@ export default function AdvancedAnatomyViewer() {
                     <div className="text-[9px] font-semibold mb-0.5" style={{ color: theme.textDim }}>{cat.icon || "📁"} {cat.name}</div>
                     <div className="flex gap-1 flex-wrap">
                       {catModels.map(mod => (
-                        <button key={mod.id} onClick={() => selectCloudModel(mod)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all"
-                          style={{
-                            background: isCloudModel && cloudModelUrl === mod.file_url ? theme.accentBg : "transparent",
-                            borderColor: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.border,
-                            color: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.textDim,
-                            fontWeight: isCloudModel && cloudModelUrl === mod.file_url ? 600 : 400,
-                          }}>
-                          <span>☁️</span>
-                          <span className="truncate max-w-[120px]">{mod.hebrew_name || mod.display_name}</span>
-                        </button>
+                        <CloudModelBtn key={mod.id} mod={mod} theme={theme} isCloudModel={isCloudModel} cloudModelUrl={cloudModelUrl}
+                          isFav={favoriteModels.has(mod.id)} isPinned={pinnedModels.has(mod.id)} onSelect={() => selectCloudModel(mod)} onCtx={e => handleCtxMenu(e, mod)}
+                          isEditing={editingModelId === mod.id} editName={editingName} setEditName={setEditingName}
+                          onRename={() => renameCloudModel(mod.id, editingName)} onCancelEdit={() => setEditingModelId(null)} />
                       ))}
                     </div>
                   </div>
@@ -1147,17 +1205,10 @@ export default function AdvancedAnatomyViewer() {
                   <div className="text-[9px] font-semibold mb-0.5" style={{ color: theme.textDim }}>📂 ללא קטגוריה</div>
                   <div className="flex gap-1 flex-wrap">
                     {cloudModelsByCategory.uncategorized.map(mod => (
-                      <button key={mod.id} onClick={() => selectCloudModel(mod)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all"
-                        style={{
-                          background: isCloudModel && cloudModelUrl === mod.file_url ? theme.accentBg : "transparent",
-                          borderColor: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.border,
-                          color: isCloudModel && cloudModelUrl === mod.file_url ? theme.accent : theme.textDim,
-                          fontWeight: isCloudModel && cloudModelUrl === mod.file_url ? 600 : 400,
-                        }}>
-                        <span>☁️</span>
-                        <span className="truncate max-w-[120px]">{mod.hebrew_name || mod.display_name}</span>
-                      </button>
+                      <CloudModelBtn key={mod.id} mod={mod} theme={theme} isCloudModel={isCloudModel} cloudModelUrl={cloudModelUrl}
+                        isFav={favoriteModels.has(mod.id)} isPinned={pinnedModels.has(mod.id)} onSelect={() => selectCloudModel(mod)} onCtx={e => handleCtxMenu(e, mod)}
+                        isEditing={editingModelId === mod.id} editName={editingName} setEditName={setEditingName}
+                        onRename={() => renameCloudModel(mod.id, editingName)} onCancelEdit={() => setEditingModelId(null)} />
                     ))}
                   </div>
                 </div>
@@ -1582,6 +1633,53 @@ export default function AdvancedAnatomyViewer() {
           ℹ️ מידע
         </button>
       )}
+      {/* Context menu for cloud models */}
+      {ctxMenu && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setCtxMenu(null); }} />
+          <div className="fixed z-[9999] rounded-xl shadow-2xl py-1.5 min-w-[160px]"
+            style={{
+              left: Math.min(ctxMenu.x, window.innerWidth - 180),
+              top: Math.min(ctxMenu.y, window.innerHeight - 200),
+              background: theme.panel,
+              border: `1px solid ${theme.border}`,
+              direction: "rtl",
+            }}>
+            <div className="px-3 py-1.5 text-[10px] font-bold truncate" style={{ color: theme.textDim, borderBottom: `1px solid ${theme.border}` }}>
+              {ctxMenu.mod.hebrew_name || ctxMenu.mod.display_name}
+            </div>
+            <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+              style={{ background: "transparent", color: theme.text }}
+              onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              onClick={() => { setEditingModelId(ctxMenu.mod.id); setEditingName(ctxMenu.mod.hebrew_name || ctxMenu.mod.display_name); setCtxMenu(null); }}>
+              <span>✏️</span><span>שנה שם</span>
+            </button>
+            <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+              style={{ background: "transparent", color: favoriteModels.has(ctxMenu.mod.id) ? "#f59e0b" : theme.text }}
+              onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              onClick={() => { toggleFavorite(ctxMenu.mod.id); setCtxMenu(null); }}>
+              <span>{favoriteModels.has(ctxMenu.mod.id) ? "⭐" : "☆"}</span><span>{favoriteModels.has(ctxMenu.mod.id) ? "הסר מהמועדפים" : "הוסף למועדפים"}</span>
+            </button>
+            <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+              style={{ background: "transparent", color: pinnedModels.has(ctxMenu.mod.id) ? theme.accent : theme.text }}
+              onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              onClick={() => { togglePin(ctxMenu.mod.id); setCtxMenu(null); }}>
+              <span>{pinnedModels.has(ctxMenu.mod.id) ? "📌" : "📍"}</span><span>{pinnedModels.has(ctxMenu.mod.id) ? "בטל הצמדה" : "הצמד למעלה"}</span>
+            </button>
+            <div style={{ borderTop: `1px solid ${theme.border}`, margin: "2px 0" }} />
+            <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+              style={{ background: "transparent", color: "#f85149" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(248,81,73,0.1)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              onClick={() => { if (confirm("למחוק את המודל?")) deleteCloudModel(ctxMenu.mod.id); }}>
+              <span>🗑️</span><span>מחק מודל</span>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1650,5 +1748,53 @@ function InfoSection({ title, theme, children }: { title: string; theme: typeof 
       </div>
       {children}
     </div>
+  );
+}
+
+// ─── Cloud Model Button ─────────────────────────────────────────────────────
+
+function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinned, onSelect, onCtx, isEditing, editName, setEditName, onRename, onCancelEdit }: {
+  mod: { id: string; display_name: string; hebrew_name: string | null; file_url: string | null };
+  theme: typeof THEMES["dark"];
+  isCloudModel: boolean;
+  cloudModelUrl: string | null;
+  isFav: boolean;
+  isPinned: boolean;
+  onSelect: () => void;
+  onCtx: (e: React.MouseEvent) => void;
+  isEditing: boolean;
+  editName: string;
+  setEditName: (v: string) => void;
+  onRename: () => void;
+  onCancelEdit: () => void;
+}) {
+  const isActive = isCloudModel && cloudModelUrl === mod.file_url;
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] border" style={{ borderColor: theme.accent, background: theme.accentBg }}>
+        <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus
+          onKeyDown={e => { if (e.key === "Enter") onRename(); if (e.key === "Escape") onCancelEdit(); }}
+          className="bg-transparent border-none outline-none text-[10px] w-[100px]" style={{ color: theme.text }} />
+        <button onClick={onRename} className="text-[9px] cursor-pointer border-none px-1 rounded" style={{ background: theme.accent, color: "#fff" }}>✓</button>
+        <button onClick={onCancelEdit} className="text-[9px] cursor-pointer border-none px-1 rounded" style={{ background: "transparent", color: theme.textDim }}>✕</button>
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={onSelect} onContextMenu={onCtx}
+      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] cursor-pointer border transition-all relative group"
+      style={{
+        background: isActive ? theme.accentBg : "transparent",
+        borderColor: isActive ? theme.accent : theme.border,
+        color: isActive ? theme.accent : theme.textDim,
+        fontWeight: isActive ? 600 : 400,
+      }}>
+      {isFav && <span className="text-[8px]">⭐</span>}
+      {isPinned && <span className="text-[8px]">📌</span>}
+      <span>☁️</span>
+      <span className="truncate max-w-[100px]">{mod.hebrew_name || mod.display_name}</span>
+    </button>
   );
 }
