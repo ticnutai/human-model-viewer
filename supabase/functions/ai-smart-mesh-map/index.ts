@@ -115,9 +115,11 @@ Return ONLY valid JSON: {"mappings": [<exactly ${meshNames.length} items>]}`;
     // Save to model_mesh_mappings table using mesh index as unique key
     if (modelUrl && mappings.length > 0) {
       const rows = mappings.map((m: any, idx: number) => {
-        // Use index-based key to guarantee uniqueness regardless of AI output
-        const meshIndex = m.meshIndex ?? idx;
-        const safeName = (m.originalMeshName || m.englishName || "part").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 30);
+        // ALWAYS use array index for consistency — don't trust AI's meshIndex
+        const meshIndex = idx;
+        // ALWAYS use the original input mesh name — don't trust AI's version
+        const actualMeshName = meshNames[idx] || m.originalMeshName || "";
+        const safeName = (actualMeshName || m.englishName || "part").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 30);
         const meshKey = `mesh_${meshIndex}_${safeName}`;
         return {
           model_url: modelUrl,
@@ -131,7 +133,7 @@ Return ONLY valid JSON: {"mappings": [<exactly ${meshNames.length} items>]}`;
             englishName: m.englishName,
             latinName: m.latinName,
             functionHe: m.functionHe,
-            originalMeshName: m.originalMeshName || meshNames[meshIndex] || "",
+            originalMeshName: actualMeshName,
             meshIndex: meshIndex,
             facts: [],
             factsHe: m.facts || [],
