@@ -27,29 +27,52 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Create indexed mesh list for clarity
+    const indexedMeshes = meshNames.map((name: string, i: number) => ({
+      index: i,
+      originalName: name,
+    }));
+
     const contextInfo = [
       modelName ? `Model: "${modelName}"` : "",
-      hebrewName ? `Hebrew: "${hebrewName}"` : "",
-      `Parts count: ${meshNames.length}`,
+      hebrewName ? `Hebrew name: "${hebrewName}"` : "",
+      `Total parts: ${meshNames.length}`,
     ].filter(Boolean).join("\n");
 
-    const systemPrompt = `You are an expert anatomist. Given mesh part names from a 3D anatomical model, create DETAILED anatomical information cards for each part.
+    const systemPrompt = `You are an expert anatomist and 3D model analyst. You are given mesh part names from a 3D anatomical model file (.glb).
 
-For each mesh part, provide:
-1. hebrewName - Hebrew anatomical name
-2. englishName - English anatomical name
-3. latinName - Latin anatomical name
-4. system - Body system in Hebrew (e.g. "מערכת לב וכלי דם", "מערכת השלד", "מערכת השרירים", "מערכת העיכול", "מערכת הנשימה", "מערכת העצבים")
-5. icon - Single emoji representing the structure
-6. summary - One sentence description in Hebrew
-7. functionHe - Function description in Hebrew
-8. facts - Array of 2-3 interesting facts in Hebrew
-9. diseases - Array of 2-3 related diseases in Hebrew
+Your task: Identify what anatomical structure each mesh part represents and create detailed information cards.
+
+CRITICAL RULES:
+1. The "meshIndex" field MUST match the index provided in the input. This is used as a unique key.
+2. Use the MODEL NAME and CONTEXT to deduce what each part is - even if names are generic like "Object_0" or all parts share the same material name.
+3. If a model is called "Heart" with 3 parts, those are likely different heart structures (ventricles, atria, aorta, etc.)
+4. If a model is called "Brain" with 15 parts, those are brain regions.
+5. If parts have descriptive names (like "Cortex", "Medulla"), use those directly.
+6. Each part MUST get a UNIQUE identification - never repeat the same structure for different indices.
+7. If you truly cannot determine what a specific part is, label it as "חלק אנטומי #{index}" with a reasonable guess.
+
+For EACH mesh part provide:
+- meshIndex: number (from input)
+- originalMeshName: string (from input)  
+- hebrewName: Hebrew anatomical name (UNIQUE per part)
+- englishName: English anatomical name (UNIQUE per part)
+- latinName: Latin anatomical name
+- system: Body system in Hebrew (e.g. "מערכת לב וכלי דם", "מערכת השלד", "מערכת השרירים", "מערכת העיכול", "מערכת הנשימה", "מערכת העצבים", "מערכת השתן", "מערכת הכסות")
+- icon: Single emoji representing the structure
+- summary: One detailed sentence description in Hebrew
+- functionHe: Function description in Hebrew (2-3 sentences)
+- facts: Array of 3 interesting facts in Hebrew
+- diseases: Array of 2-3 related diseases/conditions in Hebrew
 
 Context:
 ${contextInfo}
 
 Return ONLY valid JSON: {"mappings": [...]}`;
+
+    const userContent = `Mesh parts to identify and map:\n${JSON.stringify(indexedMeshes, null, 2)}`;
+
+    console.log(`[ai-smart-mesh-map] Analyzing ${meshNames.length} parts for model: ${modelName || "unknown"}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -58,10 +81,10 @@ Return ONLY valid JSON: {"mappings": [...]}`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Mesh parts to map:\n${JSON.stringify(meshNames)}` }
+          { role: "user", content: userContent }
         ],
         response_format: { type: "json_object" }
       }),
@@ -69,6 +92,7 @@ Return ONLY valid JSON: {"mappings": [...]}`;
 
     if (!response.ok) {
       const errText = await response.text();
+      console.error(`[ai-smart-mesh-map] AI Gateway error ${response.status}:`, errText);
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -90,31 +114,40 @@ Return ONLY valid JSON: {"mappings": [...]}`;
     const mappings = parsed.mappings || [];
     console.log(`[ai-smart-mesh-map] Generated ${mappings.length} mappings for ${modelName}`);
 
-    // Save to model_mesh_mappings table
+    // Save to model_mesh_mappings table using mesh index as unique key
     if (modelUrl && mappings.length > 0) {
-      const rows = mappings.map((m: any) => ({
-        model_url: modelUrl,
-        mesh_key: m.meshName || m.englishName || "unknown",
-        name: m.englishName || m.hebrewName || "Unknown",
-        summary: m.summary || m.functionHe || "",
-        system: m.system || "מערכת לא מוגדרת",
-        icon: m.icon || "🔬",
-        facts: {
-          displayNameHe: m.hebrewName,
-          latinName: m.latinName,
-          functionHe: m.functionHe,
-          facts: [],
-          factsHe: m.facts || [],
-          diseases: [],
-          diseasesHe: m.diseases || [],
-          function: "",
-        }
-      }));
+      const rows = mappings.map((m: any) => {
+        // Use index-based key to guarantee uniqueness
+        const meshKey = `mesh_${m.meshIndex ?? mappings.indexOf(m)}_${(m.originalMeshName || "part").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 30)}`;
+        return {
+          model_url: modelUrl,
+          mesh_key: meshKey,
+          name: m.englishName || m.hebrewName || "Unknown",
+          summary: m.summary || m.functionHe || "",
+          system: m.system || "מערכת לא מוגדרת",
+          icon: m.icon || "🔬",
+          facts: {
+            displayNameHe: m.hebrewName,
+            englishName: m.englishName,
+            latinName: m.latinName,
+            functionHe: m.functionHe,
+            originalMeshName: m.originalMeshName || meshNames[m.meshIndex] || "",
+            meshIndex: m.meshIndex,
+            facts: [],
+            factsHe: m.facts || [],
+            diseases: [],
+            diseasesHe: m.diseases || [],
+            function: "",
+          }
+        };
+      });
 
-      // Upsert (delete existing + insert new)
-      await supabase.from("model_mesh_mappings").delete().eq("model_url", modelUrl);
+      // Delete existing mappings for this model, then insert new ones
+      const { error: delError } = await supabase.from("model_mesh_mappings").delete().eq("model_url", modelUrl);
+      if (delError) console.error("[ai-smart-mesh-map] Delete error:", delError);
+      
       const { error } = await supabase.from("model_mesh_mappings").insert(rows);
-      if (error) console.error("[ai-smart-mesh-map] DB error:", error);
+      if (error) console.error("[ai-smart-mesh-map] Insert error:", error);
       else console.log(`[ai-smart-mesh-map] Saved ${rows.length} mappings to DB`);
     }
 
