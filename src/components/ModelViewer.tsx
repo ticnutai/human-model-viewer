@@ -992,6 +992,7 @@ const ModelViewer = () => {
               { id: "organs" as const, label: "איברים", icon: "🫀" },
               { id: "gallery" as const, label: "צופה", icon: "🎬" },
               { id: "models" as const, label: "קבצים", icon: "📂" },
+              { id: "analysis" as const, label: "ניתוח", icon: "🧠" },
               { id: "info" as const, label: "מידע", icon: "ℹ️" },
             ]).map(tab => (
               <button key={tab.id} onClick={() => setSidebarTab(tab.id)}
