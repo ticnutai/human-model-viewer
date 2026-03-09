@@ -577,8 +577,6 @@ function getMeshInfo(rawName: string, infoMap: Record<string, MeshInfo>, layers:
       finalHe = `חלק מ-${cleanContext || contextNameHe} (${baseName})`;
     }
   }
-    }
-  }
 
   return {
     displayName: baseName, displayNameHe: finalHe,
