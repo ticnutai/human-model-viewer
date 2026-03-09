@@ -882,6 +882,7 @@ export default function AdvancedAnatomyViewer() {
   const [ctxMenu, setCtxMenu] = useState<{ mod: typeof cloudModels[0]; x: number; y: number } | null>(null);
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingDisplayName, setEditingDisplayName] = useState("");
   const [pinnedModels, setPinnedModels] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem("pinned_models") || "[]")); } catch { return new Set(); }
   });
@@ -905,15 +906,18 @@ export default function AdvancedAnatomyViewer() {
     setCtxMenu(null);
   };
 
-  const renameCloudModel = async (id: string, newName: string) => {
+  const renameCloudModel = async (id: string, hebrewName: string, displayName: string) => {
     const baseUrl = import.meta.env.VITE_SUPABASE_URL;
     const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const body: Record<string, string> = {};
+    if (hebrewName) body.hebrew_name = hebrewName;
+    if (displayName) body.display_name = displayName;
     await fetch(`${baseUrl}/rest/v1/models?id=eq.${id}`, {
       method: "PATCH",
       headers: { apikey, Authorization: `Bearer ${apikey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-      body: JSON.stringify({ hebrew_name: newName }),
+      body: JSON.stringify(body),
     });
-    setCloudModels(prev => prev.map(m => m.id === id ? { ...m, hebrew_name: newName } : m));
+    setCloudModels(prev => prev.map(m => m.id === id ? { ...m, ...(hebrewName ? { hebrew_name: hebrewName } : {}), ...(displayName ? { display_name: displayName } : {}) } : m));
     setEditingModelId(null);
   };
 
@@ -1275,7 +1279,8 @@ export default function AdvancedAnatomyViewer() {
                         <CloudModelBtn key={mod.id} mod={mod} theme={theme} isCloudModel={isCloudModel} cloudModelUrl={cloudModelUrl}
                           isFav={favoriteModels.has(mod.id)} isPinned onSelect={() => selectCloudModel(mod)} onCtx={e => handleCtxMenu(e, mod)}
                           isEditing={editingModelId === mod.id} editName={editingName} setEditName={setEditingName}
-                          onRename={() => renameCloudModel(mod.id, editingName)} onCancelEdit={() => setEditingModelId(null)} />
+                          editDisplayName={editingDisplayName} setEditDisplayName={setEditingDisplayName}
+                          onRename={() => renameCloudModel(mod.id, editingName, editingDisplayName)} onCancelEdit={() => setEditingModelId(null)} />
                       ))}
                     </div>
                   </div>
@@ -1293,7 +1298,8 @@ export default function AdvancedAnatomyViewer() {
                         <CloudModelBtn key={mod.id} mod={mod} theme={theme} isCloudModel={isCloudModel} cloudModelUrl={cloudModelUrl}
                           isFav={favoriteModels.has(mod.id)} isPinned={pinnedModels.has(mod.id)} onSelect={() => selectCloudModel(mod)} onCtx={e => handleCtxMenu(e, mod)}
                           isEditing={editingModelId === mod.id} editName={editingName} setEditName={setEditingName}
-                          onRename={() => renameCloudModel(mod.id, editingName)} onCancelEdit={() => setEditingModelId(null)} />
+                          editDisplayName={editingDisplayName} setEditDisplayName={setEditingDisplayName}
+                          onRename={() => renameCloudModel(mod.id, editingName, editingDisplayName)} onCancelEdit={() => setEditingModelId(null)} />
                       ))}
                     </div>
                   </div>
@@ -1307,7 +1313,8 @@ export default function AdvancedAnatomyViewer() {
                       <CloudModelBtn key={mod.id} mod={mod} theme={theme} isCloudModel={isCloudModel} cloudModelUrl={cloudModelUrl}
                         isFav={favoriteModels.has(mod.id)} isPinned={pinnedModels.has(mod.id)} onSelect={() => selectCloudModel(mod)} onCtx={e => handleCtxMenu(e, mod)}
                         isEditing={editingModelId === mod.id} editName={editingName} setEditName={setEditingName}
-                        onRename={() => renameCloudModel(mod.id, editingName)} onCancelEdit={() => setEditingModelId(null)} />
+                        editDisplayName={editingDisplayName} setEditDisplayName={setEditingDisplayName}
+                        onRename={() => renameCloudModel(mod.id, editingName, editingDisplayName)} onCancelEdit={() => setEditingModelId(null)} />
                     ))}
                   </div>
                 </div>
@@ -1760,8 +1767,8 @@ export default function AdvancedAnatomyViewer() {
               style={{ background: "transparent", color: theme.text }}
               onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              onClick={() => { setEditingModelId(ctxMenu.mod.id); setEditingName(ctxMenu.mod.hebrew_name || ctxMenu.mod.display_name); setCtxMenu(null); }}>
-              <span>✏️</span><span>שנה שם</span>
+              onClick={() => { setEditingModelId(ctxMenu.mod.id); setEditingName(ctxMenu.mod.hebrew_name || ctxMenu.mod.display_name); setEditingDisplayName(ctxMenu.mod.display_name); setCtxMenu(null); }}>
+              <span>✏️</span><span>ערוך שמות</span>
             </button>
             <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
               style={{ background: "transparent", color: favoriteModels.has(ctxMenu.mod.id) ? "#f59e0b" : theme.text }}
@@ -1917,7 +1924,7 @@ function InfoSection({ title, theme, children }: { title: string; theme: typeof 
 
 // ─── Cloud Model Button ─────────────────────────────────────────────────────
 
-function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinned, onSelect, onCtx, isEditing, editName, setEditName, onRename, onCancelEdit }: {
+function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinned, onSelect, onCtx, isEditing, editName, setEditName, editDisplayName, setEditDisplayName, onRename, onCancelEdit }: {
   mod: { id: string; display_name: string; hebrew_name: string | null; file_url: string | null };
   theme: typeof THEMES["dark"];
   isCloudModel: boolean;
@@ -1929,6 +1936,8 @@ function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinne
   isEditing: boolean;
   editName: string;
   setEditName: (v: string) => void;
+  editDisplayName: string;
+  setEditDisplayName: (v: string) => void;
   onRename: () => void;
   onCancelEdit: () => void;
 }) {
@@ -1937,12 +1946,23 @@ function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinne
 
   if (isEditing) {
     return (
-      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] border" style={{ borderColor: theme.accent, background: theme.accentBg }}>
-        <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus
-          onKeyDown={e => { if (e.key === "Enter") onRename(); if (e.key === "Escape") onCancelEdit(); }}
-          className="bg-transparent border-none outline-none text-[10px] w-[100px]" style={{ color: theme.text }} />
-        <button onClick={onRename} className="text-[9px] cursor-pointer border-none px-1 rounded" style={{ background: theme.accent, color: "#fff" }}>✓</button>
-        <button onClick={onCancelEdit} className="text-[9px] cursor-pointer border-none px-1 rounded" style={{ background: "transparent", color: theme.textDim }}>✕</button>
+      <div className="flex flex-col gap-1 px-1.5 py-1 rounded-lg text-[10px] border w-full" style={{ borderColor: theme.accent, background: theme.accentBg }}>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] shrink-0" style={{ color: theme.textDim }}>🇮🇱</span>
+          <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus placeholder="שם בעברית"
+            onKeyDown={e => { if (e.key === "Enter") onRename(); if (e.key === "Escape") onCancelEdit(); }}
+            className="bg-transparent border-none outline-none text-[10px] flex-1 min-w-0" style={{ color: theme.text }} />
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] shrink-0" style={{ color: theme.textDim }}>🇬🇧</span>
+          <input value={editDisplayName} onChange={e => setEditDisplayName(e.target.value)} placeholder="Display name"
+            onKeyDown={e => { if (e.key === "Enter") onRename(); if (e.key === "Escape") onCancelEdit(); }}
+            className="bg-transparent border-none outline-none text-[10px] flex-1 min-w-0" style={{ color: theme.text }} />
+        </div>
+        <div className="flex gap-1 justify-end">
+          <button onClick={onRename} className="text-[9px] cursor-pointer border-none px-1.5 py-0.5 rounded" style={{ background: theme.accent, color: "#fff" }}>✓ שמור</button>
+          <button onClick={onCancelEdit} className="text-[9px] cursor-pointer border-none px-1.5 py-0.5 rounded" style={{ background: "transparent", color: theme.textDim }}>✕</button>
+        </div>
       </div>
     );
   }
