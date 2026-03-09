@@ -23,7 +23,9 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
 
   const fetchModels = async () => {
     setLoading(true);
-    const { data } = await supabase.from('models').select('*').order('created_at', { ascending: false });
+    console.log("[AnalysisPanel] Fetching models from DB...");
+    const { data, error } = await supabase.from('models').select('*').order('created_at', { ascending: false });
+    console.log("[AnalysisPanel] Fetch result:", { count: data?.length ?? 0, error: error?.message });
     if (data) setLocalModels(data);
     setLoading(false);
   };
