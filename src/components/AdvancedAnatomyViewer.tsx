@@ -1374,9 +1374,36 @@ export default function AdvancedAnatomyViewer() {
             }}>
             {smartMapping ? "⏳ ממפה..." : "🧠 מיפוי AI חכם"} ({loadedMeshKeys.length} חלקים)
           </button>
-        </div>
 
-        {/* Layers */}
+          {/* Smart mapping live log */}
+          {smartMappingLog.length > 0 && (
+            <div className="mt-1.5 rounded-lg p-2 text-[10px] space-y-0.5 max-h-28 overflow-y-auto"
+              style={{ background: theme.accentBg, border: `1px solid ${theme.border}` }}>
+              {smartMappingLog.map((line, i) => (
+                <div key={i} style={{ color: line.startsWith("❌") ? "#ef4444" : line.startsWith("✅") ? "#22c55e" : theme.textDim }}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Smart mapping results */}
+          {smartMappingResults.length > 0 && (
+            <div className="mt-1.5 rounded-lg p-2 text-[10px] space-y-1 max-h-40 overflow-y-auto"
+              style={{ background: "rgba(34,197,94,0.08)", border: `1px solid rgba(34,197,94,0.3)` }}>
+              <div className="font-bold mb-1" style={{ color: "#22c55e" }}>🗺️ תוצאות מיפוי ({smartMappingResults.length})</div>
+              {smartMappingResults.map((m: any, i: number) => (
+                <div key={i} className="flex items-start gap-1.5 py-0.5" style={{ borderBottom: `1px solid ${theme.border}` }}>
+                  <span>{m.icon || "🔬"}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold" style={{ color: theme.text }}>{m.hebrewName || m.englishName}</div>
+                    <div style={{ color: theme.textDim }}>{m.system} • {m.meshName}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="p-3" style={{ borderBottom: `1px solid ${theme.border}` }}>
           <div className="text-[10px] font-bold mb-2" style={{ color: theme.textDim }}>🧩 שכבות</div>
           {meta.layers.map(layer => {
