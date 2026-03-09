@@ -8,6 +8,7 @@
  */
 
 import { useMeshMappings } from "@/hooks/useMeshMappings";
+import { supabase } from "@/integrations/supabase/client";
 import { getOrganInfoForMesh, MESH_HEBREW } from "./ModelManager/utils";
 import {
   Canvas, useLoader, useThree, useFrame, ThreeEvent,
