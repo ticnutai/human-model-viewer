@@ -897,12 +897,33 @@ export default function AdvancedAnatomyViewer() {
   const toggleFavorite = (id: string) => setFavoriteModels(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const deleteCloudModel = async (id: string) => {
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    await fetch(`${baseUrl}/rest/v1/models?id=eq.${id}`, {
-      method: "DELETE", headers: { apikey, Authorization: `Bearer ${apikey}` },
-    });
-    setCloudModels(prev => prev.filter(m => m.id !== id));
+    try {
+      const model = cloudModels.find(m => m.id === id);
+      // 1. Delete mesh mappings referencing this model
+      if (model?.file_url) {
+        await supabase.from("model_mesh_mappings").delete().eq("model_url", model.file_url);
+      }
+      // 2. Delete files from storage
+      if (model?.file_name) {
+        const filesToRemove = [model.file_name];
+        if (model.thumbnail_url) {
+          const thumbMatch = model.thumbnail_url.match(/\/models\/(.+)$/);
+          if (thumbMatch) filesToRemove.push(thumbMatch[1]);
+        }
+        await supabase.storage.from("models").remove(filesToRemove);
+      }
+      // 3. Delete model record from DB
+      const { error } = await supabase.from("models").delete().eq("id", id);
+      if (error) {
+        console.error("[deleteCloudModel] DB error:", error.message);
+        alert("שגיאה במחיקה: " + error.message);
+        return;
+      }
+      setCloudModels(prev => prev.filter(m => m.id !== id));
+    } catch (err) {
+      console.error("[deleteCloudModel] Exception:", err);
+      alert("שגיאה במחיקת המודל");
+    }
     setCtxMenu(null);
   };
 
