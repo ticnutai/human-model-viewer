@@ -916,26 +916,36 @@ export default function AdvancedAnatomyViewer() {
   const runSmartMapping = async () => {
     if (loadedMeshKeys.length === 0) return;
     setSmartMapping(true);
+    setSmartMappingResults([]);
+    setSmartMappingLog(["🚀 מתחיל מיפוי AI חכם..."]);
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      setSmartMappingLog(prev => [...prev, `📤 שולח ${loadedMeshKeys.length} חלקים לניתוח...`]);
       const response = await fetch(`${supabaseUrl}/functions/v1/ai-smart-mesh-map`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          meshNames: loadedMeshKeys.slice(0, 50), // Limit to 50 parts
+          meshNames: loadedMeshKeys.slice(0, 50),
           modelName: meta.titleEn,
           hebrewName: meta.titleHe,
           modelUrl: meta.path,
         })
       });
-      if (!response.ok) throw new Error(`${response.status}`);
+      if (!response.ok) throw new Error(`שגיאה ${response.status}`);
+      setSmartMappingLog(prev => [...prev, "📥 תשובה התקבלה, מעבד..."]);
       const data = await response.json();
-      console.log("[AdvancedViewer] Smart mapping:", data.mappings?.length, "mappings saved:", data.saved);
-      // Reload mappings by refreshing
-      window.location.reload();
-    } catch (e) {
+      const mappings = data.mappings || [];
+      setSmartMappingResults(mappings);
+      setSmartMappingLog(prev => [
+        ...prev,
+        `✅ מופו ${mappings.length} חלקים בהצלחה!`,
+        ...(data.saved ? ["💾 נשמר בענן"] : []),
+      ]);
+      console.log("[AdvancedViewer] Smart mapping:", mappings.length, "mappings saved:", data.saved);
+    } catch (e: any) {
       console.error("[AdvancedViewer] Smart mapping error:", e);
+      setSmartMappingLog(prev => [...prev, `❌ שגיאה: ${e.message}`]);
     } finally {
       setSmartMapping(false);
     }
