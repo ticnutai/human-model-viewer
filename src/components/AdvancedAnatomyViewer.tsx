@@ -860,7 +860,7 @@ export default function AdvancedAnatomyViewer() {
     if (!searchQuery.trim()) return null;
     const q = searchQuery.toLowerCase();
     for (const key of loadedMeshKeys) {
-      const info = getMeshInfo(key, meta.infoMap, meta.layers);
+      const info = getMeshInfo(key, meta.infoMap, meta.layers, meta.titleHe);
       const haystack = [info.displayName, info.displayNameHe, info.latinName, info.functionHe, ...info.factsHe, ...info.diseasesHe].join(" ").toLowerCase();
       if (haystack.includes(q)) return key;
     }
