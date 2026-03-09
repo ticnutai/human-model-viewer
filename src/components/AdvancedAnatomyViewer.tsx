@@ -1100,6 +1100,8 @@ export default function AdvancedAnatomyViewer() {
       console.log("[AdvancedViewer] Smart mapping:", mappings.length, "mappings saved:", data.saved);
       // Refetch cloud mappings so clicking on parts shows the new info
       if (data.saved) {
+        // Small delay to ensure DB write is fully committed before refetch
+        await new Promise(r => setTimeout(r, 800));
         refetchMappings();
         setSmartMappingLog(prev => [...prev, "🔄 המידע עודכן!"]);
       }
