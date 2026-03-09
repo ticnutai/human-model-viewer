@@ -10,6 +10,7 @@ import SketchfabSearch from "./SketchfabSearch";
 import { generateThumbnailFromUrl } from "./ThumbnailGenerator";
 import MeshLayerManager from "./MeshLayerManager";
 import MeshMappingManager from "./MeshMappingManager";
+import AnalysisPanel from "./AnalysisPanel";
 import { analyzeGlbSmart } from "./SmartAnalysis";
 import {
   translateMeshName, buildRelevance,
