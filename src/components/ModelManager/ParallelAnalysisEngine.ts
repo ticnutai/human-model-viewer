@@ -1,5 +1,4 @@
 import { analyzeGlbSmart } from "./SmartAnalysis";
-import { supabase } from "@/integrations/supabase/client";
 import type { ModelRecord } from "./types";
 
 export type JobStatus = "pending" | "running" | "success" | "failed";
