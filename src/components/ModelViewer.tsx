@@ -1076,7 +1076,7 @@ const ModelViewer = () => {
               <ModelManager onSelectModel={handleSelectModel} currentModelUrl={modelUrl} />
             )}
             {sidebarTab === "analysis" && (
-              <AnalysisPanel />
+              <AnalysisPanel models={cloudModels as any} />
             )}
             {sidebarTab === "info" && selectedOrgan && (
               <div className="flex flex-col gap-3">
