@@ -928,7 +928,8 @@ export default function AdvancedAnatomyViewer() {
     setHiddenLayers(prev => { const next = new Set(prev); next.has(layerId) ? next.delete(layerId) : next.add(layerId); return next; });
   };
 
-  const selectedInfo = effectiveSelectedMesh ? getMeshInfo(effectiveSelectedMesh, meta.infoMap, meta.layers, meta.titleHe) : null;
+  const selectedMeshIndex = effectiveSelectedMesh ? loadedMeshKeys.indexOf(effectiveSelectedMesh) : undefined;
+  const selectedInfo = effectiveSelectedMesh ? getMeshInfo(effectiveSelectedMesh, meta.infoMap, meta.layers, meta.titleHe, selectedMeshIndex !== -1 ? selectedMeshIndex : undefined) : null;
   const handleMeshesLoaded = useCallback((names: string[]) => setLoadedMeshKeys(names), []);
   const skullAnimTime = meta.hasAnimation ? animTime ?? explodeAmount : null;
   const manualExplode = meta.hasAnimation ? 0 : explodeAmount;
