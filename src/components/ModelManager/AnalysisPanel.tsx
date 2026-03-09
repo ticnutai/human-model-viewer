@@ -139,7 +139,12 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
           'Authorization': `Bearer ${supabaseKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ meshNames: parts })
+        body: JSON.stringify({ 
+          meshNames: parts,
+          modelName: model.display_name,
+          hebrewName: model.hebrew_name,
+          partsCount: parts.length
+        })
       });
       
       if (!response.ok) {
@@ -150,6 +155,30 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
       
       const data = await response.json();
       console.log("[AnalysisPanel] AI results:", data);
+      
+      // Save AI-identified names back to DB
+      if (data.results && data.results.length > 0) {
+        // Handle both formats: array of strings or array of objects
+        const identifiedNames = data.results.map((r: any) => 
+          typeof r === 'string' ? r : (r.hebrewName ? `${r.hebrewName} (${r.meshName})` : r.meshName)
+        );
+        console.log("[AnalysisPanel] Saving AI names to DB:", identifiedNames.length);
+        
+        const saveRes = await fetch(
+          `${supabaseUrl}/rest/v1/models?id=eq.${model.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ mesh_parts: identifiedNames })
+          }
+        );
+        if (!saveRes.ok) console.error("[AnalysisPanel] Save error:", await saveRes.text());
+      }
       
       toast({ title: "ניתוח AI הושלם", description: `זוהו ${data.results?.length || 0} מבנים` });
       if (onLoad) onLoad();
