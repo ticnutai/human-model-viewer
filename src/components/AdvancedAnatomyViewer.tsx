@@ -1783,6 +1783,62 @@ export default function AdvancedAnatomyViewer() {
           </div>
         </>
       )}
+
+      {/* Context menu for mesh parts */}
+      {meshCtxMenu && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setMeshCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setMeshCtxMenu(null); }} />
+          <div className="fixed z-[9999] rounded-xl shadow-2xl py-1.5 min-w-[160px]"
+            style={{
+              left: Math.min(meshCtxMenu.x, window.innerWidth - 180),
+              top: Math.min(meshCtxMenu.y, window.innerHeight - 200),
+              background: theme.panel,
+              border: `1px solid ${theme.border}`,
+              direction: "rtl",
+            }}>
+            {(() => {
+              const info = getMeshInfo(meshCtxMenu.key, meta.infoMap, meta.layers, meta.titleHe, meshCtxMenu.idx);
+              const isHidden = hiddenMeshes.has(meshCtxMenu.key);
+              return (
+                <>
+                  <div className="px-3 py-1.5 text-[10px] font-bold truncate" style={{ color: theme.textDim, borderBottom: `1px solid ${theme.border}` }}>
+                    {info.displayNameHe || info.displayName}
+                  </div>
+                  <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+                    style={{ background: "transparent", color: theme.text }}
+                    onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    onClick={() => { setSelectedMesh(meshCtxMenu.key); setMeshCtxMenu(null); }}>
+                    <span>🔍</span><span>הצג מידע</span>
+                  </button>
+                  <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+                    style={{ background: "transparent", color: isHidden ? "#3fb950" : theme.text }}
+                    onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    onClick={() => toggleMeshVisibility(meshCtxMenu.key)}>
+                    <span>{isHidden ? "👁️" : "🙈"}</span><span>{isHidden ? "הצג חלק" : "הסתר חלק"}</span>
+                  </button>
+                  <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+                    style={{ background: "transparent", color: theme.text }}
+                    onMouseEnter={e => (e.currentTarget.style.background = theme.accentBg)}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    onClick={() => { setXRayMode(true); setSelectedMesh(meshCtxMenu.key); setMeshCtxMenu(null); }}>
+                    <span>🔬</span><span>X-Ray על חלק זה</span>
+                  </button>
+                  <div style={{ borderTop: `1px solid ${theme.border}`, margin: "2px 0" }} />
+                  <button className="w-full px-3 py-2 text-[11px] text-right flex items-center gap-2 cursor-pointer border-none transition-colors"
+                    style={{ background: "transparent", color: "#f85149" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(248,81,73,0.1)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    onClick={() => { if (confirm("למחוק את מיפוי ה-AI לחלק זה?")) deleteMeshMapping(meshCtxMenu.key); }}>
+                    <span>🗑️</span><span>מחק מיפוי AI</span>
+                  </button>
+                </>
+              );
+            })()}
+          </div>
+        </>
+      )}
     </div>
   );
 }
