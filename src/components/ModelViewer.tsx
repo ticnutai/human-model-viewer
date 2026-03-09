@@ -463,12 +463,16 @@ const ModelViewer = () => {
   const [layerOpacities, setLayerOpacities] = useState<Record<LayerType, number>>({ skeleton: 1, muscles: 1, organs: 1, vessels: 1 });
   const [peelAmount, setPeelAmount] = useState(0);
   const [bodyModelUrl, setBodyModelUrl] = useState<string | undefined>(undefined);
-  const [cloudModels, setCloudModels] = useState<{ id: string; display_name: string; hebrew_name: string | null; file_url: string | null }[]>([]);
+  const [cloudModels, setCloudModels] = useState<{ id: string; display_name: string; hebrew_name: string | null; file_url: string | null; file_name?: string; file_size?: number | null; mesh_parts?: any; category_id?: string | null; created_at?: string; thumbnail_url?: string | null; notes?: string | null; media_type?: string | null }[]>([]);
 
-  // Fetch cloud models for body model picker
+  // Fetch cloud models for body model picker and analysis panel
   useEffect(() => {
-    supabase.from("models").select("id, display_name, hebrew_name, file_url").order("display_name")
-      .then(({ data }) => { if (data) setCloudModels(data); });
+    console.log("[ModelViewer] Fetching cloud models...");
+    supabase.from("models").select("*").order("display_name")
+      .then(({ data, error }) => { 
+        console.log("[ModelViewer] Cloud models loaded:", data?.length ?? 0, error?.message);
+        if (data) setCloudModels(data); 
+      });
   }, []);
 
   // Fetch all cloud mesh mappings for enriching organ info
