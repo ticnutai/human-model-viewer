@@ -490,175 +490,128 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     setUploads(prev => [...prev, fakeItem]);
     
     try {
-      console.log(`[Sketchfab Import] 🚀 Starting DIRECT import: ${model.name} (uid: ${model.uid})`);
+      console.log(`[Sketchfab Import] 🚀 Starting SERVER-SIDE import: ${model.name} (uid: ${model.uid})`);
       
-      // Step 1: Get the download URL via lightweight edge function (no memory issue)
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
-      const urlRes = await fetch(`https://${projectId}.supabase.co/functions/v1/get-sketchfab-url`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "apikey": anonKey, "Authorization": `Bearer ${anonKey}` },
-        body: JSON.stringify({ uid: model.uid, sketchfabToken: token }),
-      });
-      const urlData = await urlRes.json();
-      if (!urlRes.ok || urlData.error) {
-        throw new Error(urlData.error || `שגיאה ${urlRes.status}`);
-      }
+      // Use stream-import-sketchfab edge function - does everything server-side
+      // (downloads from Sketchfab + uploads to Storage with service role key)
+      updateUploadItem(uploadId, { progress: 10, statusLabel: `🔗 שולח לשרת לייבוא...` });
       
-      console.log(`[Sketchfab Import] 🔗 Got download URL, downloading in browser...`);
-      updateUploadItem(uploadId, { progress: 15, statusLabel: `⬇️ מוריד ${model.name}...` });
+      console.log(`[Sketchfab Import] 📡 Calling stream-import-sketchfab edge function...`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.error(`[Sketchfab Import] ⏰ Edge function timeout after 300s`);
+        controller.abort();
+      }, 300000); // 5 min timeout for large files
       
-      // Step 2: Download GLB directly in the browser (no size limit!)
-      const glbRes = await fetch(urlData.glbUrl);
-      if (!glbRes.ok) throw new Error(`הורדה נכשלה: ${glbRes.status}`);
+      // Progress simulation while waiting for server
+      let progressInterval: ReturnType<typeof setInterval> | null = null;
+      let simulatedProgress = 10;
+      progressInterval = setInterval(() => {
+        simulatedProgress = Math.min(simulatedProgress + 2, 90);
+        updateUploadItem(uploadId, { 
+          progress: simulatedProgress, 
+          statusLabel: simulatedProgress < 40 ? `⬇️ השרת מוריד...` : 
+                       simulatedProgress < 70 ? `💾 השרת מעלה לאחסון...` : 
+                       `🔄 מסיים עיבוד...`
+        });
+      }, 3000);
       
-      const contentLength = Number(glbRes.headers.get("content-length") || 0);
-      let downloaded = 0;
-      const reader = glbRes.body!.getReader();
-      const chunks: Uint8Array[] = [];
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        downloaded += value.byteLength;
-        if (contentLength > 0) {
-          const pct = Math.min(15 + Math.round((downloaded / contentLength) * 50), 65);
-          updateUploadItem(uploadId, { progress: pct, statusLabel: `⬇️ מוריד... ${(downloaded / 1048576).toFixed(1)}MB` });
+      try {
+        const res = await fetch(`https://${projectId}.supabase.co/functions/v1/stream-import-sketchfab`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json", 
+            "apikey": anonKey, 
+            "Authorization": `Bearer ${anonKey}` 
+          },
+          body: JSON.stringify({ 
+            uid: model.uid, 
+            name: model.name || `Sketchfab ${model.uid}`,
+            hebrew_name: "",
+          }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        if (progressInterval) clearInterval(progressInterval);
+        
+        const result = await res.json();
+        console.log(`[Sketchfab Import] 📡 Edge function response: status=${res.status}`, result);
+        
+        if (!res.ok || result.error) {
+          throw new Error(result.error || `שגיאת שרת ${res.status}`);
         }
-      }
-      
-      // Assemble buffer
-      const totalSize = chunks.reduce((s, c) => s + c.byteLength, 0);
-      const buffer = new Uint8Array(totalSize);
-      let offset = 0;
-      for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.byteLength; }
-      
-      console.log(`[Sketchfab Import] ✅ Downloaded ${(totalSize / 1048576).toFixed(1)}MB in browser`);
-      console.log(`[Sketchfab Import] 📊 Buffer type: ${buffer.constructor.name}, byteLength: ${buffer.byteLength}`);
-      updateUploadItem(uploadId, { progress: 70, statusLabel: `💾 מעלה לאחסון...` });
-      
-      // Step 3: Upload directly to Supabase Storage using raw fetch (SDK hangs)
-      const fileName = urlData.fileName;
-      console.log(`[Sketchfab Import] 📁 Target fileName: ${fileName}`);
-      
-      const uploadBlob = new Blob([buffer], { type: "model/gltf-binary" });
-      console.log(`[Sketchfab Import] 📦 Blob created, size: ${uploadBlob.size} bytes, type: ${uploadBlob.type}`);
-      
-      // Use raw fetch instead of SDK - SDK seems to hang
-      const uploadUrl = `${SUPABASE_URL}/storage/v1/object/models/${fileName}`;
-      console.log(`[Sketchfab Import] 🌐 Upload URL: ${uploadUrl}`);
-      
-      let uploadErr: any = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        const startTime = Date.now();
-        console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt}/3 via raw fetch at ${new Date().toISOString()}...`);
-        updateUploadItem(uploadId, { progress: 70 + (attempt - 1) * 3, statusLabel: `💾 מעלה... ניסיון ${attempt}/3` });
         
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          console.error(`[Sketchfab Import] ⏰ Upload timeout after 120s, aborting...`);
-          controller.abort();
-        }, 120000);
+        const { fileName, fileUrl, fileSize, displayName } = result;
+        console.log(`[Sketchfab Import] ✅ Server imported: ${displayName} (${(fileSize / 1048576).toFixed(1)}MB)`);
         
+        updateUploadItem(uploadId, { progress: 92, statusLabel: `🔬 מנתח meshes...` });
+        
+        // Parse mesh names client-side by downloading just the header (first 1MB)
+        let allNames: string[] = [];
         try {
-          console.log(`[Sketchfab Import] 💾 Sending POST request...`);
-          const response = await fetch(uploadUrl, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-              "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              "Content-Type": "model/gltf-binary",
-              "x-upsert": "true",
-            },
-            body: uploadBlob,
-            signal: controller.signal,
+          console.log(`[Sketchfab Import] 🔬 Fetching GLB header for mesh analysis...`);
+          const headerRes = await fetch(fileUrl, {
+            headers: { "Range": "bytes=0-1048576" }
           });
-          
-          clearTimeout(timeoutId);
-          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-          const responseText = await response.text();
-          console.log(`[Sketchfab Import] 💾 Upload attempt ${attempt} response: status=${response.status}, statusText=${response.statusText}, elapsed=${elapsed}s`);
-          console.log(`[Sketchfab Import] 💾 Response body: ${responseText.substring(0, 500)}`);
-          console.log(`[Sketchfab Import] 💾 Response headers:`, Object.fromEntries(response.headers.entries()));
-          
-          if (response.ok) {
-            uploadErr = null;
-            console.log(`[Sketchfab Import] ✅ Upload succeeded!`);
-            break;
+          if (headerRes.ok || headerRes.status === 206) {
+            const headerBuffer = await headerRes.arrayBuffer();
+            const { parseGlbFast } = await import("./FastGlbParser");
+            const meshInfo = parseGlbFast(headerBuffer);
+            allNames = meshInfo.meshNames.length > 0 ? meshInfo.meshNames : meshInfo.nodeNames;
+            console.log(`[Sketchfab Import] 🔬 Found ${meshInfo.meshNames.length} meshes, ${meshInfo.nodeNames.length} nodes`);
           }
-          uploadErr = new Error(`HTTP ${response.status}: ${responseText.substring(0, 200)}`);
-          console.warn(`[Sketchfab Import] ⚠️ Upload attempt ${attempt} failed: ${uploadErr.message}`);
-        } catch (fetchErr: any) {
-          clearTimeout(timeoutId);
-          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-          console.error(`[Sketchfab Import] ❌ Upload attempt ${attempt} threw after ${elapsed}s: ${fetchErr.message}`);
-          console.error(`[Sketchfab Import] ❌ Error name: ${fetchErr.name}, type: ${fetchErr.constructor.name}`);
-          uploadErr = fetchErr;
+        } catch (meshErr) {
+          console.warn(`[Sketchfab Import] ⚠️ Mesh analysis failed (non-critical):`, meshErr);
         }
         
-        if (attempt < 3) {
-          const waitSec = 2 * attempt;
-          console.log(`[Sketchfab Import] ⏳ Waiting ${waitSec}s before retry...`);
-          updateUploadItem(uploadId, { statusLabel: `💾 ניסיון ${attempt + 1}/3 (ממתין ${waitSec}שׁ)...` });
-          await new Promise(r => setTimeout(r, waitSec * 1000));
+        // Update DB record with mesh_parts and category
+        updateUploadItem(uploadId, { progress: 95, statusLabel: `📝 מעדכן מסד נתונים...` });
+        const { data: existing } = await supabase.from("models").select("id").eq("file_name", fileName).maybeSingle();
+        
+        const modelData = {
+          display_name: displayName,
+          file_url: fileUrl,
+          file_size: fileSize,
+          media_type: "glb" as const,
+          mesh_parts: allNames.length > 0 ? allNames : undefined,
+          category_id: activeCategory || categories[0]?.id || null,
+        };
+        
+        let modelId: string | null = null;
+        if (existing) {
+          await supabase.from("models").update(modelData).eq("id", existing.id);
+          modelId = existing.id;
+        } else {
+          const { data: inserted } = await supabase.from("models").insert({ file_name: fileName, ...modelData }).select("id").single();
+          modelId = inserted?.id || null;
         }
-      }
-      
-      if (uploadErr) {
-        console.error(`[Sketchfab Import] ❌ All 3 upload attempts failed. Last error:`, uploadErr);
-        throw new Error(`העלאה נכשלה אחרי 3 ניסיונות: ${uploadErr.message}`);
-      }
-      
-      const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/models/${fileName}`;
-      console.log(`[Sketchfab Import] ✅ Uploaded to Storage`);
-      updateUploadItem(uploadId, { progress: 85, statusLabel: `🔬 מנתח meshes...` });
-      
-      // Step 4: Parse mesh names client-side using fast binary parser
-      const { parseGlbFast } = await import("./FastGlbParser");
-      const meshInfo = parseGlbFast(buffer.buffer);
-      const allNames = meshInfo.meshNames.length > 0 ? meshInfo.meshNames : meshInfo.nodeNames;
-      console.log(`[Sketchfab Import] 🔬 Found ${meshInfo.meshNames.length} meshes, ${meshInfo.nodeNames.length} nodes`);
-      
-      // Step 5: Insert into DB
-      const displayName = model.name || `Sketchfab ${model.uid}`;
-      const { data: existing } = await supabase.from("models").select("id").eq("file_name", fileName).maybeSingle();
-      
-      const modelData = {
-        display_name: displayName,
-        file_url: fileUrl,
-        file_size: totalSize,
-        media_type: "glb" as const,
-        mesh_parts: allNames,
-        category_id: activeCategory || categories[0]?.id || null,
-      };
-      
-      let modelId: string | null = null;
-      if (existing) {
-        await supabase.from("models").update(modelData).eq("id", existing.id);
-        modelId = existing.id;
-      } else {
-        const { data: inserted } = await supabase.from("models").insert({ file_name: fileName, ...modelData }).select("id").single();
-        modelId = inserted?.id || null;
-      }
-      
-      console.log(`[Sketchfab Import] ✅ DB record: ${modelId}`);
-      updateUploadItem(uploadId, { status: "done", progress: 100, statusLabel: `✅ ${model.name} — יובא בהצלחה! (${(totalSize / 1048576).toFixed(1)}MB)` });
-      await load();
-      
-      // Background: generate thumbnail
-      if (modelId && fileUrl) {
-        setBgProcessingIds(prev => new Set(prev).add(modelId!));
-        (async () => {
-          try {
-            console.log(`[Sketchfab Import/BG] 📸 Generating thumbnail...`);
-            const thumbBlob = await generateThumbnailFromUrl(fileUrl);
-            if (thumbBlob) { await uploadThumbnailBlob(thumbBlob, modelId!); }
-          } catch (e) { console.error("[Sketchfab Import/BG] ❌ Thumbnail error:", e); }
-          setBgProcessingIds(prev => { const s = new Set(prev); s.delete(modelId!); return s; });
-          load();
-        })();
+        
+        console.log(`[Sketchfab Import] ✅ DB record: ${modelId}`);
+        updateUploadItem(uploadId, { status: "done", progress: 100, statusLabel: `✅ ${displayName} — יובא בהצלחה! (${(fileSize / 1048576).toFixed(1)}MB)` });
+        await load();
+        
+        // Background: generate thumbnail
+        if (modelId && fileUrl) {
+          setBgProcessingIds(prev => new Set(prev).add(modelId!));
+          (async () => {
+            try {
+              console.log(`[Sketchfab Import/BG] 📸 Generating thumbnail...`);
+              const thumbBlob = await generateThumbnailFromUrl(fileUrl);
+              if (thumbBlob) { await uploadThumbnailBlob(thumbBlob, modelId!); }
+            } catch (e) { console.error("[Sketchfab Import/BG] ❌ Thumbnail error:", e); }
+            setBgProcessingIds(prev => { const s = new Set(prev); s.delete(modelId!); return s; });
+            load();
+          })();
+        }
+        
+      } catch (innerErr) {
+        clearTimeout(timeoutId);
+        if (progressInterval) clearInterval(progressInterval);
+        throw innerErr;
       }
       
       setTimeout(() => setUploads(prev => prev.filter(u => u.id !== uploadId)), 4000);
