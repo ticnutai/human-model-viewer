@@ -103,7 +103,8 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
       if (error) throw error;
       
       toast({ title: "ניתוח AI הושלם", description: `זוהו ${data.results?.length || 0} מבנים` });
-      onLoad();
+      if (onLoad) onLoad();
+      else fetchModels();
     } catch (e: any) {
       console.error(e);
       toast({ title: "שגיאת AI", description: e.message, variant: "destructive" });
