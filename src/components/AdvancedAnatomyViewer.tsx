@@ -882,6 +882,7 @@ export default function AdvancedAnatomyViewer() {
   const [ctxMenu, setCtxMenu] = useState<{ mod: typeof cloudModels[0]; x: number; y: number } | null>(null);
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingDisplayName, setEditingDisplayName] = useState("");
   const [pinnedModels, setPinnedModels] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem("pinned_models") || "[]")); } catch { return new Set(); }
   });
@@ -905,15 +906,18 @@ export default function AdvancedAnatomyViewer() {
     setCtxMenu(null);
   };
 
-  const renameCloudModel = async (id: string, newName: string) => {
+  const renameCloudModel = async (id: string, hebrewName: string, displayName: string) => {
     const baseUrl = import.meta.env.VITE_SUPABASE_URL;
     const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const body: Record<string, string> = {};
+    if (hebrewName) body.hebrew_name = hebrewName;
+    if (displayName) body.display_name = displayName;
     await fetch(`${baseUrl}/rest/v1/models?id=eq.${id}`, {
       method: "PATCH",
       headers: { apikey, Authorization: `Bearer ${apikey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-      body: JSON.stringify({ hebrew_name: newName }),
+      body: JSON.stringify(body),
     });
-    setCloudModels(prev => prev.map(m => m.id === id ? { ...m, hebrew_name: newName } : m));
+    setCloudModels(prev => prev.map(m => m.id === id ? { ...m, ...(hebrewName ? { hebrew_name: hebrewName } : {}), ...(displayName ? { display_name: displayName } : {}) } : m));
     setEditingModelId(null);
   };
 
