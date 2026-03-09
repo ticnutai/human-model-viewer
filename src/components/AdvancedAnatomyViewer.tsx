@@ -956,6 +956,34 @@ export default function AdvancedAnatomyViewer() {
     setShowDuplicates(false);
   };
 
+  const [meshCtxMenu, setMeshCtxMenu] = useState<{ key: string; idx: number; x: number; y: number } | null>(null);
+
+  const handleMeshCtx = (e: React.MouseEvent, key: string, idx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMeshCtxMenu({ key, idx, x: e.clientX, y: e.clientY });
+  };
+
+  const deleteMeshMapping = async (meshKey: string) => {
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const modelUrl = meta.path;
+    await fetch(`${baseUrl}/rest/v1/model_mesh_mappings?model_url=eq.${encodeURIComponent(modelUrl)}&mesh_key=like.*${encodeURIComponent(meshKey)}*`, {
+      method: "DELETE", headers: { apikey, Authorization: `Bearer ${apikey}` },
+    });
+    refetchMappings();
+    setMeshCtxMenu(null);
+  };
+
+  const toggleMeshVisibility = (key: string) => {
+    setHiddenMeshes(prev => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+    setMeshCtxMenu(null);
+  };
+
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, themeId);
   }, [themeId]);
