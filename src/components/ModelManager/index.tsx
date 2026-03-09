@@ -745,7 +745,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         const translated = result.translatedNames.length > 0 ? result.translatedNames : result.meshNames.map(translateMeshName);
         const updateData: Record<string, any> = { mesh_parts: translated };
         // Auto-set hebrew_name if empty
-        if (!m.hebrew_name || m.m.hebrew_name?.trim() === "") {
+        if (!m.hebrew_name || m.hebrew_name.trim() === "") {
           const autoHeb = autoHebrewName(m.display_name, m.file_name);
           if (autoHeb) updateData.hebrew_name = autoHeb;
         }
