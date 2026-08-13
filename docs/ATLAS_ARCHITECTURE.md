@@ -40,6 +40,14 @@ Learning level and aggregate progress are stored locally in the browser by defau
 
 ## Body assembly
 
-`/body-builder` composes 13 male HRA reference organs without centering or resizing each asset independently. Their source transforms are preserved so they remain in the shared reference-body coordinate system. The layer panel controls selection, visibility and global opacity. User-supplied GLBs are validated by their binary header and stored locally in IndexedDB together with explicit X/Y/Z placement and scale; their anatomical accuracy and license remain the importer’s responsibility.
+`/body-builder` catalogs 23 male HRA reference layers without centering or resizing each asset independently. Their source transforms are preserved so they remain in the shared reference-body coordinate system. Thirteen core organs form the lightweight initial preset; blood vasculature, larynx, bronchi, ureters, pelvis, prostate, skin, thymus and lymph node load only when revealed. The panel groups layers by anatomical system, provides core/full/shell presets, and persists visibility choices locally. User-supplied GLBs are validated by their binary header and stored locally in IndexedDB together with explicit X/Y/Z placement and scale; their anatomical accuracy and license remain the importer’s responsibility.
+
+The same studio includes a separate 28-layer female HRA body. It uses only female Visible Human coordinates and adds the uterus, ovaries, fallopian tubes, left mammary gland and placenta. Male and female objects are never mixed in a single reference assembly. The female lung and right mammary gland currently remain outside the live catalog because their official GLBs exceed the 15 MB delivery gate.
+
+The official HRA eye objects are excluded until they are optimized below the 15 MB per-asset delivery gate. The male/female skin shells and the two single-mesh ovaries are documented semantic-separation exceptions.
+
+## Medical media lab
+
+`/media-lab` is Hebrew-first and serves local public-domain sample media from the U.S. National Library of Medicine Visible Human Project. It compares real-color cryosections with T1, T2 and proton-density MRI samples across six body regions. A timed sequence is an interactive slice tour, not a diagnostic cine study. The multiscale view connects body, organ, tissue, cell and physiological process with vetted Hebrew educational copy. Source, dignity statement and educational disclaimer remain visible in the interface.
 
 The cloud/local GLB manager is available at `/legacy?panel=models&tool=models`; its mapping tools use the same studio panel with `tool=meshmap` and `tool=allmappings`.

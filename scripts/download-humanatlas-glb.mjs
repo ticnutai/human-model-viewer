@@ -58,6 +58,56 @@ const MODELS = [
     creator: "Kristin Browne",
     uberon: "UBERON:0002107",
   },
+  {
+    label: "Blood Vasculature", sex: "Male",
+    file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Blood_Vasculature.glb",
+    subpath: "VH_M_blood_vasculature", slug: "vh-m-blood-vasculature", creator: "Kristin Browne", uberon: "UBERON:0004537",
+  },
+  {
+    label: "Larynx", sex: "Male",
+    file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.4/3d-vh-m-larynx.glb",
+    subpath: "VH_M_larynx", slug: "vh-m-larynx", creator: "Kristin Browne", uberon: "UBERON:0001737",
+  },
+  {
+    label: "Left Ureter", sex: "Male",
+    file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Ureter_L.glb",
+    subpath: "VH_M_ureter_L", slug: "vh-m-ureter-left", creator: "Kristin Browne", uberon: "UBERON:0001223",
+  },
+  {
+    label: "Right Ureter", sex: "Male",
+    file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Ureter_R.glb",
+    subpath: "VH_M_ureter_R", slug: "vh-m-ureter-right", creator: "Kristin Browne", uberon: "UBERON:0001222",
+  },
+  {
+    label: "Pelvis", sex: "Male",
+    file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Pelvis.glb",
+    subpath: "VH_M_pelvis", slug: "vh-m-pelvis", creator: "Kristin Browne", uberon: "UBERON:0001270",
+  },
+  {
+    label: "Prostate", sex: "Male",
+    file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Prostate.glb",
+    subpath: "VH_M_male_reproductive_system", slug: "vh-m-prostate", creator: "Kristin Browne", uberon: "UBERON:0000079",
+  },
+  {
+    label: "Skin", sex: "Male",
+    file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Skin.glb",
+    subpath: "VH_M_skin", slug: "vh-m-skin", creator: "Kristin Browne", uberon: "UBERON:0002097",
+  },
+  {
+    label: "Thymus", sex: "Male",
+    file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Thymus.glb",
+    subpath: "VH_M_thymus", slug: "vh-m-thymus", creator: "Kristin Browne", uberon: "UBERON:0002370",
+  },
+  {
+    label: "Main Bronchus", sex: "Male",
+    file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.4/3d-vh-m-main-bronchus.glb",
+    subpath: "VH_M_main_bronchi", slug: "vh-m-main-bronchus", creator: "Kristin Browne", uberon: "UBERON:0002182",
+  },
+  {
+    label: "Lymph Node", sex: "Male",
+    file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/NIH_M_Lymph_Node.glb",
+    subpath: "Yao_lymph_node", slug: "vh-m-lymph-node", creator: "Kristin Browne", uberon: "UBERON:0002509",
+  },
 ];
 
 function downloadFile(url) {

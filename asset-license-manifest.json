@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "lastUpdated": "2026-03-04",
+  "version": 2,
+  "lastUpdated": "2026-08-13",
   "assets": [
     {
       "path": "public/models/human_organs_1.glb",
@@ -298,7 +298,10 @@
       "source": "Human Reference Atlas – CCF (Common Coordinate Framework)",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Heart (UBERON:0000948)",
       "downloads": 0,
       "likes": 0,
@@ -310,7 +313,10 @@
       "source": "Human Reference Atlas – CCF (Common Coordinate Framework)",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Female Allen Brain (UBERON:0000955)",
       "downloads": 0,
       "likes": 0,
@@ -322,7 +328,10 @@
       "source": "Human Reference Atlas – CCF (Common Coordinate Framework)",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Lung (UBERON:0001004)",
       "downloads": 0,
       "likes": 0,
@@ -334,7 +343,10 @@
       "source": "Human Reference Atlas – CCF (Common Coordinate Framework)",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Left Kidney (UBERON:0004538)",
       "downloads": 0,
       "likes": 0,
@@ -346,7 +358,10 @@
       "source": "Human Reference Atlas – CCF (Common Coordinate Framework)",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Liver (UBERON:0002107)",
       "downloads": 0,
       "likes": 0,
@@ -358,7 +373,10 @@
       "source": "Human Reference Atlas – CCF",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://humanatlas.io/3d-reference-library — Male Brain (UBERON:0000955)"
     },
     {
@@ -366,7 +384,10 @@
       "source": "Human Reference Atlas – CCF",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://humanatlas.io/3d-reference-library — Male Right Kidney (UBERON:0004539)"
     },
     {
@@ -374,7 +395,10 @@
       "source": "Human Reference Atlas – CCF",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://humanatlas.io/3d-reference-library — Male Large Intestine (UBERON:0000059)"
     },
     {
@@ -382,7 +406,10 @@
       "source": "Human Reference Atlas – CCF",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://humanatlas.io/3d-reference-library — Male Pancreas (UBERON:0001264)"
     },
     {
@@ -390,7 +417,10 @@
       "source": "Human Reference Atlas – CCF",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://humanatlas.io/3d-reference-library — Male Small Intestine (UBERON:0002108)"
     },
     {
@@ -398,7 +428,10 @@
       "source": "Human Reference Atlas – CCF",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://humanatlas.io/3d-reference-library — Male Spleen (UBERON:0002106)"
     },
     {
@@ -406,7 +439,10 @@
       "source": "Human Reference Atlas – CCF",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://humanatlas.io/3d-reference-library — Male Urinary Bladder (UBERON:0001255)"
     },
     {
@@ -414,7 +450,10 @@
       "source": "Human Reference Atlas – CCF",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://humanatlas.io/3d-reference-library — Male Spinal Cord (UBERON:0002240)"
     },
     {
@@ -422,8 +461,455 @@
       "source": "Human Reference Atlas – CCF",
       "license": "CC Attribution 4.0 International",
       "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
-      "allowedUse": ["web-education", "research"],
+      "allowedUse": [
+        "web-education",
+        "research"
+      ],
       "notes": "https://humanatlas.io/3d-reference-library — Male Trachea (UBERON:0003126)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-blood-vasculature/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Blood Vasculature (UBERON:0004537)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-larynx/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Larynx (UBERON:0001737)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-ureter-left/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "Male Left Ureter (UBERON:0001223)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-ureter-right/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "Male Right Ureter (UBERON:0001222)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-pelvis/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "Male Pelvis (UBERON:0001270)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-prostate/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "Male Prostate (UBERON:0000079)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-skin/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "Male Skin reference shell (UBERON:0002097)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-thymus/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "Male Thymus (UBERON:0002370)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-main-bronchus/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "Male Main Bronchus (UBERON:0002182)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-lymph-node/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "Male Lymph Node (UBERON:0002509)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-bladder/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Urinary Bladder (UBERON:0001255)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-blood-vasculature/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Blood Vasculature (UBERON:0004537)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-fallopian-tube-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Left Fallopian Tube (UBERON:0001303)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-fallopian-tube-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Right Fallopian Tube (UBERON:0001302)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-heart/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Heart (UBERON:0000948)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-kidney-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Left Kidney (UBERON:0004538)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-kidney-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Right Kidney (UBERON:0004539)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-large-intestine/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Large Intestine (UBERON:0000059)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-larynx/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Larynx (UBERON:0001737)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-liver/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Liver (UBERON:0002107)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-lymph-node/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Lymph Node (UBERON:0002509)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-main-bronchus/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Main Bronchus (UBERON:0002182)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-mammary-gland-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Left Mammary Gland (fma57991)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-ovary-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Left Ovary (fma7214)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-ovary-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Right Ovary (fma7213)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-pancreas/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Pancreas (UBERON:0001264)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-pelvis/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Pelvis (UBERON:0001270)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-placenta/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Placenta (UBERON:0001987)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-skin/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Skin (UBERON:0002097)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-small-intestine/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Small Intestine (UBERON:0002108)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-spinal-cord/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Spinal Cord (UBERON:0002240)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-spleen/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Spleen (UBERON:0002106)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-thymus/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Thymus (UBERON:0002370)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-trachea/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Trachea (UBERON:0003126)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-ureter-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Left Ureter (UBERON:0001223)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-ureter-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Right Ureter (UBERON:0001222)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-uterus/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Uterus (UBERON:0000995)"
     }
   ]
 }

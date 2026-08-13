@@ -28,15 +28,23 @@ export function useMeshMappings(modelId?: string) {
 
     const fetchData = async () => {
       setLoading(true);
-      let query = supabase.from("model_mesh_mappings").select("*");
-      if (modelId) {
-        query = query.eq("model_url", modelId);
+      // Supabase/PostgREST returns at most 1,000 rows by default. Once the
+      // library grew beyond that, mappings appeared and disappeared according
+      // to result order. Fetch every page so all models use one complete map.
+      const data: any[] = [];
+      let error: any = null;
+      for (let offset = 0; ; offset += 1000) {
+        let query = supabase.from("model_mesh_mappings").select("*").range(offset, offset + 999);
+        if (modelId) query = query.eq("model_url", modelId);
+        const page = await query;
+        if (page.error) { error = page.error; break; }
+        const rows = page.data || [];
+        data.push(...rows);
+        if (rows.length < 1000) break;
       }
-
-      const { data, error } = await query;
       if (cancelled) return;
 
-      if (!error && data) {
+      if (!error) {
         const parsed = data.map((row) => ({
           ...row,
           facts: typeof row.facts === "string" ? JSON.parse(row.facts) : (row.facts || {}),

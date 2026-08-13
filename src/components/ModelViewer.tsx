@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMeshMappings, useCloudLayers } from "@/hooks/useMeshMappings";
 
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
+type SidebarTab = "organs" | "models" | "gallery" | "info" | "analysis" | "sources";
 import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager/index";
 import AnalysisPanel from "./ModelManager/AnalysisPanel";
@@ -35,6 +36,7 @@ import { usePreferences } from "@/hooks/usePreferences";
 import type { ModelRecord } from "@/components/ModelManager/types";
 import { loadCloudModels } from "@/lib/cloudModelRepository";
 import { useAppTheme } from "@/contexts/AppThemeContext";
+import { canonicalMeshKey, canonicalModelUrl } from "@/lib/anatomyModelIdentity";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const cloudUrl = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
@@ -49,7 +51,11 @@ const LOCAL_MODELS = {
   heart: `${LOCAL_MODEL_ROOT}/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb`,
 } as const;
 const LOCAL_DEFAULT_MODEL = LOCAL_MODELS.body;
-const DEFAULT_MODEL = LOCAL_DEFAULT_MODEL;
+// The former front-body file is a single merged mesh, so every click could only
+// identify one generic structure. Start the organ viewer with the detailed,
+// mapped Z-Anatomy body and retain the small local file only as an error fallback.
+const DETAILED_BODY_MODEL = cloudUrl("sketchfab_6cc9217317804dc89622b7b0e499bc89.glb");
+const DEFAULT_MODEL = DETAILED_BODY_MODEL || LOCAL_DEFAULT_MODEL;
 const SKETCHFAB_TOKEN_STORAGE_KEY = "sketchfab-api-token";
 const EFFECTS_PREFS_KEY = "anatomy-effects-prefs-v1";
 
@@ -214,12 +220,17 @@ const configureGLTFLoader = (loader: GLTFLoader) => {
 };
 
 // ── 3D Model component ──
-function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, onScan }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; onScan?: (organs: ScannedOrgan[]) => void }) {
+function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, mappedDetails, onScan }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; mappedDetails: Map<string, OrganDetail>; onScan?: (organs: ScannedOrgan[]) => void }) {
   const { lang } = useLanguage();
   const gltf = useLoader(GLTFLoader, url, configureGLTFLoader);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const originalMaterials = useRef<Map<string, THREE.Material | THREE.Material[]>>(new Map());
   const originalPositions = useRef<Map<string, THREE.Vector3>>(new Map());
+  const meshCount = useMemo(() => {
+    let count = 0;
+    sceneClone.traverse(child => { if ((child as THREE.Mesh).isMesh) count += 1; });
+    return count;
+  }, [sceneClone]);
 
   const getDetectionCandidates = useCallback((mesh: THREE.Mesh) => {
     const candidates: string[] = [];
@@ -234,6 +245,18 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
     return candidates;
   }, []);
 
+  const getMappedDetail = useCallback((candidates: string[]) => {
+    for (const candidate of candidates) {
+      const exact = mappedDetails.get(candidate);
+      if (exact) return exact;
+      const stable = canonicalMeshKey(candidate).toLocaleLowerCase("en");
+      for (const [key, detail] of mappedDetails) {
+        if (canonicalMeshKey(key).toLocaleLowerCase("en") === stable) return detail;
+      }
+    }
+    return null;
+  }, [mappedDetails]);
+
   useEffect(() => {
     if (!onScan) return;
     const results: ScannedOrgan[] = [];
@@ -242,12 +265,17 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
       if (!(child as THREE.Mesh).isMesh) return;
       const mesh = child as THREE.Mesh;
       const candidates = getDetectionCandidates(mesh);
-      const detail = getBestOrganDetail(candidates);
+      // Every mesh stays visible in the scan. A multi-part body receives only
+      // an exact saved mapping; otherwise it is presented as a safe body
+      // region/technical structure instead of being guessed as an organ.
+      const detail = getMappedDetail(candidates)
+        || (meshCount <= 1 ? getBestOrganDetail(candidates) : null)
+        || getSafeRegionDetail(mesh.name || "unknown-mesh", lang);
       const key = detail ? detail.meshName : mesh.name;
       if (!seen.has(key)) { seen.add(key); results.push({ meshName: mesh.name, detail }); }
     });
     onScan(results);
-  }, [getDetectionCandidates, sceneClone, onScan]);
+  }, [getDetectionCandidates, getMappedDetail, meshCount, sceneClone, onScan]);
 
   const normalizedTransform = useMemo(() => {
     const box = new THREE.Box3().setFromObject(sceneClone);
@@ -305,12 +333,17 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
     e.stopPropagation();
     const mesh = e.object as THREE.Mesh;
     const candidates = getDetectionCandidates(mesh);
-    const detail = getBestOrganDetail(candidates);
+    const detail = getMappedDetail(candidates) || (meshCount <= 1 ? getBestOrganDetail(candidates) : null);
     if (detail) { onSelect({ ...detail, meshName: mesh.name || detail.meshName }); return; }
     const urlHint = getOrganHintFromUrl(url);
-    if (urlHint) { onSelect({ ...urlHint, meshName: mesh.name || urlHint.meshName }); return; }
+    // A file-level hint is valid for a single-organ GLB, but on a complete body
+    // it made every mesh click return the same generic "human body" result.
+    if (urlHint && meshCount <= 1) { onSelect({ ...urlHint, meshName: mesh.name || urlHint.meshName }); return; }
     const firstMat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-    if (firstMat && "color" in firstMat) {
+    // Material color is not medically specific on a complete body: brown skin
+    // can look like liver and pink surfaces like lung. Keep color inference only
+    // for a single-mesh organ file where it cannot mislabel another body region.
+    if (meshCount <= 1 && firstMat && "color" in firstMat) {
       const col = (firstMat as THREE.MeshStandardMaterial).color;
       if (col) {
         const colorMatch = detectOrganByColor(col.r, col.g, col.b);
@@ -320,9 +353,7 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
         }
       }
     }
-    onSelect(getFallbackDetail(mesh.name || "unknown-mesh",
-      lang === "en" ? "Internal Organs System" : "מערכת האיברים הפנימיים",
-      lang === "en" ? "This model displays the human internal organs system." : "המודל מציג את מערכת האיברים הפנימיים של גוף האדם.", "🫀"));
+    onSelect(getSafeRegionDetail(mesh.name || "unknown-mesh", lang));
   };
 
   return (
@@ -393,6 +424,64 @@ const SYSTEM_ICONS: Record<string, string> = {
   "מערכת הרבייה": "🧬", "Reproductive System": "🧬",
 };
 
+const MAPPING_SYSTEM_HE: Record<string, string> = {
+  skeleton: "מערכת השלד",
+  muscles: "מערכת השרירים",
+  organs: "מערכות האיברים",
+  vessels: "מערכת כלי הדם",
+  cardiovascular: "מערכת הלב וכלי הדם",
+  respiratory: "מערכת הנשימה",
+  glands: "המערכת האנדוקרינית",
+  cranium: "הגולגולת",
+  face: "עצמות הפנים",
+  jaw: "הלסת",
+  integumentary: "מערכת המעטפת והעור",
+  body_regions: "אזורי הגוף",
+  other: "חלק אנטומי",
+};
+
+const BODY_REGION_HE: Array<[RegExp, string]> = [
+  [/femoral|thigh/i, "אזור הירך"], [/lower limb|leg/i, "אזור הרגל"],
+  [/foot|pedal|digit.*foot/i, "אזור כף הרגל"], [/knee|patellar|popliteal/i, "אזור הברך"],
+  [/hip|coxal/i, "אזור האגן והירך"], [/gluteal/i, "אזור העכוז"],
+  [/shoulder|deltoid|acromial/i, "אזור הכתף"], [/scapular|infrascapular/i, "אזור השכמה"],
+  [/upper limb|arm|brachial/i, "אזור הזרוע"], [/elbow|cubital/i, "אזור המרפק"],
+  [/forearm|antebrachial/i, "אזור האמה"], [/hand|palmar|carpal|digit.*hand/i, "אזור כף היד"],
+  [/head|cephalic/i, "אזור הראש"], [/oral|mouth/i, "אזור הפה"],
+  [/mastoid|ear|auricular/i, "אזור האוזן"], [/neck|cervical/i, "אזור הצוואר"],
+  [/thorax|thoracic|chest|pectoral/i, "אזור החזה"], [/abdominal|abdomen/i, "אזור הבטן"],
+  [/back|dorsal|lumbar/i, "אזור הגב"], [/pelvic|perineal/i, "אזור האגן"],
+];
+
+function getSafeRegionDetail(meshName: string, lang: string): OrganDetail {
+  const region = BODY_REGION_HE.find(([pattern]) => pattern.test(meshName))?.[1];
+  const isSkin = /skin/i.test(meshName);
+  const hebrewName = region || (isSkin ? "אזור עור במודל" : "מבנה אנטומי שטרם זוהה");
+  const englishName = region ? "Anatomical body region" : isSkin ? "Skin region" : "Unverified anatomical structure";
+  const base = getFallbackDetail(
+    meshName,
+    lang === "en" ? englishName : hebrewName,
+    lang === "en"
+      ? "This exact model part is organized as a body region but has not been verified as a specific organ."
+      : "זהו אזור גוף במודל, אך הוא לא זוהה ואומת כאיבר מסוים. המערכת אינה מנחשת מידע רפואי.",
+    isSkin ? "🧍" : "📍",
+  );
+  return {
+    ...base,
+    name: lang === "en" ? englishName : hebrewName,
+    nameI18n: { he: hebrewName, en: englishName },
+    system: isSkin ? "מערכת המעטפת והעור" : "אזורי הגוף",
+    systemI18n: { he: isSkin ? "מערכת המעטפת והעור" : "אזורי הגוף", en: isSkin ? "Integumentary system" : "Body regions", ar: "مناطق الجسم" },
+    latinName: meshName,
+    facts: [
+      isSkin ? "זהו משטח עור חיצוני במודל" : "זהו אזור אנטומי ולא איבר פנימי",
+      "השם הטכני נשמר לצורך מיפוי ובדיקה",
+      "מידע מפורט יוצג רק לאחר זיהוי מאומת",
+    ],
+    wonderNote: "מיפוי בטוח: אין שיוך לאיבר ללא ראיה מספקת.",
+  };
+}
+
 const ModelViewer = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -428,13 +517,17 @@ const ModelViewer = () => {
   const [showViewPopup, setShowViewPopup] = useState(false);
   const [showHintTooltip, setShowHintTooltip] = useState(false);
   const [showOrganSidebar, setShowOrganSidebar] = useState(startupPanel === "models");
-  const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "gallery" | "info" | "analysis">(startupPanel === "models" ? "models" : "organs");
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>(
+    startupPanel && ["organs", "models", "gallery", "info", "analysis", "sources"].includes(startupPanel)
+      ? startupPanel as SidebarTab
+      : "organs",
+  );
   const [showLayerPanel, setShowLayerPanel] = useState(false);
 
   useEffect(() => {
     const requested = new URLSearchParams(location.search).get("panel");
-    if (requested && ["organs", "models", "gallery", "info", "analysis"].includes(requested)) {
-      setSidebarTab(requested as "organs" | "models" | "gallery" | "info" | "analysis");
+    if (requested && ["organs", "models", "gallery", "info", "analysis", "sources"].includes(requested)) {
+      setSidebarTab(requested as SidebarTab);
       setShowOrganSidebar(true);
     }
     if (new URLSearchParams(location.search).get("effects") === "1") setShowEffectsPanel(true);
@@ -448,7 +541,11 @@ const ModelViewer = () => {
   const [xRayOpacity, setXRayOpacity] = useState(1.0);
   const [glbScanResult, setGlbScanResult] = useState<ScannedOrgan[] | null>(null);
   const [showGlbReport, setShowGlbReport] = useState(false);
+  const [glbReportMode, setGlbReportMode] = useState<"organs" | "structures">("organs");
+  const [glbReportQuery, setGlbReportQuery] = useState("");
+  const [glbStructureLimit, setGlbStructureLimit] = useState(160);
   const [glbBadgeHidden, setGlbBadgeHidden] = useState(false);
+  const [showAnatomyStudio, setShowAnatomyStudio] = useState(false);
   const [showClippingPlane, setShowClippingPlane] = useState(Boolean(savedEffectsPrefs.showClippingPlane));
   const [clipAxis, setClipAxis] = useState<ClipAxis>((savedEffectsPrefs.clipAxis as ClipAxis) || "y");
   const [clipPosition, setClipPosition] = useState(typeof savedEffectsPrefs.clipPosition === "number" ? savedEffectsPrefs.clipPosition : 0);
@@ -555,12 +652,16 @@ const ModelViewer = () => {
       const factsData = cm.facts || {};
       const key = cm.mesh_key;
       if (!enriched[key]) {
+        const hebrewName = factsData.displayNameHe || factsData.hebrewName || cm.summary || cm.name;
         enriched[key] = {
-          name: cm.name,
-          hebrewName: factsData.displayNameHe || cm.summary,
-          system: cm.system,
+          name: hebrewName,
+          nameI18n: { he: hebrewName, en: factsData.englishName || cm.name },
+          hebrewName,
+          system: MAPPING_SYSTEM_HE[cm.system] || cm.system,
+          systemI18n: { he: MAPPING_SYSTEM_HE[cm.system] || cm.system, en: cm.system, ar: cm.system },
           meshName: key,
-          description: factsData.functionHe || factsData.function || "",
+          summary: factsData.functionHe || cm.summary || hebrewName,
+          description: factsData.functionHe || cm.summary || factsData.function || "",
           latinName: factsData.latinName || "",
           diseases: factsData.diseasesHe || factsData.diseases || [],
           facts: factsData.factsHe || factsData.facts || [],
@@ -572,6 +673,42 @@ const ModelViewer = () => {
     });
     return enriched;
   }, [cloudMeshData]);
+  const currentMappedDetails = useMemo(() => {
+    const details = new Map<string, OrganDetail>();
+    cloudMeshData.forEach(mapping => {
+      if (canonicalModelUrl(mapping.model_url) !== canonicalModelUrl(modelUrl)) return;
+      // Legacy automatic rows were created by an unsafe substring matcher.
+      // Ignore them until a repair pass replaces them with an explicit status.
+      // Manual mappings remain authoritative.
+      if (mapping.facts?.autoMapped && !mapping.facts?.identificationStatus) return;
+      // Build directly from this model's row. Looking up the key in the global
+      // atlas could accidentally reuse a same-named mesh from another GLB.
+      const factsData = mapping.facts || {};
+      const hebrewName = factsData.displayNameHe || factsData.hebrewName || mapping.summary || mapping.name;
+      const detail = {
+        name: hebrewName,
+        nameI18n: { he: hebrewName, en: factsData.englishName || mapping.name },
+        hebrewName,
+        system: MAPPING_SYSTEM_HE[mapping.system] || mapping.system,
+        systemI18n: { he: MAPPING_SYSTEM_HE[mapping.system] || mapping.system, en: mapping.system, ar: mapping.system },
+        meshName: mapping.mesh_key,
+        summary: factsData.functionHe || mapping.summary || hebrewName,
+        description: factsData.functionHe || mapping.summary || factsData.function || "",
+        latinName: factsData.latinName || "",
+        diseases: factsData.diseasesHe || factsData.diseases || [],
+        facts: factsData.factsHe || factsData.facts || [],
+        icon: mapping.icon || "📍",
+        wonderNote: factsData.requiresReview ? "מיפוי בטוח: המבנה ממתין לאימות ידני ואינו משויך לאיבר ללא ראיה." : undefined,
+        detectedBy: factsData.identificationStatus || "manual-mapping",
+        detectionScore: factsData.requiresReview ? 0 : 100,
+      } as unknown as OrganDetail;
+      details.set(mapping.mesh_key, detail);
+      details.set(canonicalMeshKey(mapping.mesh_key), detail);
+      const originalName = mapping.facts?.originalMeshName;
+      if (typeof originalName === "string" && originalName.trim()) details.set(originalName.trim(), detail);
+    });
+    return details;
+  }, [cloudMeshData, modelUrl]);
   const t = useMemo(() => ({
     canvasBg: activeTheme.canvas,
     accent: activeTheme.accent,
@@ -685,6 +822,7 @@ const ModelViewer = () => {
 
   const handleSelectModel = useCallback(async (url: string) => {
     setModelLoadWarning(null); setGlbScanResult(null); setShowGlbReport(false); setGlbBadgeHidden(false);
+    setGlbReportMode("organs"); setGlbReportQuery(""); setGlbStructureLimit(160);
     const isLocalGlb = url.startsWith("/models/") && url.toLowerCase().endsWith(".glb");
     if (isLocalGlb) {
       try {
@@ -780,7 +918,11 @@ const ModelViewer = () => {
     setApiTokenInput(""); setApiTokenSaved(false);
   };
 
-  const handleGlbScan = useCallback((organs: ScannedOrgan[]) => { setGlbScanResult(organs); setShowGlbReport(false); }, []);
+  const handleGlbScan = useCallback((organs: ScannedOrgan[]) => {
+    setGlbScanResult(organs);
+    // Mapping data may arrive in pages after the model itself. Refresh the
+    // contents in place without closing the report the user just opened.
+  }, []);
 
   const handleDownloadOrganReport = useCallback(() => {
     if (!glbScanResult) return;
@@ -820,7 +962,17 @@ const ModelViewer = () => {
   }, [glbScanResult, modelUrl]);
 
   const sidebarWidth = isMobile ? "100vw" : "420px";
-  const sidebarTitle = sidebarTab === "models" ? "ספריית מודלים" : sidebarTab === "gallery" ? "גלריית מודלים" : sidebarTab === "analysis" ? "ניתוח מודל" : sidebarTab === "info" ? "מידע אנטומי" : "אטלס איברים";
+  const sidebarTitle = sidebarTab === "models" ? "ספרייה ומיפוי" : sidebarTab === "gallery" ? "גלריית מודלים" : sidebarTab === "analysis" ? "ניתוח מודל" : sidebarTab === "sources" ? "מרכז מקורות" : sidebarTab === "info" ? "מידע אנטומי" : "אטלס איברים";
+  const currentTool = new URLSearchParams(location.search).get("tool") || "models";
+  const studioTabs = [
+    { label: "איברים", icon: "🫀", to: "/legacy?panel=organs", active: sidebarTab === "organs" },
+    { label: "ספרייה", icon: "📦", to: "/legacy?panel=models&tool=models", active: sidebarTab === "models" && currentTool === "models" },
+    { label: "גלריה", icon: "🖼️", to: "/legacy?panel=gallery", active: sidebarTab === "gallery" },
+    { label: "ניתוח", icon: "🔬", to: "/legacy?panel=analysis", active: sidebarTab === "analysis" },
+    { label: "מיפוי", icon: "🗺️", to: "/legacy?panel=models&tool=meshmap", active: sidebarTab === "models" && currentTool === "meshmap" },
+    { label: "ידע", icon: "📋", to: "/legacy?panel=models&tool=allmappings", active: sidebarTab === "models" && currentTool === "allmappings" },
+    { label: "מקורות", icon: "🌐", to: "/legacy?panel=sources", active: sidebarTab === "sources" },
+  ];
   const btnSz = isMobile ? 36 : 42;
 
   return (
@@ -1019,7 +1171,7 @@ const ModelViewer = () => {
           {/* Header */}
           <div className="shrink-0 px-4 pt-4 pb-3" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-extrabold legacy-library-title">📚 {sidebarTitle}</span>
+              <span className="text-sm font-extrabold legacy-library-title">🧬 סטודיו GLB · {sidebarTitle}</span>
               <button onClick={() => setShowOrganSidebar(false)} className="text-lg transition-colors bg-transparent border-none cursor-pointer p-1 rounded-lg hover:bg-gray-100" style={{ color: "hsl(220 15% 60%)" }}>✕</button>
             </div>
             <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>
@@ -1029,6 +1181,12 @@ const ModelViewer = () => {
             <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(220 20% 93%)" }}>
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(enrichedOrganDetails).length, 1) * 100)}%`, background: "linear-gradient(90deg, hsl(43 78% 47%), hsl(43 78% 55%))" }} />
             </div>
+            {!isMobile && <nav aria-label="כלי סטודיו GLB" className="grid grid-cols-4 gap-1 mt-3">
+              {studioTabs.map(tab => <button key={tab.to} onClick={() => navigate(tab.to)} aria-current={tab.active ? "page" : undefined}
+                className={`rounded-lg border px-1.5 py-1.5 text-[9px] font-bold transition-colors ${tab.active ? "border-primary bg-primary/15 text-primary" : "border-border bg-transparent text-muted-foreground hover:border-primary/50"}`}>
+                <span className="block text-xs" aria-hidden="true">{tab.icon}</span>{tab.label}
+              </button>)}
+            </nav>}
           </div>
 
           {/* Content */}
@@ -1103,6 +1261,9 @@ const ModelViewer = () => {
             {sidebarTab === "analysis" && (
               <AnalysisPanel models={cloudModels as any} />
             )}
+            {sidebarTab === "sources" && (
+              <AnatomySourcesPanel theme={t} />
+            )}
             {sidebarTab === "info" && selectedOrgan && (
               <div className="flex flex-col gap-3">
                 <div className="text-center">
@@ -1155,34 +1316,58 @@ const ModelViewer = () => {
       {(() => {
         if (!glbScanResult || glbBadgeHidden) return null;
         const detected = glbScanResult.filter(o => o.detail !== null);
-        const uniqueOrgans = [...new Map(detected.map(o => [o.detail!.name, o.detail!])).values()];
+        // On a mapped model, wait for the cloud mapping pass before showing the
+        // report. This avoids a brief report built from heuristic guesses.
+        if (currentMappedDetails.size > 0 && !detected.some(item => item.detail?.detectedBy === "identified" || item.detail?.detectedBy === "body-region" || item.detail?.detectedBy === "unidentified" || item.detail?.detectedBy === "manual-mapping")) return null;
+        const uniqueOrgans = [...new Map(detected.map(o => [o.detail!.name, o])).values()];
+        const query = glbReportQuery.trim().toLocaleLowerCase("he");
+        const filteredStructures = detected.filter(item => !query || [item.detail!.name, item.detail!.system, item.detail!.latinName, item.meshName]
+          .filter(Boolean).some(value => String(value).toLocaleLowerCase("he").includes(query)));
+        const shownStructures = filteredStructures.slice(0, glbStructureLimit);
         return (
-          <div className="absolute z-[28]" style={{ top: isMobile ? 50 : 62, [isRTL ? "right" : "left"]: isMobile ? 8 : (showLayerPanel ? 224 : 56) }}>
+          <div data-testid="anatomy-scan-badge" data-mapping-count={currentMappedDetails.size} className="absolute z-[28]" style={{ top: isMobile ? 50 : 62, [isRTL ? "right" : "left"]: isMobile ? 8 : (showLayerPanel ? 224 : 56) }}>
             <div className="glass-panel flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer" onClick={() => setShowGlbReport(r => !r)}>
               <span className="text-xs">{uniqueOrgans.length > 0 ? "🧬" : "📦"}</span>
               <span className="text-[10px] font-semibold text-primary">
-                {uniqueOrgans.length > 0 ? `${uniqueOrgans.length} איברים זוהו` : `${glbScanResult.length} Meshes`}
+                {uniqueOrgans.length > 0 ? `${uniqueOrgans.length} קבוצות · ${detected.length} מבנים` : `${glbScanResult.length} מבנים במודל`}
               </span>
               <span className="text-[9px] text-primary/70">{showGlbReport ? "▲" : "▼"}</span>
               <span onClick={e => { e.stopPropagation(); setGlbBadgeHidden(true); }} className="text-[10px] text-primary/60 hover:text-primary transition-colors ml-1">✕</span>
             </div>
             {showGlbReport && uniqueOrgans.length > 0 && (
-              <div className="glass-panel mt-2 p-3 max-h-[40vh] overflow-y-auto sidebar-scroll" style={{ minWidth: isMobile ? "88vw" : "360px" }}>
+              <div className="glass-panel mt-2 p-3 max-h-[58vh] overflow-y-auto sidebar-scroll" style={{ width: isMobile ? "88vw" : "410px" }}>
                 <div className="flex justify-between items-center mb-3">
-                  <span className="text-xs font-bold text-foreground">🔬 איברים שזוהו</span>
+                  <div>
+                    <div className="text-xs font-bold text-foreground">🔬 מפת האנטומיה של המודל</div>
+                    <div className="text-[9px] text-muted-foreground mt-0.5">בחר איבר כללי או מבנה מדויק בתוך המודל</div>
+                  </div>
                   <button onClick={handleDownloadOrganReport} className="bg-primary text-primary-foreground border-none rounded-md px-3 py-1 text-[10px] font-bold cursor-pointer">⬇️ הורד דוח</button>
                 </div>
+                <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/50 p-1 mb-2">
+                  <button aria-label="הצג קבוצות אנטומיות" onClick={() => setGlbReportMode("organs")} className={`rounded-lg px-2 py-2 text-[11px] font-bold transition-colors ${glbReportMode === "organs" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-card"}`}>קבוצות אנטומיות · {uniqueOrgans.length}</button>
+                  <button aria-label="הצג את כל המבנים" onClick={() => setGlbReportMode("structures")} className={`rounded-lg px-2 py-2 text-[11px] font-bold transition-colors ${glbReportMode === "structures" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-card"}`}>כל המבנים · {detected.length}</button>
+                </div>
+                {glbReportMode === "structures" && (
+                  <input aria-label="חיפוש במבנים האנטומיים" value={glbReportQuery} onChange={event => { setGlbReportQuery(event.target.value); setGlbStructureLimit(160); }} placeholder="חיפוש מבנה, מערכת או שם לטיני…" className="w-full rounded-lg border border-border bg-background/70 px-3 py-2 text-xs text-foreground outline-none focus:border-primary mb-2" />
+                )}
                 <div className="flex flex-col gap-1.5">
-                  {uniqueOrgans.map((organ, i) => (
-                    <div key={i} onClick={() => { handleOrganSelect({ ...organ, meshName: organ.meshName }); setShowGlbReport(false); }} className="organ-card">
+                  {(glbReportMode === "organs" ? uniqueOrgans : shownStructures).map((item, i) => {
+                    const organ = item.detail!;
+                    return <div key={`${item.meshName}-${i}`} onClick={() => { handleOrganSelect({ ...organ, meshName: item.meshName }); setShowGlbReport(false); }} className="organ-card">
                       <span className="text-lg shrink-0">{organ.icon}</span>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold text-foreground">{organ.name}</div>
                         <div className="text-[10px] text-primary">{organ.system}</div>
+                        {glbReportMode === "structures" && organ.latinName && <div className="text-[9px] text-muted-foreground truncate" dir="ltr">{organ.latinName}</div>}
                       </div>
-                    </div>
-                  ))}
+                      {glbReportMode === "structures" && <span className="rounded-md border border-border px-1.5 py-1 text-[9px] text-muted-foreground">מבנה {i + 1}</span>}
+                    </div>;
+                  })}
                 </div>
+                {glbReportMode === "structures" && filteredStructures.length === 0 && <div className="py-6 text-center text-xs text-muted-foreground">לא נמצאו מבנים מתאימים</div>}
+                {glbReportMode === "structures" && shownStructures.length < filteredStructures.length && (
+                  <button onClick={() => setGlbStructureLimit(limit => limit + 160)} className="settings-item active mt-2 w-full justify-center">הצג עוד מבנים ({filteredStructures.length - shownStructures.length})</button>
+                )}
               </div>
             )}
           </div>
@@ -1200,6 +1385,46 @@ const ModelViewer = () => {
 
       {/* ═══ BOTTOM TOOLBAR ═══ */}
       <div className="absolute z-10 flex items-center gap-2 bottom-4 md:bottom-5 left-1/2 -translate-x-1/2">
+        {/* Anatomy cutting studio — kept separate from generic visual effects. */}
+        <div className="relative desktop-duplicate-nav">
+          <button aria-label="מעבדת חתך אנטומי" onClick={() => setShowAnatomyStudio(value => !value)} className={`tb-btn ${showAnatomyStudio || showClippingPlane ? "active" : ""}`} style={{ width: btnSz, height: btnSz }} title="מעבדת חתך אנטומי">✂️</button>
+          {showAnatomyStudio && (
+            <div className="absolute glass-panel overflow-y-auto sidebar-scroll p-4" style={{
+              bottom: "54px", left: "50%", transform: "translateX(-50%)", width: isMobile ? "88vw" : "330px", maxHeight: "72vh", direction: "rtl",
+            }}>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div><div className="text-sm font-bold text-foreground">✂️ מעבדת חתך אנטומי</div><div className="text-[10px] text-muted-foreground mt-0.5">חתך, שקיפות, בידוד ופירוק בזמן אמת</div></div>
+                <button aria-label="סגור מעבדת חתך" onClick={() => setShowAnatomyStudio(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+              </div>
+              <button onClick={() => setShowClippingPlane(value => !value)} className={`settings-item mb-2 ${showClippingPlane ? "active" : ""}`}><span>הפעל חתך במודל</span><span>{showClippingPlane ? "פעיל" : "כבוי"}</span></button>
+              <div className="grid grid-cols-3 gap-1 mb-2">
+                {([
+                  ["x", "סגיטלי", "ימין / שמאל"],
+                  ["y", "אופקי", "עליון / תחתון"],
+                  ["z", "חזיתי", "קדמי / אחורי"],
+                ] as [ClipAxis, string, string][]).map(([axis, label, hint]) => (
+                  <button key={axis} disabled={!showClippingPlane} onClick={() => setClipAxis(axis)} className={`rounded-lg border px-1.5 py-2 text-center transition-colors disabled:opacity-40 ${clipAxis === axis && showClippingPlane ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>
+                    <span className="block text-[10px] font-bold">{label}</span><span className="block text-[8px] mt-0.5">{hint}</span>
+                  </button>
+                ))}
+              </div>
+              <label className={`block rounded-lg border border-border px-2.5 py-2 mb-2 text-[10px] ${showClippingPlane ? "text-foreground" : "text-muted-foreground opacity-50"}`}>
+                <span className="flex justify-between"><span>עומק החתך</span><strong>{Math.round((clipPosition + 2) * 25)}%</strong></span>
+                <input disabled={!showClippingPlane} aria-label="עומק החתך האנטומי" className="w-full" type="range" min={-200} max={200} value={Math.round(clipPosition * 100)} onChange={event => setClipPosition(Number(event.target.value) / 100)} />
+              </label>
+              <button disabled={!showClippingPlane} onClick={() => setClipNegate(value => !value)} className={`settings-item mb-2 disabled:opacity-40 ${clipNegate ? "active" : ""}`}><span>↔ הפוך את צד החיתוך</span><span>{clipNegate ? "הפוך" : "רגיל"}</span></button>
+              <label className="block rounded-lg border border-border px-2.5 py-2 mb-2 text-[10px] text-foreground"><span className="flex justify-between"><span>שקיפות כללית</span><strong>{Math.round(xRayOpacity * 100)}%</strong></span><input aria-label="שקיפות כללית" className="w-full" type="range" min={10} max={100} value={Math.round(xRayOpacity * 100)} onChange={event => setXRayOpacity(Number(event.target.value) / 100)} /></label>
+              <label className="block rounded-lg border border-border px-2.5 py-2 mb-2 text-[10px] text-foreground"><span className="flex justify-between"><span>פירוק שכבות</span><strong>{Math.round(explodeAmount * 100)}%</strong></span><input aria-label="פירוק שכבות אנטומיות" className="w-full" type="range" min={0} max={150} value={Math.round(explodeAmount * 100)} onChange={event => setExplodeAmount(Number(event.target.value) / 100)} /></label>
+              <button disabled={!selectedOrgan} onClick={() => setFocusSelected(value => !value)} className={`settings-item mb-2 disabled:opacity-40 ${focusSelected ? "active" : ""}`}><span>🎯 בידוד המבנה שנבחר</span><span>{focusSelected ? "פעיל" : selectedOrgan ? "כבוי" : "בחר מבנה"}</span></button>
+              <div className="grid grid-cols-3 gap-1 mb-2">
+                <button onClick={() => { setShowClippingPlane(true); setClipAxis("z"); setClipPosition(0); setClipNegate(false); }} className="settings-item justify-center text-center">חתך חזיתי</button>
+                <button onClick={() => { setShowClippingPlane(true); setClipAxis("x"); setClipPosition(0); setClipNegate(false); }} className="settings-item justify-center text-center">חתך צד</button>
+                <button onClick={() => { setShowClippingPlane(false); setXRayOpacity(0.3); setExplodeAmount(0.22); }} className="settings-item justify-center text-center">מבט שכבות</button>
+              </div>
+              <button onClick={() => { setShowClippingPlane(false); setClipAxis("y"); setClipPosition(0); setClipNegate(false); setXRayOpacity(1); setExplodeAmount(0); setFocusSelected(false); }} className="settings-item w-full justify-center">איפוס כלי הניתוח</button>
+            </div>
+          )}
+        </div>
         {/* Settings */}
         <div className="relative">
           <button onClick={() => setShowSettings(s => !s)} className={`tb-btn ${showSettings ? "active" : ""}`} style={{ width: btnSz, height: btnSz }} title="הגדרות">
@@ -1371,7 +1596,7 @@ const ModelViewer = () => {
 
         {/* Effects */}
         <div className="relative">
-          <button onClick={() => setShowEffectsPanel(e => !e)} className={`tb-btn ${showEffectsPanel ? "active" : ""}`} style={{ width: btnSz, height: btnSz }} title="אפקטים">
+          <button aria-label="סטודיו תצוגה וחתך" onClick={() => setShowEffectsPanel(e => !e)} className={`tb-btn ${showEffectsPanel || showClippingPlane ? "active" : ""}`} style={{ width: btnSz, height: btnSz }} title="סטודיו תצוגה וחתך">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
@@ -1381,8 +1606,8 @@ const ModelViewer = () => {
               bottom: "54px", left: "50%", transform: "translateX(-50%)",
               width: isMobile ? "85vw" : "280px", maxHeight: isMobile ? "70vh" : "70vh", direction: isRTL ? "rtl" : "ltr",
             }}>
-              <div className="text-sm font-bold text-foreground mb-1">✨ {lang === "en" ? "3D Effects" : "אפקטים תלת-ממדיים"}</div>
-              <div className="text-[10px] text-muted-foreground mb-3">{lang === "en" ? "Real-time visualization tools" : "כלי המחשה אנטומית"}</div>
+              <div className="text-sm font-bold text-foreground mb-1">✂️ {lang === "en" ? "View & Section Studio" : "סטודיו תצוגה וחתך"}</div>
+              <div className="text-[10px] text-muted-foreground mb-3">{lang === "en" ? "Sections, layers, isolation and real-time effects" : "חתכים, שכבות, בידוד ואפקטים בזמן אמת"}</div>
               <label className="block px-1 py-2 mb-2 rounded-lg border border-border text-[10px] text-muted-foreground"><span>{lang === "en" ? "Scene brightness" : "בהירות תצוגה"}: {Math.round(sceneBrightness*100)}%</span><input aria-label="בהירות תצוגה" className="w-full" type="range" min={55} max={145} value={Math.round(sceneBrightness*100)} onChange={e=>setSceneBrightness(Number(e.target.value)/100)}/></label>
 
               {useInteractive && (
@@ -1421,6 +1646,13 @@ const ModelViewer = () => {
                 <button onClick={() => setClipNegate(v => !v)} className={`settings-item justify-center ${clipNegate ? "active" : ""}`} aria-label="הפוך כיוון חתך">↔ {lang === "en" ? "Invert direction" : "הפוך כיוון חתך"}</button>
               </div>}
 
+              <label className="block px-2 py-2 mb-1 rounded-lg border border-border text-[10px] text-muted-foreground"><span>{lang === "en" ? "Global opacity" : "שקיפות כללית"}: {Math.round(xRayOpacity * 100)}%</span><input aria-label="שקיפות כללית" className="w-full" type="range" min={10} max={100} value={Math.round(xRayOpacity * 100)} onChange={e => setXRayOpacity(Number(e.target.value) / 100)} /></label>
+              <div className="grid grid-cols-3 gap-1 mb-2">
+                <button onClick={() => { setShowClippingPlane(true); setClipAxis("z"); setClipPosition(0); setClipNegate(false); }} className="settings-item justify-center text-center">חתך חזיתי</button>
+                <button onClick={() => { setShowClippingPlane(true); setClipAxis("x"); setClipPosition(0); setClipNegate(false); }} className="settings-item justify-center text-center">חתך צד</button>
+                <button onClick={() => { setShowClippingPlane(false); setXRayOpacity(0.3); setExplodeAmount(0.22); }} className="settings-item justify-center text-center">מבט שכבות</button>
+              </div>
+
               <label className="block px-2 py-2 mb-1 rounded-lg border border-border text-[10px] text-muted-foreground"><span>{lang === "en" ? "Exploded view" : "פירוק המודל"}: {Math.round(explodeAmount * 100)}%</span><input aria-label="פירוק המודל" className="w-full" type="range" min={0} max={150} value={Math.round(explodeAmount * 100)} onChange={e => setExplodeAmount(Number(e.target.value) / 100)} /></label>
 
               <button onClick={() => setSystemAnimations(v => !v)} className={`settings-item mb-1 ${systemAnimations ? "active" : ""}`} aria-label="אנימציות מערכות">
@@ -1440,6 +1672,7 @@ const ModelViewer = () => {
               <button onClick={() => setShowPerfMonitor(v => !v)} className={`settings-item mb-1 ${showPerfMonitor ? "active" : ""}`}>
                 <span>📊 {lang === "en" ? "Performance" : "ביצועים"}</span><span>{showPerfMonitor ? "✓" : "✗"}</span>
               </button>
+              <button onClick={() => { setShowClippingPlane(false); setClipAxis("y"); setClipPosition(0); setClipNegate(false); setXRayOpacity(1); setExplodeAmount(0); setFocusSelected(false); setShowXRayShader(false); }} className="settings-item w-full justify-center">איפוס סטודיו</button>
 
               {useInteractive && (
                 <>
@@ -1503,7 +1736,7 @@ const ModelViewer = () => {
           <pointLight position={[0, 3, 0]} intensity={0.5} color={t.accent} />
           <Suspense fallback={<Html center><div className="legacy-model-loader"><span />טוען מודל אנושי תלת־ממדי…</div></Html>}>
             <ModelErrorBoundary key={modelUrl} onError={msg => { setModelLoadWarning(msg); if (modelUrl !== LOCAL_DEFAULT_MODEL) setModelUrl(LOCAL_DEFAULT_MODEL); }}>
-              <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} onScan={handleGlbScan} />
+              <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} mappedDetails={currentMappedDetails} onScan={handleGlbScan} />
             </ModelErrorBoundary>
           </Suspense>
           <ClippingPlane enabled={showClippingPlane} axis={clipAxis} position={clipPosition} negate={clipNegate} />
@@ -1537,7 +1770,7 @@ const ModelViewer = () => {
               <directionalLight position={[5, 5, 5]} intensity={1.0} />
               <Suspense fallback={null}>
                 <ModelErrorBoundary>
-                  <Model url={compareModelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} />
+                  <Model url={compareModelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} mappedDetails={currentMappedDetails} />
                 </ModelErrorBoundary>
               </Suspense>
               <OrbitControls enableDamping dampingFactor={0.05} minDistance={0.6} maxDistance={60} />

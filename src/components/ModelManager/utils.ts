@@ -71,15 +71,22 @@ export function getOrganInfoForMesh(meshName: string): MeshOrganInfo | null {
     };
   }
   // Fallback: try MESH_HEBREW
-  const lower = meshName.toLowerCase().replace(/[_\-\.]/g, " ");
+  const lower = meshName.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
   for (const [en, he] of Object.entries(MESH_HEBREW)) {
-    if (lower.includes(en)) {
+    const normalizedKey = en.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const escapedKey = normalizedKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const exactWord = new RegExp(`(^|\\s)${escapedKey}(\\s|$)`).test(lower);
+    const compactMatch = normalizedKey.length >= 5 && lower.replace(/\s/g, "").includes(normalizedKey.replace(/\s/g, ""));
+    if (exactWord || compactMatch) {
+      const isSkin = normalizedKey === "skin";
+      const isBone = /^(femur|tibia|humerus|radius|ulna|pelvis|rib|ribs|sternum|clavicle|scapula|vertebra|vertebrae|bone|skull)$/.test(normalizedKey);
+      const isMuscle = /^(muscle|bicep|tricep|deltoid|pectoral|trapezius|gluteus|quadricep|hamstring|calf|abs)$/.test(normalizedKey);
       return {
         hebrewName: he,
         englishName: en,
-        icon: "🔬",
-        system: "—",
-        summary: "",
+        icon: isSkin ? "🧍" : isBone ? "🦴" : isMuscle ? "💪" : "📍",
+        system: isSkin ? "מערכת המעטפת" : isBone ? "מערכת השלד" : isMuscle ? "מערכת השרירים" : "אזורי הגוף",
+        summary: isSkin ? "אזור עור חיצוני במודל האנטומי." : `${he} — אזור או מבנה אנטומי במודל.`,
         organKey: en,
       };
     }

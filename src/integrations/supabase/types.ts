@@ -220,9 +220,13 @@ export type Database = {
       user_preferences: {
         Row: {
           auto_rotate: boolean
+          active_theme: string | null
           camera_position: Json | null
+          custom_themes: Json
           created_at: string
           device_type: string | null
+          design_overrides: Json
+          design_updated_at: string | null
           id: string
           theme_index: number
           updated_at: string
@@ -232,9 +236,13 @@ export type Database = {
         }
         Insert: {
           auto_rotate?: boolean
+          active_theme?: string | null
           camera_position?: Json | null
+          custom_themes?: Json
           created_at?: string
           device_type?: string | null
+          design_overrides?: Json
+          design_updated_at?: string | null
           id?: string
           theme_index?: number
           updated_at?: string
@@ -244,9 +252,13 @@ export type Database = {
         }
         Update: {
           auto_rotate?: boolean
+          active_theme?: string | null
           camera_position?: Json | null
+          custom_themes?: Json
           created_at?: string
           device_type?: string | null
+          design_overrides?: Json
+          design_updated_at?: string | null
           id?: string
           theme_index?: number
           updated_at?: string

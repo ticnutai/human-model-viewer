@@ -1,4 +1,6 @@
 export type AnatomySourceKey =
+  | "human_reference_atlas"
+  | "sketchfab"
   | "open_anatomy"
   | "bodyparts3d"
   | "nih_3d"
@@ -20,6 +22,8 @@ export type AnatomySourceProfile = {
   commercialFriendly: boolean;
   openSource: boolean;
   riskLevel: RiskLevel;
+  integrationStatus?: "active" | "curated" | "tooling" | "restricted";
+  qualityTier?: "reference" | "verified" | "community" | "tooling";
   links: {
     home: string;
     docs?: string;
@@ -28,6 +32,59 @@ export type AnatomySourceProfile = {
 };
 
 export const ANATOMY_SOURCE_CATALOG: AnatomySourceProfile[] = [
+  {
+    key: "human_reference_atlas",
+    name: "Human Reference Atlas (HuBMAP)",
+    category: "atlas",
+    primaryUse: "Reference-organ models, anatomical placement, UBERON-linked structures and progressive whole-body composition",
+    strengths: [
+      "Official, versioned reference-organ collection with semantic identifiers",
+      "Male and female reference bodies with anatomical placement information",
+      "Already integrated locally as lightweight progressive layers"
+    ],
+    constraints: [
+      "The monolithic united-body files are too heavy for automatic browser startup",
+      "Attribution and version metadata must stay attached to every derived asset",
+      "Clinical diagnosis is outside the intended educational use"
+    ],
+    licenseSummary: "HRA digital objects are distributed with explicit per-release metadata; the integrated reference-organ set is tracked as CC BY 4.0.",
+    commercialFriendly: true,
+    openSource: true,
+    riskLevel: "low",
+    integrationStatus: "active",
+    qualityTier: "reference",
+    links: {
+      home: "https://humanatlas.io/",
+      docs: "https://docs.humanatlas.io/dev/api",
+      license: "https://humanatlas.io/"
+    }
+  },
+  {
+    key: "sketchfab",
+    name: "Sketchfab Download API",
+    category: "model-library",
+    primaryUse: "Import downloadable GLB assets together with creator and license metadata",
+    strengths: [
+      "Existing importer and token workflow are already active in the studio",
+      "Large searchable 3D catalog with downloadable anatomy assets",
+      "Direct GLB acquisition when the author enables downloads"
+    ],
+    constraints: [
+      "Quality and anatomical accuracy vary by creator",
+      "Every model has its own license and attribution requirements",
+      "Private or non-downloadable models cannot be mirrored"
+    ],
+    licenseSummary: "Per-model license; import only downloadable entries and preserve author, source URL and exact license.",
+    commercialFriendly: true,
+    openSource: false,
+    riskLevel: "medium",
+    integrationStatus: "active",
+    qualityTier: "community",
+    links: {
+      home: "https://sketchfab.com/3d-models/categories/science-technology",
+      docs: "https://sketchfab.com/developers/download-api"
+    }
+  },
   {
     key: "open_anatomy",
     name: "Open Anatomy Project",
@@ -47,6 +104,8 @@ export const ANATOMY_SOURCE_CATALOG: AnatomySourceProfile[] = [
     commercialFriendly: true,
     openSource: true,
     riskLevel: "medium",
+    integrationStatus: "curated",
+    qualityTier: "community",
     links: {
       home: "https://www.openanatomy.org/",
       docs: "https://www.openanatomy.org/technology.html"
@@ -71,6 +130,8 @@ export const ANATOMY_SOURCE_CATALOG: AnatomySourceProfile[] = [
     commercialFriendly: true,
     openSource: true,
     riskLevel: "medium",
+    integrationStatus: "curated",
+    qualityTier: "verified",
     links: {
       home: "https://lifesciencedb.jp/bp3d/",
       license: "https://creativecommons.org/licenses/by-sa/2.1/jp/"
@@ -95,6 +156,8 @@ export const ANATOMY_SOURCE_CATALOG: AnatomySourceProfile[] = [
     commercialFriendly: true,
     openSource: true,
     riskLevel: "medium",
+    integrationStatus: "curated",
+    qualityTier: "community",
     links: {
       home: "https://3d.nih.gov/",
       license: "https://3d.nih.gov/terms"
@@ -119,6 +182,8 @@ export const ANATOMY_SOURCE_CATALOG: AnatomySourceProfile[] = [
     commercialFriendly: true,
     openSource: true,
     riskLevel: "low",
+    integrationStatus: "tooling",
+    qualityTier: "tooling",
     links: {
       home: "https://www.slicer.org/",
       docs: "https://slicer.readthedocs.io/",
@@ -144,6 +209,8 @@ export const ANATOMY_SOURCE_CATALOG: AnatomySourceProfile[] = [
     commercialFriendly: false,
     openSource: true,
     riskLevel: "high",
+    integrationStatus: "tooling",
+    qualityTier: "tooling",
     links: {
       home: "https://github.com/open-mmlab/mmhuman3d",
       license: "https://github.com/open-mmlab/mmhuman3d/blob/main/docs/additional_licenses.md"
@@ -168,6 +235,8 @@ export const ANATOMY_SOURCE_CATALOG: AnatomySourceProfile[] = [
     commercialFriendly: true,
     openSource: true,
     riskLevel: "high",
+    integrationStatus: "tooling",
+    qualityTier: "tooling",
     links: {
       home: "https://xeokit.io/",
       license: "https://xeokit.io/"
@@ -192,6 +261,8 @@ export const ANATOMY_SOURCE_CATALOG: AnatomySourceProfile[] = [
     commercialFriendly: true,
     openSource: false,
     riskLevel: "high",
+    integrationStatus: "restricted",
+    qualityTier: "verified",
     links: {
       home: "https://www.biodigital.com/",
       license: "https://www.biodigital.com/terms"
@@ -217,7 +288,11 @@ export function rankSourcesForEducationalWebStack() {
     if (source.riskLevel === "high") score -= 12;
 
     const fitReason =
-      source.key === "slicer"
+      source.key === "human_reference_atlas"
+        ? "Best scientific base: active locally as progressive male/female reference layers"
+        : source.key === "sketchfab"
+          ? "Best active community importer with strict per-model license checks"
+          : source.key === "slicer"
         ? "Best pipeline backbone for creating production-quality assets"
         : source.key === "nih_3d"
           ? "Best breadth for model acquisition with per-asset license checks"
@@ -263,6 +338,14 @@ export function getLicenseGatingChecklist(source: AnatomySourceProfile): string[
       ...common,
       "Treat each entry as independently licensed (public domain/CC/other)",
       "Keep per-file license evidence in source manifest"
+    ];
+  }
+
+  if (source.key === "human_reference_atlas") {
+    return [
+      ...common,
+      "Keep HRA release version and UBERON identifiers in the model manifest",
+      "Stream reference organs progressively instead of loading the heavy united body at startup"
     ];
   }
 

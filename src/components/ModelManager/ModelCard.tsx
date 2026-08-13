@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { normalizeMeshPartNames } from "./meshParts";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Pencil, Trash2, Play, Pause, Camera, FlaskConical, ClipboardList, Loader2, Pin, Star } from "lucide-react";
 import { getOrganHintFromUrl, getBestOrganDetail } from "../OrganData";
@@ -509,11 +510,11 @@ export default function ModelCard({
                   <div className="text-xs mt-0.5 whitespace-pre-wrap" style={{ color: "hsl(220 40% 13%)" }}>{rec.notes}</div>
                 </div>
               )}
-              {rec.mesh_parts && Array.isArray(rec.mesh_parts) && rec.mesh_parts.length > 0 && (
+              {normalizeMeshPartNames(rec.mesh_parts).length > 0 && (
                 <div>
-                  <div className="text-[10px] font-semibold mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>🧩 איברים שזוהו ({rec.mesh_parts.length})</div>
+                  <div className="text-[10px] font-semibold mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>🧩 חלקים שזוהו ({normalizeMeshPartNames(rec.mesh_parts).length})</div>
                   <div className="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto">
-                    {(rec.mesh_parts as string[]).slice(0, 30).map((part, i) => {
+                    {normalizeMeshPartNames(rec.mesh_parts).slice(0, 30).map((part, i) => {
                       // Extract original mesh name from translated format "Hebrew (original)"
                       const originalMatch = typeof part === "string" ? part.match(/\(([^)]+)\)$/) : null;
                       const originalName = originalMatch ? originalMatch[1] : (typeof part === "string" ? part : "");
@@ -542,8 +543,8 @@ export default function ModelCard({
                         <Badge key={i} variant="secondary" className="text-[10px] px-2 py-0.5 w-fit">{part}</Badge>
                       );
                     })}
-                    {(rec.mesh_parts as string[]).length > 30 && (
-                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 w-fit">+{(rec.mesh_parts as string[]).length - 30} עוד</Badge>
+                    {normalizeMeshPartNames(rec.mesh_parts).length > 30 && (
+                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 w-fit">+{normalizeMeshPartNames(rec.mesh_parts).length - 30} עוד</Badge>
                     )}
                   </div>
                 </div>

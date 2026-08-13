@@ -540,8 +540,21 @@ function detectOrganMatch(meshName: string): { key: string; by: string; score: n
     for (const alias of candidates) {
       if (!alias || alias.length < 2) continue;
       const exactWord = new RegExp(`(^|\\s)${escapeRegExp(alias)}(\\s|$)`).test(normalized);
-      const contains = normalized.includes(alias);
+      // Short substring matches caused medically unsafe results: "in" inside
+      // Skin was classified as intestine and "oral" inside femoral as aorta.
+      // Short aliases remain valid only as complete words (for example LV).
+      const contains = alias.length >= 5 && normalized.replace(/\s/g, "") === alias.replace(/\s/g, "");
       if (!exactWord && !contains) continue;
+
+      // A named body region is not the vessel/organ that sometimes shares its
+      // adjective. "Femoral region" is the thigh; only "femoral artery" is a
+      // blood vessel. The same rule protects skin regions of the head.
+      if (key === "aorta" && /^(carotid|femoral|iliac|subclavian|jugular|coronary)$/.test(alias)
+        && !/(aorta|artery|arterial|vein|vena|vessel|vascular)/.test(normalized)) continue;
+      if (key === "brain" && /^(frontal|parietal|temporal|occipital)$/.test(alias)
+        && !/(brain|cerebr|cortex|lobe|encephal)/.test(normalized)) continue;
+      if (key === "skull" && /^(zygomatic|occipital|parietal|temporal|sphenoid|ethmoid|vomer|lacrimal|nasal|palatine)$/.test(alias)
+        && !/(bone|skull|cranium|cranial|osseous)/.test(normalized)) continue;
 
       // Base score: exact word = 100, substring = 60, longer alias = higher confidence
       let score = exactWord ? 100 + alias.length : 60 + alias.length;

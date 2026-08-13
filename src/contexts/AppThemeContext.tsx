@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type AppTheme = {
   id: string;
@@ -25,6 +25,8 @@ export const DEFAULT_THEMES: AppTheme[] = [
 
 const ACTIVE_KEY = "niflaot-active-theme-v1";
 const CUSTOM_KEY = "niflaot-custom-themes-v1";
+export const THEME_UPDATED_KEY = "niflaot-theme-updated-at-v1";
+export const DESIGN_PREFERENCES_CHANGED_EVENT = "niflaot-design-preferences-changed";
 
 const hexToRgb = (hex: string) => {
   const value = hex.replace("#", "");
@@ -85,6 +87,7 @@ type ThemeContextValue = {
   selectTheme: (id: string) => void;
   saveTheme: (theme: AppTheme) => void;
   deleteTheme: (id: string) => void;
+  hydrateFromCloud: (activeId: string | null, customThemes: AppTheme[]) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -103,16 +106,27 @@ export function AppThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => { applyThemeToDocument(activeTheme); localStorage.setItem(ACTIVE_KEY, activeTheme.id); }, [activeTheme]);
   useEffect(() => { localStorage.setItem(CUSTOM_KEY, JSON.stringify(customThemes)); }, [customThemes]);
 
+  const markChanged = () => {
+    localStorage.setItem(THEME_UPDATED_KEY, new Date().toISOString());
+    window.dispatchEvent(new CustomEvent(DESIGN_PREFERENCES_CHANGED_EVENT));
+  };
+  const selectTheme = (id: string) => { setActiveId(id); markChanged(); };
   const saveTheme = (theme: AppTheme) => {
     const saved = { ...theme, builtin: false };
     setCustomThemes((current) => [...current.filter((item) => item.id !== saved.id), saved]);
     setActiveId(saved.id);
+    markChanged();
   };
   const deleteTheme = (id: string) => {
     setCustomThemes((current) => current.filter((item) => item.id !== id));
     if (activeId === id) setActiveId(DEFAULT_THEMES[0].id);
+    markChanged();
   };
-  return <ThemeContext.Provider value={{ themes, activeTheme, selectTheme: setActiveId, saveTheme, deleteTheme }}>{children}</ThemeContext.Provider>;
+  const hydrateFromCloud = useCallback((cloudActiveId: string | null, cloudThemes: AppTheme[]) => {
+    setCustomThemes(cloudThemes.map((theme) => ({ ...theme, builtin: false })));
+    if (cloudActiveId) setActiveId(cloudActiveId);
+  }, []);
+  return <ThemeContext.Provider value={{ themes, activeTheme, selectTheme, saveTheme, deleteTheme, hydrateFromCloud }}>{children}</ThemeContext.Provider>;
 }
 
 export function useAppTheme() {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, CopyPlus, Palette, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { Check, CopyPlus, MousePointer2, Palette, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { applyThemeToDocument, DEFAULT_THEMES, type AppTheme, useAppTheme } from "@/contexts/AppThemeContext";
+import { useDesignMode } from "@/components/design-mode/DesignModeProvider";
 
 const fields: { key: keyof AppTheme; label: string }[] = [
   { key: "background", label: "רקע האתר" }, { key: "surface", label: "משטחים" }, { key: "elevated", label: "כרטיסים" },
@@ -13,6 +14,7 @@ const newTheme = (): AppTheme => ({ ...DEFAULT_THEMES[0], id: `custom-${Date.now
 
 export default function ThemeStudio() {
   const { themes, activeTheme, selectTheme, saveTheme, deleteTheme } = useAppTheme();
+  const { setEnabled: setDesignMode } = useDesignMode();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<AppTheme | null>(null);
   const [previous, setPrevious] = useState<AppTheme | null>(null);
@@ -46,7 +48,7 @@ export default function ThemeStudio() {
       <section className="theme-studio" role="dialog" aria-modal="true" aria-label="ערכות נושא" dir="rtl">
         <header><div className="theme-studio-title"><span><Palette /></span><div><h2>סטודיו ערכות נושא</h2><p>עיצוב אחיד לכל האתר, לכל עמוד ולתצוגת התלת־ממד</p></div></div><button onClick={close} aria-label="סגירת ערכות נושא"><X /></button></header>
         {!draft ? <>
-          <div className="theme-studio-toolbar"><div><strong>הערכות שלי</strong><small>הבחירה נשמרת אוטומטית בכל הדפים</small></div><button onClick={() => beginEdit(newTheme())}><Plus /> יצירת ערכה חדשה</button></div>
+          <div className="theme-studio-toolbar"><div><strong>הערכות שלי</strong><small>הבחירה נשמרת אוטומטית בכל הדפים</small></div><div className="theme-studio-toolbar-actions"><button className="live-design-button" onClick={() => { close(); setDesignMode(true); }}><MousePointer2 /> עיצוב חי על הדף</button><button onClick={() => beginEdit(newTheme())}><Plus /> יצירת ערכה חדשה</button></div></div>
           <div className="theme-grid">
             {themes.map((theme) => <article key={theme.id} className={activeTheme.id === theme.id ? "is-active" : ""}>
               <button className="theme-preview" onClick={() => selectTheme(theme.id)} aria-label={`בחירת ערכה ${theme.name}`} style={{ background: theme.background }}>

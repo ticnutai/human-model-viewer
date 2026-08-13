@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, 3000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         if (debugLogsEnabled) {
           console.info("[AUTH_DEBUG] onAuthStateChange", {
             event: _event,
@@ -69,7 +69,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          await checkAdmin(session.user.id);
+          // Supabase warns against awaiting another client query from inside
+          // onAuthStateChange: it can hold the auth lock and deadlock all reads.
+          setTimeout(() => void checkAdmin(session.user.id), 0);
         } else {
           setIsAdmin(false);
         }

@@ -10,6 +10,8 @@ export type HumanAtlasOrgan = {
   structures: number;
   uberonId: string;
   system: string;
+  systemId?: "circulatory" | "nervous" | "respiratory" | "digestive" | "urinary" | "immune" | "skeletal" | "reproductive" | "integumentary";
+  defaultVisible?: boolean;
   learningNameHe?: string;
   featured?: boolean;
   subtitle?: string;
@@ -36,6 +38,16 @@ export const HUMAN_ATLAS_CATALOG: HumanAtlasOrgan[] = [
   { id:"small-intestine",nameHe:"המעי הדק",nameEn:"Small intestine",modelUrl:"/models/humanatlas/vh-m-small-intestine/model.glb",color:"#df9a78",sex:"Male",structures:10,uberonId:"UBERON:0002108",system:"מערכת העיכול" },
   { id:"large-intestine",nameHe:"המעי הגס",nameEn:"Large intestine",modelUrl:"/models/humanatlas/vh-m-large-intestine/model.glb",color:"#b87561",sex:"Male",structures:10,uberonId:"UBERON:0000059",system:"מערכת העיכול" },
   { id:"bladder",nameHe:"שלפוחית השתן",nameEn:"Urinary bladder",modelUrl:"/models/humanatlas/vh-m-bladder/model.glb",color:"#e2b7a0",sex:"Male",structures:6,uberonId:"UBERON:0001255",system:"מערכת השתן" },
+  { id:"blood-vasculature",nameHe:"מערכת כלי הדם",nameEn:"Blood vasculature",modelUrl:"/models/humanatlas/vh-m-blood-vasculature/model.glb",color:"#d84b5b",sex:"Male",structures:104,uberonId:"UBERON:0004537",system:"מערכת הלב וכלי הדם",systemId:"circulatory",defaultVisible:false },
+  { id:"larynx",nameHe:"בית הקול",nameEn:"Larynx",modelUrl:"/models/humanatlas/vh-m-larynx/model.glb",color:"#8dd8df",sex:"Male",structures:7,uberonId:"UBERON:0001737",system:"מערכת הנשימה",systemId:"respiratory",defaultVisible:false },
+  { id:"main-bronchus",nameHe:"הסימפונות הראשיים",nameEn:"Main bronchus",modelUrl:"/models/humanatlas/vh-m-main-bronchus/model.glb",color:"#72c8d7",sex:"Male",structures:4,uberonId:"UBERON:0002182",system:"מערכת הנשימה",systemId:"respiratory",defaultVisible:false },
+  { id:"ureter-left",nameHe:"שופכן שמאלי",nameEn:"Left ureter",modelUrl:"/models/humanatlas/vh-m-ureter-left/model.glb",color:"#d9a38b",sex:"Male",structures:14,uberonId:"UBERON:0001223",system:"מערכת השתן",systemId:"urinary",defaultVisible:false },
+  { id:"ureter-right",nameHe:"שופכן ימני",nameEn:"Right ureter",modelUrl:"/models/humanatlas/vh-m-ureter-right/model.glb",color:"#cf927d",sex:"Male",structures:13,uberonId:"UBERON:0001222",system:"מערכת השתן",systemId:"urinary",defaultVisible:false },
+  { id:"pelvis",nameHe:"האגן",nameEn:"Pelvis",modelUrl:"/models/humanatlas/vh-m-pelvis/model.glb",color:"#ddd2bd",sex:"Male",structures:14,uberonId:"UBERON:0001270",system:"מערכת השלד",systemId:"skeletal",defaultVisible:false },
+  { id:"prostate",nameHe:"בלוטת הערמונית",nameEn:"Prostate",modelUrl:"/models/humanatlas/vh-m-prostate/model.glb",color:"#c989a4",sex:"Male",structures:18,uberonId:"UBERON:0000079",system:"מערכת הרבייה",systemId:"reproductive",defaultVisible:false },
+  { id:"skin",nameHe:"מעטפת העור",nameEn:"Skin",modelUrl:"/models/humanatlas/vh-m-skin/model.glb",color:"#c9947b",sex:"Male",structures:1,uberonId:"UBERON:0002097",system:"מערכת הכסות",systemId:"integumentary",defaultVisible:false },
+  { id:"thymus",nameHe:"בלוטת התימוס",nameEn:"Thymus",modelUrl:"/models/humanatlas/vh-m-thymus/model.glb",color:"#d9a5b8",sex:"Male",structures:2,uberonId:"UBERON:0002370",system:"מערכת החיסון והלימפה",systemId:"immune",defaultVisible:false },
+  { id:"lymph-node",nameHe:"קשר לימפה",nameEn:"Lymph node",modelUrl:"/models/humanatlas/vh-m-lymph-node/model.glb",color:"#b58ad2",sex:"Male",structures:7,uberonId:"UBERON:0002509",system:"מערכת החיסון והלימפה",systemId:"immune",defaultVisible:false },
 ];
 
 export const FEATURED_ATLAS_ORGANS = HUMAN_ATLAS_CATALOG.filter((organ) => organ.featured);

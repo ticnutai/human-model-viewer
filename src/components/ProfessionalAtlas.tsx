@@ -189,6 +189,7 @@ export default function ProfessionalAtlas() {
   const [exploded, setExploded] = useState(0);
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [journeyStep, setJourneyStep] = useState(0);
+  const [journeyPlaying, setJourneyPlaying] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -212,9 +213,23 @@ export default function ProfessionalAtlas() {
       `${item.nameHe} ${item.nameEn} ${item.system} ${item.subtitle}`.toLowerCase().includes(term)
     );
   }, [query]);
+  const currentJourney = asset.journey[journeyStep];
 
   useEffect(() => { localStorage.setItem("niflaot-learning-level", level); }, [level]);
   useEffect(() => { localStorage.setItem("niflaot-learning-progress", JSON.stringify(progress)); }, [progress]);
+  useEffect(() => {
+    if (!journeyOpen) { setJourneyPlaying(false); return; }
+    setSimulation(true);
+    if (currentJourney.structureHint) setSelectedMesh(currentJourney.structureHint);
+  }, [currentJourney.structureHint, journeyOpen]);
+  useEffect(() => {
+    if (!journeyOpen || !journeyPlaying) return;
+    const timer = window.setTimeout(() => {
+      if (journeyStep < asset.journey.length - 1) setJourneyStep((value) => value + 1);
+      else setJourneyPlaying(false);
+    }, 4200);
+    return () => window.clearTimeout(timer);
+  }, [asset.journey.length, journeyOpen, journeyPlaying, journeyStep]);
 
   const chooseAsset = useCallback((next: AtlasAsset) => {
     setAsset(next);
@@ -222,6 +237,7 @@ export default function ProfessionalAtlas() {
     setOpacity(1);
     setExploded(0);
     setJourneyStep(0);
+    setJourneyPlaying(false);
     setJourneyOpen(false);
     setQuizOpen(false);
     setQuizChoice(null);
@@ -236,7 +252,6 @@ export default function ProfessionalAtlas() {
     setInfoOpen(true);
   }, []);
 
-  const currentJourney = asset.journey[journeyStep];
   const selectedLabel = selectedMesh ? humanizeStructureName(selectedMesh) : asset.nameHe;
   const knowledge = ANATOMY_KNOWLEDGE[asset.id];
   const quiz = knowledge.quiz;
@@ -251,7 +266,7 @@ export default function ProfessionalAtlas() {
     if (typeof action.autoRotate === "boolean") setAutoRotate(action.autoRotate);
     if (typeof action.simulation === "boolean") setSimulation(action.simulation);
     if (action.reset) { setSelectedMesh(null); setOpacity(1); setExploded(0); setSimulation(false); setStageKey((value) => value + 1); }
-    if (action.openJourney) { setJourneyStep(0); setJourneyOpen(true); }
+    if (action.openJourney) { setJourneyStep(0); setJourneyPlaying(false); setJourneyOpen(true); }
     if (action.openQuiz) { setQuizChoice(null); setQuizOpen(true); }
   }, [asset.id, chooseAsset]);
 
@@ -312,6 +327,7 @@ export default function ProfessionalAtlas() {
             <span>{asset.system}</span>
             <h1>{asset.nameHe}</h1>
             <p>{asset.subtitle}</p>
+            <Link className="pro-female-body-link" to="/body-builder?sex=female"><Layers3 size={14} /> הצג גוף נקבי · 28 שכבות</Link>
           </div>
 
           <Canvas
@@ -362,7 +378,7 @@ export default function ProfessionalAtlas() {
             <button onClick={() => setSimulation((value) => !value)} className={cn(simulation && "is-active")} title={simulation ? "עצור המחשה" : "הפעל המחשה פיזיולוגית"}><Activity /></button>
             <div className="pro-slider-control" title="שקיפות"><Eye size={17} /><input aria-label="שקיפות המודל" type="range" min="18" max="100" value={Math.round(opacity * 100)} onChange={(event) => setOpacity(Number(event.target.value) / 100)} /></div>
             <div className="pro-slider-control" title="תצוגה מפורקת"><Focus size={17} /><input aria-label="פירוק מבנים" type="range" min="0" max="100" value={Math.round(exploded * 100)} onChange={(event) => setExploded(Number(event.target.value) / 100)} /></div>
-            <button onClick={() => setJourneyOpen(true)} className="pro-journey-button"><Zap /> <span>מסע מודרך</span></button>
+            <button onClick={() => { setJourneyStep(0); setJourneyOpen(true); }} className="pro-journey-button"><Zap /> <span>מסע מודרך</span></button>
           </div>
         </section>
 
@@ -391,7 +407,7 @@ export default function ProfessionalAtlas() {
             <span><strong>{asset.structures}</strong> מבנים</span>
             <span><strong>{asset.uberonId}</strong> מזהה</span>
           </div>
-          <button className="pro-start-journey" onClick={() => setJourneyOpen(true)}><Zap size={17} /> התחל: {asset.journeyTitle}</button>
+          <button className="pro-start-journey" onClick={() => { setJourneyStep(0); setJourneyOpen(true); }}><Zap size={17} /> התחל: {asset.journeyTitle}</button>
           <button className="pro-quiz-button" onClick={() => { setQuizChoice(null); setQuizOpen(true); }}><Brain size={16} /> בחן אותי על {asset.nameHe}</button>
           <small className="pro-disclaimer">מידע לימודי בלבד • אינו תחליף לייעוץ רפואי</small>
         </aside>
@@ -406,6 +422,11 @@ export default function ProfessionalAtlas() {
             <div className="pro-journey-kicker"><Zap size={16} /> מסע אינטראקטיבי</div>
             <h2>{asset.journeyTitle}</h2>
             <div className="pro-journey-progress">{asset.journey.map((_, index) => <span key={index} className={cn(index <= journeyStep && "is-active")} />)}</div>
+            <div className={cn("pro-journey-media", simulation && "is-live")} data-testid="journey-media">
+              <div className="pro-journey-orbit"><i /><span>{journeyStep + 1}</span></div>
+              <div><small>תצוגה מסונכרנת למודל</small><strong>{currentJourney.title}</strong><p>השלב מודגש כעת באיבר התלת־ממדי שמאחורי החלון.</p></div>
+              <button onClick={() => setJourneyPlaying((value) => !value)} aria-label={journeyPlaying ? "השהה מסע אוטומטי" : "נגן מסע אוטומטי"}>{journeyPlaying ? <Pause /> : <Play />}</button>
+            </div>
             <div className="pro-journey-step"><span>{journeyStep + 1}</span><div><h3>{currentJourney.title}</h3><p>{currentJourney.description}</p></div></div>
             <div className="pro-journey-nav">
               <button disabled={journeyStep === 0} onClick={() => setJourneyStep((value) => Math.max(0, value - 1))}><ArrowRight /> הקודם</button>

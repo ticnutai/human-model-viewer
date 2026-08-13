@@ -1,0 +1,15 @@
+{
+  "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+  "sourceUrl": "https://humanatlas.io/3d-reference-library",
+  "apiUrl": "https://ccf-api.hubmapconsortium.org/v1/reference-organs",
+  "label": "Left Mammary Gland",
+  "sex": "Female",
+  "creator": "Kristin Browne",
+  "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+  "glbUrl": "https://ccf-ontology.hubmapconsortium.org/objects/v1.3/3d-vh-f-mammary-gland-l.glb",
+  "fileSubpath": "VH_F_mammary_gland_L",
+  "uberonId": "fma57991",
+  "downloadedAt": "2026-08-13T21:19:30.474Z"
+}

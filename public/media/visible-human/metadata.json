@@ -1,0 +1,16 @@
+{
+  "title": "Visible Human Project sample cryosections and MRI scans",
+  "titleHe": "דוגמאות חתכים והדמיות MRI מפרויקט האדם הנראה",
+  "source": "U.S. National Library of Medicine — Visible Human Project",
+  "sourceUrl": "https://www.nlm.nih.gov/research/visible/visible_human.html",
+  "cryoSourceUrl": "https://www.nlm.nih.gov/research/visible/photos.html",
+  "mriSourceUrl": "https://www.nlm.nih.gov/research/visible/mri.html",
+  "videoSourceUrl": "https://www.nlm.nih.gov/research/visible/media.html",
+  "videos": [
+    { "file": "visible-human-intestine.mp4", "original": "MAYOintestine.mov", "provider": "Mayo Clinic", "processing": "Container and codec converted locally to browser-compatible H.264; no anatomical edits" },
+    { "file": "visible-human-thorax-browser.mp4", "original": "ThoraxEWa.mp4", "provider": "University of Michigan Visible Human Project", "processing": "Original browser MP4" }
+  ],
+  "rights": "Public-domain Visible Human Project sample data",
+  "downloadedAt": "2026-08-14",
+  "usage": "Personal educational anatomy viewer"
+}

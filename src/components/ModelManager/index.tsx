@@ -76,6 +76,13 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   }>({ done: 0, total: 0, currentName: "", skipped: 0, failed: 0, successNames: [] });
   const batchAbortRef = useRef(false);
 
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("source") === "sketchfab") {
+      setManagerTab("models");
+      setShowSketchfab(true);
+    }
+  }, [location.search]);
+
   // ── Shared cloud library loader ──
   const load = useCallback(async (retryCount = 0) => {
     console.log("[ModelManager] load() called, retry:", retryCount);
@@ -305,10 +312,10 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
             const t0 = performance.now();
             const result = await analyzeGlbSmart(file, modelId);
             console.log(`[Upload/BG] 🔬 Analysis complete: method=${result.method}, meshes=${result.meshNames.length}, time=${result.durationMs}ms`);
-            if (result.translatedNames.length > 0) {
-              const { error: updateErr } = await supabase.from("models").update({ mesh_parts: result.translatedNames }).eq("id", modelId);
+            if (result.meshNames.length > 0) {
+              const { error: updateErr } = await supabase.from("models").update({ mesh_parts: result.meshNames }).eq("id", modelId);
               if (updateErr) console.error("[Upload/BG] ❌ Failed to save mesh_parts:", updateErr);
-              else console.log(`[Upload/BG] ✅ Saved ${result.translatedNames.length} mesh parts to DB`);
+              else console.log(`[Upload/BG] ✅ Saved ${result.meshNames.length} raw mesh keys to DB`);
             } else {
               console.warn(`[Upload/BG] ⚠️ No meshes found in ${file.name}`);
             }
@@ -649,8 +656,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         analyzeGlbSmart(rec.file_url, rec.id),
         new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Analysis timeout")), 25000))
       ]);
-      const translated = result.translatedNames.length > 0 ? result.translatedNames : result.meshNames.map(translateMeshName);
-      const updateData: Record<string, any> = { mesh_parts: translated };
+      const updateData: Record<string, any> = { mesh_parts: result.meshNames };
       // Auto-set hebrew_name if empty
       if (!rec.hebrew_name || rec.hebrew_name.trim() === "") {
         const autoHeb = autoHebrewName(rec.display_name, rec.file_name);
@@ -716,8 +722,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           analyzeGlbSmart(m.file_url!, m.id),
           new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Analysis timeout")), 25000))
         ]);
-        const translated = result.translatedNames.length > 0 ? result.translatedNames : result.meshNames.map(translateMeshName);
-        const updateData: Record<string, any> = { mesh_parts: translated };
+        const updateData: Record<string, any> = { mesh_parts: result.meshNames };
         // Auto-set hebrew_name if empty
         if (!m.hebrew_name || m.hebrew_name.trim() === "") {
           const autoHeb = autoHebrewName(m.display_name, m.file_name);
@@ -849,50 +854,20 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
   return (
     <div className="model-manager flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }}>
-      {/* Tab switcher */}
-      <div className="desktop-duplicate-nav flex" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
-        <button
-          onClick={() => setManagerTab("models")}
-          className="flex-1 text-[10px] font-bold py-2 cursor-pointer border-none transition-colors"
-          style={{
-            background: managerTab === "models" ? "hsl(43 78% 47% / 0.1)" : "transparent",
-            color: managerTab === "models" ? "hsl(43 78% 35%)" : "hsl(220 15% 55%)",
-            borderBottom: managerTab === "models" ? "2px solid hsl(43 78% 47%)" : "2px solid transparent",
-          }}
-        >
-          📦 מודלים
-        </button>
-        <button
-          onClick={() => setManagerTab("meshmap")}
-          className="flex-1 text-[10px] font-bold py-2 cursor-pointer border-none transition-colors"
-          style={{
-            background: managerTab === "meshmap" ? "hsl(220 50% 50% / 0.1)" : "transparent",
-            color: managerTab === "meshmap" ? "hsl(220 50% 40%)" : "hsl(220 15% 55%)",
-            borderBottom: managerTab === "meshmap" ? "2px solid hsl(220 50% 50%)" : "2px solid transparent",
-          }}
-        >
-          🗺️ מיפוי
-        </button>
-        <button
-          onClick={() => setManagerTab("allmappings")}
-          className="flex-1 text-[10px] font-bold py-2 cursor-pointer border-none transition-colors"
-          style={{
-            background: managerTab === "allmappings" ? "hsl(145 50% 45% / 0.1)" : "transparent",
-            color: managerTab === "allmappings" ? "hsl(145 50% 35%)" : "hsl(220 15% 55%)",
-            borderBottom: managerTab === "allmappings" ? "2px solid hsl(145 50% 45%)" : "2px solid transparent",
-          }}
-        >
-          📋 כל הרשומות
-        </button>
-      </div>
-
       {managerTab === "allmappings" ? (
         <div className="flex-1 overflow-hidden">
           <MeshMappingManager />
         </div>
       ) : managerTab === "meshmap" ? (
         <div className="flex-1 overflow-y-auto sidebar-scroll">
-          <MeshLayerManager models={models} />
+          <MeshLayerManager
+            models={models}
+            onMeshPartsSaved={(modelId, meshParts) => {
+              setModels(current => current.map(model =>
+                model.id === modelId ? { ...model, mesh_parts: meshParts } : model
+              ));
+            }}
+          />
         </div>
       ) : (
       <>

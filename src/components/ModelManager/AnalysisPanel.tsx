@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { ParallelAnalysisEngine, AnalysisJob } from "./ParallelAnalysisEngine";
 import type { ModelRecord } from "./types";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Brain, CheckCircle2, XCircle, AlertCircle, PlayCircle, StopCircle, Bot, Zap, BarChart3 } from "lucide-react";
+import { Loader2, Brain, CheckCircle2, XCircle, AlertCircle, PlayCircle, StopCircle, Bot, Zap, BarChart3, Scissors, ScanSearch, Boxes, Layers3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { loadCloudModels } from "@/lib/cloudModelRepository";
 
@@ -49,6 +50,7 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
 }
 
 export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisPanelProps) {
+  const navigate = useNavigate();
   const [localModels, setLocalModels] = useState<ModelRecord[]>([]);
   const [loading, setLoading] = useState(!propsModels);
   const [engine] = useState(() => new ParallelAnalysisEngine(4));
@@ -91,6 +93,12 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
     const parts = m.mesh_parts as string[];
     return parts.some(p => /^Object[_\s]*\d*$/i.test(p) || /^Mesh[_\s]*\d*$/i.test(p));
   });
+  const richestModel = modelsToUse.reduce<ModelRecord | null>((best, model) => {
+    const count = Array.isArray(model.mesh_parts) ? model.mesh_parts.length : 0;
+    const bestCount = best && Array.isArray(best.mesh_parts) ? best.mesh_parts.length : 0;
+    return count > bestCount ? model : best;
+  }, null);
+  const richestModelParts = richestModel && Array.isArray(richestModel.mesh_parts) ? richestModel.mesh_parts.length : 0;
 
   useEffect(() => {
     return () => { engine.stop(); };
@@ -376,7 +384,40 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
       </div>
 
       {/* Stats Dashboard */}
-      {filter === "stats" && <StatsDashboard models={modelsToUse} />}
+      {filter === "stats" && (
+        <div className="border-b border-border">
+          <StatsDashboard models={modelsToUse} />
+          <div className="px-3 pb-3">
+            <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 mb-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold text-foreground">המודל האנטומי המפורט ביותר</div>
+                  <div className="text-[11px] text-muted-foreground mt-1">{richestModel ? (richestModel.hebrew_name || richestModel.display_name) : "עדיין לא נותח מודל"}</div>
+                </div>
+                <div className="rounded-lg bg-primary px-3 py-2 text-center text-primary-foreground"><div className="text-lg font-black leading-none">{richestModelParts.toLocaleString()}</div><div className="text-[9px] mt-1">מבנים</div></div>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="text-xs font-bold text-foreground">מרכז העבודה האנטומי</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">כל שלב נשאר מחובר לאותה ספרייה — בלי מערכות כפולות</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { icon: Scissors, title: "מודל מפורט וחתכים", description: "מאות מבנים, בידוד, שקיפות ופירוק", path: "/legacy?panel=organs" },
+                { icon: ScanSearch, title: "סריקת Mesh ומיפוי", description: "זיהוי כל חלק ושמירה בספרייה", path: "/legacy?panel=models&tool=meshmap" },
+                { icon: Layers3, title: "כל המיפויים", description: "בדיקת שמות, מערכות וכפילויות", path: "/legacy?panel=models&tool=allmappings" },
+                { icon: Boxes, title: "בניית גוף שכבה אחר שכבה", description: "הוספה ומיקום של איברים במרחב", path: "/body-builder" },
+              ].map(item => {
+                const Icon = item.icon;
+                return <button key={item.path} onClick={() => navigate(item.path)} className="rounded-xl border border-border bg-card p-3 text-right hover:border-primary/50 hover:bg-primary/5 transition-colors">
+                  <div className="flex items-center gap-2 mb-1"><span className="rounded-lg bg-primary/10 p-1.5"><Icon className="w-4 h-4 text-primary" /></span><span className="text-xs font-bold text-foreground">{item.title}</span></div>
+                  <div className="text-[10px] leading-relaxed text-muted-foreground">{item.description}</div>
+                </button>;
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* List */}
       <div className="flex-1 overflow-y-auto p-2 space-y-2">

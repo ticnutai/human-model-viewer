@@ -7,13 +7,13 @@ test.describe("Unified desktop navigation", () => {
     await page.reload();
   });
 
-  test("auto-hides, expands on hover, and exposes every system and GLB tab", async ({ page }) => {
+  test("auto-hides, expands on hover, and exposes the four unified systems", async ({ page }) => {
     const navigation = page.getByRole("complementary", { name: "ניווט ראשי" });
     await expect(navigation).toBeVisible();
     await expect(navigation).not.toHaveClass(/is-expanded/);
     await navigation.hover();
     await expect(navigation).toHaveClass(/is-expanded/);
-    for (const label of ["אטלס מקצועי", "בונה הגוף", "ספריית GLB", "אטלס איברים", "צופה וגלריה", "ניתוח מודל", "מיפוי שכבות", "מאגר מיפויים", "מידע אנטומי", "אפקטים מתקדמים"]) {
+    for (const label of ["אטלס מקצועי", "בונה הגוף", "מעבדת הגוף החי", "סטודיו GLB"]) {
       await expect(navigation.getByRole("link", { name: new RegExp(label) })).toBeVisible();
     }
   });
@@ -38,27 +38,25 @@ test.describe("Unified desktop navigation", () => {
   test("switches all legacy tools through the unified sidebar without duplicate tab strip", async ({ page }) => {
     const navigation = page.getByRole("complementary", { name: "ניווט ראשי" });
     await navigation.hover();
-    await navigation.getByRole("link", { name: /ספריית GLB/ }).click();
+    await navigation.getByRole("link", { name: /סטודיו GLB/ }).click();
     await expect(page).toHaveURL(/panel=models/);
-    await expect(page.locator(".legacy-library-title")).toContainText("ספריית מודלים", { timeout: 20_000 });
-    await navigation.hover();
-    await navigation.getByRole("link", { name: /ניתוח מודל/ }).click();
+    await expect(page.locator(".legacy-library-title")).toContainText("סטודיו GLB", { timeout: 20_000 });
+    const studio = page.getByRole("navigation", { name: "כלי סטודיו GLB" });
+    await expect(studio.getByRole("button", { name: /ספרייה/ })).toHaveAttribute("aria-current", "page");
+    await studio.getByRole("button", { name: /ניתוח/ }).click();
     await expect(page).toHaveURL(/panel=analysis/);
-    await expect(page.locator(".sidebar-panel > .flex.shrink-0")).toHaveCount(0);
-    await navigation.hover();
-    await navigation.getByRole("link", { name: /מיפוי שכבות/ }).click();
+    await studio.getByRole("button", { name: /מיפוי/ }).click();
     await expect(page).toHaveURL(/tool=meshmap/);
-    await navigation.hover();
-    await navigation.getByRole("link", { name: /מאגר מיפויים/ }).click();
+    await studio.getByRole("button", { name: /ידע/ }).click();
     await expect(page).toHaveURL(/tool=allmappings/);
-    await expect(page.locator(".sidebar-panel .desktop-duplicate-nav")).toBeHidden();
+    await studio.getByRole("button", { name: /מקורות/ }).click();
+    await expect(page).toHaveURL(/panel=sources/);
+    await expect(page.getByRole("button", { name: "פתח גוף HRA והרכב שכבות" })).toBeVisible();
   });
 
   test("opens advanced capabilities inside the unified studio and preserves the old URL", async ({ page }) => {
     const navigation = page.getByRole("complementary", { name: "ניווט ראשי" });
-    await navigation.hover();
-    await navigation.getByRole("link", { name: /אפקטים מתקדמים/ }).click();
-    await expect(page).toHaveURL(/effects=1/);
+    await page.goto("/legacy?panel=models&tool=models&effects=1");
     await expect(page.getByLabel("בהירות תצוגה")).toBeVisible();
     await page.goto("/advanced");
     await expect(page).toHaveURL(/\/legacy\?panel=models&tool=models&effects=1/);
@@ -68,7 +66,7 @@ test.describe("Unified desktop navigation", () => {
   test("hosts migrated advanced effects inside the unified 3D studio", async ({ page }) => {
     test.setTimeout(70_000);
     await page.goto("/legacy?panel=models");
-    await page.getByRole("button", { name: "אפקטים", exact: true }).click();
+    await page.getByRole("button", { name: "סטודיו תצוגה וחתך", exact: true }).click();
     await page.getByRole("button", { name: /X-Ray Shader/ }).click();
     await expect(page.getByLabel("צבע רנטגן")).toBeVisible();
     await page.getByLabel("עוצמת רנטגן").fill("170");
@@ -79,7 +77,7 @@ test.describe("Unified desktop navigation", () => {
     await expect(page.getByRole("button", { name: "הפוך כיוון חתך" })).toBeVisible();
     await page.getByRole("button", { name: "הפוך כיוון חתך" }).click();
     await page.reload();
-    await page.getByRole("button", { name: "אפקטים", exact: true }).click();
+    await page.getByRole("button", { name: "סטודיו תצוגה וחתך", exact: true }).click();
     await expect(page.getByLabel("עוצמת רנטגן")).toHaveValue("170");
     await expect(page.getByLabel("עוצמת אנימציה")).toHaveValue("130");
   });

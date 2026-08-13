@@ -10,6 +10,7 @@
 import { useMeshMappings } from "@/hooks/useMeshMappings";
 import { supabase } from "@/integrations/supabase/client";
 import { getOrganInfoForMesh, MESH_HEBREW } from "./ModelManager/utils";
+import { stableMeshKey } from "./ModelManager/meshParts";
 import {
   Canvas, useLoader, useThree, useFrame, ThreeEvent,
 } from "@react-three/fiber";
@@ -506,11 +507,11 @@ const MODEL_META: Record<ModelId, {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getMeshKey(rawName: string): string {
-  return rawName.split(":")[0];
+  return stableMeshKey(rawName);
 }
 
 function meshDisplayName(rawName: string): string {
-  const stripped = rawName.split(":")[0];
+  const stripped = stableMeshKey(rawName).replace(/:/g, " ");
   const parts = stripped.split("_");
   while (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) parts.pop();
   const deduped: string[] = [];

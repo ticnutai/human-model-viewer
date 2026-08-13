@@ -108,9 +108,9 @@ export class ParallelAnalysisEngine {
       
       console.log(`[AnalysisEngine] Analyzing GLB...`);
       const result = await analyzeGlbSmart(file, job.model.id);
-      console.log(`[AnalysisEngine] Analysis result:`, result.translatedNames?.length || 0, "parts");
+      console.log(`[AnalysisEngine] Analysis result:`, result.meshNames?.length || 0, "raw mesh keys");
       
-      if (result.translatedNames && result.translatedNames.length > 0) {
+      if (result.meshNames && result.meshNames.length > 0) {
         console.log(`[AnalysisEngine] Saving to DB via REST...`);
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -124,7 +124,9 @@ export class ParallelAnalysisEngine {
               'Content-Type': 'application/json',
               'Prefer': 'return=minimal'
             },
-            body: JSON.stringify({ mesh_parts: result.translatedNames })
+            // Mesh keys are technical identifiers. Translating them here broke
+            // click-to-organ matching because the GLB scene keeps the raw key.
+            body: JSON.stringify({ mesh_parts: result.meshNames })
           }
         );
         if (!saveRes.ok) {
@@ -132,7 +134,7 @@ export class ParallelAnalysisEngine {
           console.error(`[AnalysisEngine] DB save error:`, saveRes.status, errText);
           throw new Error(`DB save failed: ${saveRes.status}`);
         }
-        console.log(`[AnalysisEngine] ✅ Saved ${result.translatedNames.length} parts to DB`);
+        console.log(`[AnalysisEngine] ✅ Saved ${result.meshNames.length} raw mesh keys to DB`);
       }
       
       job.status = "success";

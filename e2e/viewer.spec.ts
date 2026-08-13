@@ -67,6 +67,17 @@ test.describe("Professional anatomy atlas", () => {
     await expect(dialog).toBeHidden();
   });
 
+  test("plays and pauses a journey synchronized with the live 3D scene", async ({ page }) => {
+    await page.getByRole("button", { name: /התחל: מסע של טיפת דם/ }).click();
+    const dialog = page.getByRole("dialog", { name: "מסע של טיפת דם" });
+    await expect(dialog.getByTestId("journey-media")).toContainText("תצוגה מסונכרנת למודל");
+    await dialog.getByRole("button", { name: "נגן מסע אוטומטי" }).click();
+    await expect(dialog.getByRole("button", { name: "השהה מסע אוטומטי" })).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "החדר הימני" })).toBeVisible({ timeout: 6_000 });
+    await dialog.getByRole("button", { name: "השהה מסע אוטומטי" }).click();
+    await expect(dialog.getByRole("button", { name: "נגן מסע אוטומטי" })).toBeVisible();
+  });
+
   test("shows interaction help", async ({ page }) => {
     await page.getByRole("button", { name: "עזרה" }).click();
     await expect(page.getByText("גרירה — סיבוב")).toBeVisible();
