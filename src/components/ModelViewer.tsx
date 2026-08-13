@@ -67,7 +67,7 @@ const isLikelyGlbMagic = (prefix: string) => prefix.startsWith("glTF");
 /* ── Searchable Model Picker ── */
 function SearchableModelPicker({ lang, cloudModels, modelUrl, bodyModelUrl, onSelect }: {
   lang: string;
-  cloudModels: { id: string; display_name: string; hebrew_name: string | null; file_url: string | null }[];
+  cloudModels: ModelRecord[];
   modelUrl: string;
   bodyModelUrl: string | undefined;
   onSelect: (url: string | undefined) => void;
@@ -475,7 +475,7 @@ const ModelViewer = () => {
   const [pathologyMode, setPathologyMode] = useState(false);
   const [pathologyQuery, setPathologyQuery] = useState("");
   const [compareMode, setCompareMode] = useState(false);
-  const [compareModelUrl, setCompareModelUrl] = useState(LOCAL_DEFAULT_MODEL);
+  const [compareModelUrl, setCompareModelUrl] = useState<string | null>(LOCAL_DEFAULT_MODEL);
   const [showSymptomSearch, setShowSymptomSearch] = useState(false);
   const [layerOpacities, setLayerOpacities] = useState<Record<LayerType, number>>({ skeleton: 1, muscles: 1, organs: 1, vessels: 1 });
   const [peelAmount, setPeelAmount] = useState(0);
