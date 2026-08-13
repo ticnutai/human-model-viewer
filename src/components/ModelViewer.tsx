@@ -575,7 +575,15 @@ const ModelViewer = () => {
     canvasBg: activeTheme.canvas,
     accent: activeTheme.accent,
     accentAlt: activeTheme.accentAlt,
+    textPrimary: activeTheme.text,
+    textSecondary: activeTheme.muted,
+    panelBg: activeTheme.surface,
+    panelBorder: activeTheme.border,
+    accentBgHover: activeTheme.elevated,
+    gradient: `linear-gradient(135deg, ${activeTheme.accent}, ${activeTheme.accentAlt})`,
+    bg: activeTheme.background,
   }), [activeTheme]);
+
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
   const lessonSequence = useMemo(() => Object.keys(enrichedOrganDetails), [enrichedOrganDetails]);
 
