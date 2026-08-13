@@ -1955,7 +1955,7 @@ function InfoSection({ title, theme, children }: { title: string; theme: typeof 
 // ─── Cloud Model Button ─────────────────────────────────────────────────────
 
 function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinned, onSelect, onCtx, isEditing, editName, setEditName, editDisplayName, setEditDisplayName, onRename, onCancelEdit }: {
-  mod: { id: string; display_name: string; hebrew_name: string | null; file_url: string | null };
+  mod: ModelRecord;
   theme: typeof THEMES["dark"];
   isCloudModel: boolean;
   cloudModelUrl: string | null;
