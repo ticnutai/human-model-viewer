@@ -4,12 +4,13 @@ import { Html, OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three/examples/jsm/controls/OrbitControls.js";
-import { ArrowRight, Box, Eye, EyeOff, FolderOpen, Layers3, Menu, Move, Plus, Rotate3D, RotateCcw, Save, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ArrowRight, Box, Eye, EyeOff, FolderOpen, Focus, Layers3, Menu, Move, Plus, Rotate3D, RotateCcw, Save, Scissors, ShieldCheck, Sparkles, Trash2, Undo2, Upload, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BODY_REFERENCE_LAYERS, FEMALE_BODY_REFERENCE_LAYERS } from "@/data/bodyReferenceLayers";
 import { listLocalOrgans, removeLocalOrgan, saveLocalOrgan, type LocalOrgan } from "@/lib/localOrganStore";
 import { cn } from "@/lib/utils";
 import { useAppTheme } from "@/contexts/AppThemeContext";
+import ClippingPlane, { type ClipAxis } from "@/components/anatomy/ClippingPlane";
 
 type BodyLayer = { id: string; name: string; url: string; color: string; visible: boolean; systemId: string; system: string; structures: number; local?: LocalOrgan };
 type CameraView = { position: [number, number, number]; target: [number, number, number] };
@@ -81,6 +82,20 @@ function ImportedOrgan({ layer, opacity, selected, onSelect }: { layer: BodyLaye
     new GLTFLoader().load(url, (gltf) => { setScene(gltf.scene); URL.revokeObjectURL(url); }, undefined, () => URL.revokeObjectURL(url));
     return () => URL.revokeObjectURL(url);
   }, [layer.local]);
+  useEffect(() => {
+    if (!scene) return;
+    scene.traverse((object) => {
+      if (!(object as THREE.Mesh).isMesh) return;
+      const mesh = object as THREE.Mesh;
+      const materials = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((source) => {
+        const material = source.clone() as THREE.MeshStandardMaterial;
+        material.transparent = opacity < .99; material.opacity = opacity; material.depthWrite = opacity > .45;
+        if (material.isMeshStandardMaterial) { material.emissive = new THREE.Color(selected ? layer.color : "#000"); material.emissiveIntensity = selected ? .24 : 0; }
+        return material;
+      });
+      mesh.material = Array.isArray(mesh.material) ? materials : materials[0];
+    });
+  }, [layer.color, opacity, scene, selected]);
   if (!scene || !layer.local) return null;
   const { position, scale } = layer.local;
   return <primitive object={scene} position={position} scale={scale} onClick={(event: ThreeEvent<MouseEvent>) => { event.stopPropagation(); onSelect(); }} />;
@@ -110,6 +125,13 @@ export default function BodyBuilder() {
   const [cameraView, setCameraView] = useState<CameraView>(readCameraView);
   const [interactionMode, setInteractionMode] = useState<"move" | "rotate">("move");
   const [activeSystem, setActiveSystem] = useState("all");
+  const [quickToolsOpen, setQuickToolsOpen] = useState(true);
+  const [selectionView, setSelectionView] = useState<"normal" | "dim" | "isolate">("normal");
+  const [hiddenHistory, setHiddenHistory] = useState<string[]>([]);
+  const [clipEnabled, setClipEnabled] = useState(false);
+  const [clipAxis, setClipAxis] = useState<ClipAxis>("y");
+  const [clipPosition, setClipPosition] = useState(0);
+  const [clipNegate, setClipNegate] = useState(false);
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const cameraDragRef = useRef(false);
 
@@ -167,6 +189,22 @@ export default function BodyBuilder() {
     setInteractionMode("move");
     setCameraKey((value) => value + 1);
   };
+  const hideSelectedLayer = () => {
+    if (!selected || hidden.includes(selected)) return;
+    setHidden((items) => [...items, selected]);
+    setHiddenHistory((items) => [...items.filter((id) => id !== selected), selected]);
+    setSelectionView("normal");
+  };
+  const restoreLastHiddenLayer = () => {
+    const last = hiddenHistory.at(-1);
+    if (!last) return;
+    setHidden((items) => items.filter((id) => id !== last));
+    setHiddenHistory((items) => items.slice(0, -1));
+    setSelected(last);
+  };
+  const resetAnatomyTools = () => {
+    setSelectionView("normal"); setClipEnabled(false); setClipAxis("y"); setClipPosition(0); setClipNegate(false);
+  };
 
   return <div className="body-builder" dir="rtl">
     <header className="body-builder-header">
@@ -191,13 +229,17 @@ export default function BodyBuilder() {
         </div>)}</div>
         <button className="body-add" onClick={() => setImportOpen(true)}><Upload /> ייבוא איבר GLB חדש</button>
       </aside>
-      <section className="body-stage" aria-label="גוף מורכב תלת־ממדי" data-camera-restored={localStorage.getItem(BODY_VIEW_KEY) ? "true" : "false"}>
+      <section className="body-stage" aria-label="גוף מורכב תלת־ממדי" data-camera-restored={localStorage.getItem(BODY_VIEW_KEY) ? "true" : "false"} data-selection-view={selectionView} data-clipping={clipEnabled ? "true" : "false"}>
         <div className="body-stage-title"><span>מצב הרכבה</span><h1>הגוף נבנה שכבה אחר שכבה</h1><p>{interactionMode === "move" ? "גרור כדי להזיז את הגוף • גלגלת לקירוב והרחבה" : "גרור כדי לסובב • גלגלת לקירוב והרחבה"}</p></div>
         <Canvas key={cameraKey} dpr={[1,1.5]} camera={{ position:cameraView.position, fov:38, near:.01, far:20 }} gl={{ antialias:true,powerPreference:"high-performance" }} onPointerDown={() => { cameraDragRef.current = true; }} onPointerMissed={() => setSelected(null)}>
           <color attach="background" args={[activeTheme.canvas]} />
           <ambientLight intensity={1.4}/><hemisphereLight intensity={1.2} color="#dcecff" groundColor="#080c15"/><directionalLight position={[-2,3,3]} intensity={3}/><pointLight position={[2,.8,2]} intensity={4} color="#83a7ff"/>
           {guide && <BodyGuide />}
-          <Suspense fallback={<Loader />}><group position={[0,-.45,0]} scale={2.25}>{layers.filter((layer) => layer.visible).map((layer) => layer.local ? <ImportedOrgan key={layer.id} layer={layer} opacity={opacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/> : <ReferenceOrgan key={layer.id} layer={layer} opacity={opacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/>)}</group></Suspense>
+          <Suspense fallback={<Loader />}><group position={[0,-.45,0]} scale={2.25}>{layers.filter((layer) => layer.visible && (selectionView !== "isolate" || !selected || layer.id === selected)).map((layer) => {
+            const layerOpacity = selectionView === "dim" && selected && layer.id !== selected ? Math.min(opacity, .14) : opacity;
+            return layer.local ? <ImportedOrgan key={layer.id} layer={layer} opacity={layerOpacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/> : <ReferenceOrgan key={layer.id} layer={layer} opacity={layerOpacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/>;
+          })}</group></Suspense>
+          <ClippingPlane enabled={clipEnabled} axis={clipAxis} position={clipPosition} negate={clipNegate} />
           <OrbitControls ref={controlsRef} makeDefault target={cameraView.target} enableDamping minDistance={.8} maxDistance={7} screenSpacePanning
             mouseButtons={{ LEFT: interactionMode === "move" ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: interactionMode === "move" ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN }}
             onEnd={saveCameraView}/>
@@ -208,6 +250,25 @@ export default function BodyBuilder() {
           <button className={cn(guide&&"is-active")} onClick={() => setGuide((value)=>!value)} title="מתאר גוף"><Box/></button>
           <label><Eye/><input type="range" min="20" max="100" value={opacity*100} onChange={(event)=>setOpacity(Number(event.target.value)/100)} aria-label="שקיפות שכבות הגוף"/></label>
           <button onClick={resetCameraView} title="אפס מיקום ותצוגה" aria-label="אפס מיקום ותצוגה"><RotateCcw/></button>
+        </div>
+        <div className="absolute bottom-24 right-5 z-20 flex items-end gap-2" dir="rtl">
+          <button className={cn("body-anatomy-trigger", (quickToolsOpen || selectionView !== "normal" || clipEnabled) && "is-active")} onClick={() => setQuickToolsOpen((value) => !value)} aria-label={quickToolsOpen ? "סגור כלים אנטומיים" : "פתח כלים אנטומיים"} aria-expanded={quickToolsOpen}><Scissors/></button>
+          {quickToolsOpen && <section className="body-anatomy-tools" aria-label="כלים אנטומיים מהירים">
+            <header><div><strong>כלים מהירים {selected ? `· ${layers.find((layer) => layer.id === selected)?.name || ""}` : ""}</strong><small>בחר שכבה בגוף והפעל פעולה</small></div>{hiddenHistory.length > 0 && <span>{hiddenHistory.length} מוסתרים</span>}</header>
+            <div className="body-anatomy-actions">
+              <button disabled={!selected} className={cn(selectionView === "isolate" && "is-active")} onClick={() => setSelectionView("isolate")}><Focus/><span>בודד חלק</span></button>
+              <button disabled={!selected} className={cn(selectionView === "dim" && "is-active")} onClick={() => setSelectionView("dim")}><Eye/><span>עמעם סביב</span></button>
+              <button disabled={!selected} onClick={hideSelectedLayer}><EyeOff/><span>הסתר חלק</span></button>
+              <button disabled={!hiddenHistory.length} onClick={restoreLastHiddenLayer}><Undo2/><span>החזר אחרון</span></button>
+              <button className={cn(clipEnabled && "is-active")} onClick={() => setClipEnabled((value) => !value)}><Scissors/><span>חיתוך</span></button>
+              <button onClick={resetAnatomyTools}><RotateCcw/><span>הצג רגיל</span></button>
+            </div>
+            {clipEnabled && <div className="body-clip-controls">
+              <div role="group" aria-label="כיוון חיתוך">{([['x','צד'],['y','גובה'],['z','חזית']] as [ClipAxis,string][]).map(([axis,label]) => <button key={axis} className={cn(clipAxis === axis && "is-active")} onClick={() => setClipAxis(axis)}>{label}</button>)}</div>
+              <label>עומק<input aria-label="עומק חיתוך בבונה הגוף" type="range" min="-200" max="200" value={clipPosition*100} onChange={(event) => setClipPosition(Number(event.target.value)/100)}/></label>
+              <button className={cn(clipNegate && "is-active")} onClick={() => setClipNegate((value) => !value)}>↔ הפוך</button>
+            </div>}
+          </section>}
         </div>
       </section>
     </main>

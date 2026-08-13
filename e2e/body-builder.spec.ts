@@ -33,6 +33,29 @@ test.describe("Body builder and GLB library", () => {
     await expect(page.getByText("13/23")).toBeVisible();
   });
 
+  test("floating tools control the selected body layer and anatomical section", async ({ page }) => {
+    const stage = page.getByRole("region", { name: "גוף מורכב תלת־ממדי" });
+    const tools = page.getByRole("region", { name: "כלים אנטומיים מהירים" });
+    const heartLayer = page.locator(".body-layer").filter({ hasText: "הלב" }).first();
+    await heartLayer.locator(".body-layer-main").click();
+    await expect(tools).toContainText("הלב");
+    await tools.getByRole("button", { name: "בודד חלק" }).click();
+    await expect(stage).toHaveAttribute("data-selection-view", "isolate");
+    await tools.getByRole("button", { name: "עמעם סביב" }).click();
+    await expect(stage).toHaveAttribute("data-selection-view", "dim");
+    await tools.getByRole("button", { name: "הסתר חלק" }).click();
+    await expect(page.getByRole("button", { name: "הצג הלב", exact: true })).toBeVisible();
+    await tools.getByRole("button", { name: "החזר אחרון" }).click();
+    await expect(page.getByRole("button", { name: "הסתר הלב", exact: true })).toBeVisible();
+    await tools.getByRole("button", { name: "חיתוך" }).click();
+    await expect(stage).toHaveAttribute("data-clipping", "true");
+    await tools.getByLabel("עומק חיתוך בבונה הגוף").fill("35");
+    await tools.getByRole("button", { name: "חזית" }).click();
+    await tools.getByRole("button", { name: "הצג רגיל" }).click();
+    await expect(stage).toHaveAttribute("data-selection-view", "normal");
+    await expect(stage).toHaveAttribute("data-clipping", "false");
+  });
+
   test("moves the whole body with the mouse and restores the view after reload", async ({ page }) => {
     await page.evaluate(() => localStorage.removeItem("niflaot-body-builder-camera-v1"));
     await page.reload();
