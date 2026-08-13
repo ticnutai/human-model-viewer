@@ -305,7 +305,8 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
         if (!orig) return;
         mesh.material = Array.isArray(orig) ? orig.map(m => (m as THREE.Material).clone()) : (orig as THREE.Material).clone();
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        const isSelected = Boolean(selectedMesh) && mesh.name === selectedMesh;
+        const mappedSelection = selectedMesh ? getMappedDetail(getDetectionCandidates(mesh)) : null;
+        const isSelected = Boolean(selectedMesh) && (mesh.name === selectedMesh || mappedSelection?.meshName === selectedMesh);
         const isGhosted = focusSelected && Boolean(selectedMesh) && !isSelected;
         materials.forEach((mat) => {
           const typed = mat as THREE.MeshStandardMaterial;
@@ -327,7 +328,7 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
         }
       }
     });
-  }, [selectedMesh, sceneClone, accent, xRayOpacity, explodeAmount, focusSelected, normalizedTransform.center]);
+  }, [selectedMesh, sceneClone, accent, xRayOpacity, explodeAmount, focusSelected, normalizedTransform.center, getDetectionCandidates, getMappedDetail]);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -856,9 +857,25 @@ const ModelViewer = () => {
 
   const focusOrganByKey = useCallback((key: string) => {
     const organ = enrichedOrganDetails[key]; if (!organ) return;
-    setSelectedOrgan({ ...organ, meshName: key });
+    const safeMappings = cloudMeshData.filter(mapping => !(mapping.facts?.autoMapped && !mapping.facts?.identificationStatus));
+    const sameKey = (mapping: typeof cloudMeshData[number]) =>
+      canonicalMeshKey(mapping.mesh_key).toLocaleLowerCase("en") === canonicalMeshKey(key).toLocaleLowerCase("en")
+      || canonicalMeshKey(String(mapping.facts?.originalMeshName || "")).toLocaleLowerCase("en") === canonicalMeshKey(key).toLocaleLowerCase("en");
+    const currentMapping = safeMappings.find(mapping => canonicalModelUrl(mapping.model_url) === canonicalModelUrl(modelUrl) && sameKey(mapping));
+    const sourceMapping = currentMapping || safeMappings.find(mapping => sameKey(mapping) && /\.glb(?:$|\?)/i.test(mapping.model_url));
+    const selectedKey = sourceMapping?.mesh_key || key;
+
+    setSelectedOrgan({ ...organ, meshName: selectedKey });
+    setFocusSelected(true);
+    setXRayOpacity(1);
+    setExplodeAmount(0.04);
+    setShowSelectionOutline(true);
+
+    if (sourceMapping && canonicalModelUrl(sourceMapping.model_url) !== canonicalModelUrl(modelUrl)) {
+      void handleSelectModel(sourceMapping.model_url);
+    }
     if (organ.cameraPos) handleViewChange(organ.cameraPos, organ.lookAt);
-  }, [handleViewChange, enrichedOrganDetails]);
+  }, [cloudMeshData, enrichedOrganDetails, handleSelectModel, handleViewChange, modelUrl]);
 
   const moveLesson = useCallback((direction: 1 | -1) => {
     setLessonIndex(prev => { const next = (prev + direction + lessonSequence.length) % lessonSequence.length; focusOrganByKey(lessonSequence[next]); return next; });
@@ -1724,7 +1741,7 @@ const ModelViewer = () => {
       )}
 
       {/* ═══ 3D CANVAS ═══ */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-focus-selected={focusSelected ? "true" : "false"} data-model-url={modelUrl}>
         <Canvas key={canvasKey} camera={{ position: [0, 1, 4], fov: 50 }}
           gl={{ antialias: true, powerPreference: "high-performance" }}
           onCreated={({ gl }) => { gl.domElement.addEventListener("webglcontextlost", (e) => { e.preventDefault(); setTimeout(() => setCanvasKey(k => k + 1), 1000); }, false); }}
@@ -1750,6 +1767,9 @@ const ModelViewer = () => {
           <CameraController key={renderKey} targetPosition={cameraTargetRef.current} targetLookAt={cameraLookAtRef.current} />
           <OrbitControls enableDamping dampingFactor={0.05} minDistance={0.6} maxDistance={60} autoRotate={autoRotate} autoRotateSpeed={0.5} />
         </Canvas>
+        {selectedOrgan && focusSelected && <div className="absolute top-16 left-1/2 z-[7] -translate-x-1/2 rounded-full border border-primary/35 bg-background/85 px-4 py-2 text-xs font-bold text-foreground shadow-lg backdrop-blur" role="status">
+          🎯 מציג כעת: {selectedOrgan.name} · שאר המבנים מעומעמים
+        </div>}
       </div>
 
       {/* ═══ COMPARE SPLIT-SCREEN ═══ */}

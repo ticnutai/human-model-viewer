@@ -72,3 +72,15 @@ test("skin and limb structures never inherit unrelated organ mappings", async ({
   await expect(sidebar).not.toContainText("המעי הדק");
   expect(errors).toEqual([]);
 });
+
+test("clicking an atlas organ isolates its real mesh instead of only selecting the row", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/legacy?panel=organs");
+  const heart = page.locator(".organ-card").filter({ hasText: "מסתמי הלב" }).first();
+  await expect(heart).toBeVisible({ timeout: 60_000 });
+  await heart.click();
+  const viewer = page.getByTestId("anatomy-viewer-canvas");
+  await expect(viewer).toHaveAttribute("data-focus-selected", "true");
+  await expect(viewer).not.toHaveAttribute("data-selected-mesh", "");
+  await expect(page.getByRole("status")).toContainText("מציג כעת: מסתמי הלב");
+});
