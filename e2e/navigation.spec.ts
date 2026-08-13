@@ -25,6 +25,13 @@ test.describe("Navigation", () => {
     await expect(page.locator("#email")).toBeVisible();
   });
 
+  test("the anatomy journey is available without an account", async ({ page }) => {
+    await page.goto("/");
+    await expect(page).toHaveURL("/");
+    await expect(page.getByTestId("professional-atlas")).toBeVisible();
+    await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
+  });
+
   test("page title reflects the app", async ({ page }) => {
     await page.goto("/auth");
     // Title should not be empty

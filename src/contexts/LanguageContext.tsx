@@ -64,8 +64,8 @@ type TranslationKey =
 
 const translations: Record<Language, Record<TranslationKey, string>> = {
   he: {
-    "app.title": "גוף האדם — מודל תלת-ממדי",
-    "app.subtitle": "סובבו, הגדילו והקטינו את המודל באמצעות העכבר",
+    "app.title": "נפלאות הגוף — מסע תלת־ממדי",
+    "app.subtitle": "מגלים את החכמה, המורכבות והתיאום המופלא שבגוף האדם",
     "app.searchPlaceholder": "חיפוש איבר...",
     "view.front": "מלפנים",
     "view.back": "מאחור",
@@ -124,8 +124,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "dialog.stat.system": "מערכת"
   },
   en: {
-    "app.title": "Human Body — 3D Model",
-    "app.subtitle": "Rotate, zoom, and explore the model with your mouse",
+    "app.title": "Wonders of the Body — 3D Journey",
+    "app.subtitle": "Discover the wisdom, complexity, and harmony of the human body",
     "app.searchPlaceholder": "Search organ...",
     "view.front": "Front",
     "view.back": "Back",

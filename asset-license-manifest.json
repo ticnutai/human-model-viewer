@@ -352,6 +352,78 @@
       "likes": 0,
       "views": 0,
       "recommendedScore": 20000
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-allen-brain/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Brain (UBERON:0000955)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-kidney-right/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Right Kidney (UBERON:0004539)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-large-intestine/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Large Intestine (UBERON:0000059)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-pancreas/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Pancreas (UBERON:0001264)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-small-intestine/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Small Intestine (UBERON:0002108)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-spleen/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Spleen (UBERON:0002106)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-bladder/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Urinary Bladder (UBERON:0001255)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-spinal-cord/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Spinal Cord (UBERON:0002240)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-trachea/model.glb",
+      "source": "Human Reference Atlas – CCF",
+      "license": "CC Attribution 4.0 International",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": ["web-education", "research"],
+      "notes": "https://humanatlas.io/3d-reference-library — Male Trachea (UBERON:0003126)"
     }
   ]
 }
