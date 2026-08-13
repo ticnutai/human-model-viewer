@@ -307,10 +307,10 @@ function OrganMesh({
   const currentScale = useRef([...shape.scale]);
 
   const organData = ORGAN_DETAILS[shape.key];
-  if (!organData) return null;
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
+    if (!organData) return;
     onSelect({ ...organData, meshName: shape.key });
   };
 
@@ -444,6 +444,7 @@ function OrganMesh({
     mat.opacity += (targetOpacity - mat.opacity) * 0.1;
   });
 
+  if (!organData) return null;
   const isPathologyOrgan = pathologyKeys?.has(shape.key) ?? false;
   const color = isPathologyOrgan ? "#ff6600" : isSelected ? accent : hovered ? shape.hoverColor : shape.color;
   const localizedName = getLocalizedOrganName(shape.key, organData.name, lang);

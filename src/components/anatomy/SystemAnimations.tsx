@@ -3,7 +3,7 @@
  * directly to mesh objects inside a loaded GLB scene.
  * Place inside <Canvas> after the model has been loaded.
  */
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 
@@ -46,6 +46,15 @@ export default function SystemAnimations({
   const { scene } = useThree();
   const meshesRef = useRef<MeshRecord[]>([]);
   const scannedRef = useRef(false);
+
+  useEffect(() => {
+    for (const rec of meshesRef.current) {
+      rec.mesh.scale.copy(rec.originalScale);
+      rec.mesh.position.copy(rec.originalPosition);
+    }
+    meshesRef.current = [];
+    scannedRef.current = false;
+  }, [enabled, heartbeat, breathing, digestion, scene]);
 
   // Scan scene once for matching meshes
   useFrame(({ clock }) => {

@@ -30,6 +30,8 @@ import AnatomyLabels3D from "./anatomy/AnatomyLabels3D";
 import BloodFlowParticles from "./anatomy/BloodFlowParticles";
 import CameraTour from "./anatomy/CameraTour";
 import SystemAnimations from "./anatomy/SystemAnimations";
+import { loadCloudLibrary } from "@/lib/cloudModelRepository";
+import { HUMAN_ATLAS_BY_ID } from "@/data/humanAtlasCatalog";
 
 // ─── Model definitions ───────────────────────────────────────────────────────
 
@@ -427,7 +429,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   brain: {
-    path: resolveModelPath("/models/cloud/brain.glb"),
+    path: HUMAN_ATLAS_BY_ID.get("brain")!.modelUrl,
     titleHe: "מוח אנושי", titleEn: "Realistic Brain", icon: "🧠",
     hasAnimation: false, description: "מודל מוח אנושי ריאליסטי תלת-ממדי",
     layers: [
@@ -465,7 +467,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   kidney: {
-    path: resolveModelPath("/models/humanatlas/kidney.glb"),
+    path: HUMAN_ATLAS_BY_ID.get("kidney-left")!.modelUrl,
     titleHe: "כליה שמאלית", titleEn: "Left Kidney", icon: "🫘",
     hasAnimation: false, description: "כליה אנושית שמאלית — Human Reference Atlas",
     layers: [
@@ -477,7 +479,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   liver: {
-    path: resolveModelPath("/models/humanatlas/liver.glb"),
+    path: HUMAN_ATLAS_BY_ID.get("liver")!.modelUrl,
     titleHe: "כבד", titleEn: "Liver", icon: "🫁",
     hasAnimation: false, description: "כבד אנושי — Human Reference Atlas",
     layers: [
@@ -487,7 +489,7 @@ const MODEL_META: Record<ModelId, {
     infoMap: {},
   },
   lung: {
-    path: resolveModelPath("/models/humanatlas/lung.glb"),
+    path: HUMAN_ATLAS_BY_ID.get("lungs")!.modelUrl,
     titleHe: "ריאות", titleEn: "Lungs", icon: "🫁",
     hasAnimation: false, description: "ריאות אנושיות — Human Reference Atlas",
     layers: [
@@ -789,16 +791,10 @@ export default function AdvancedAnatomyViewer() {
   const [cloudCategories, setCloudCategories] = useState<{ id: string; name: string; icon: string | null }[]>([]);
 
   useEffect(() => {
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    const headers = { apikey, Authorization: `Bearer ${apikey}`, Accept: "application/json" };
-    Promise.all([
-      fetch(`${baseUrl}/rest/v1/models?select=id,display_name,hebrew_name,file_url,mesh_parts,category_id&order=created_at.desc`, { headers }).then(r => r.json()),
-      fetch(`${baseUrl}/rest/v1/model_categories?select=id,name,icon&order=sort_order`, { headers }).then(r => r.json()),
-    ]).then(([mods, cats]) => {
-      if (Array.isArray(mods)) setCloudModels(mods);
-      if (Array.isArray(cats)) setCloudCategories(cats);
-    }).catch(console.error);
+    loadCloudLibrary().then(({ models, categories }) => {
+      setCloudModels(models);
+      setCloudCategories(categories);
+    }).catch((error) => console.error("[AdvancedViewer] library load error:", error));
   }, []);
 
   // Determine the actual meta to use
@@ -1185,7 +1181,7 @@ export default function AdvancedAnatomyViewer() {
                 style={{ background: showSettings ? theme.accentBg : "transparent", color: showSettings ? theme.accent : theme.textDim }}>
                 ⚙️
               </button>
-              <button onClick={() => navigate("/")} className="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-all"
+              <button onClick={() => navigate("/")} className="desktop-duplicate-nav px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-all"
                 style={{ color: theme.accent, borderColor: theme.accent + "60", background: "transparent" }}>
                 ← חזור
               </button>

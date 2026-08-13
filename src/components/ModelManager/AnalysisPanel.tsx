@@ -4,6 +4,7 @@ import type { ModelRecord } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Brain, CheckCircle2, XCircle, AlertCircle, PlayCircle, StopCircle, Bot, Zap, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { loadCloudModels } from "@/lib/cloudModelRepository";
 
 interface AnalysisPanelProps {
   models?: ModelRecord[];
@@ -63,23 +64,8 @@ export default function AnalysisPanel({ models: propsModels, onLoad }: AnalysisP
 
   const fetchModels = async () => {
     setLoading(true);
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    
     try {
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/models?select=*&order=created_at.desc`,
-        {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      const data = await response.json();
+      const data = await loadCloudModels();
       if (data) setLocalModels(data);
     } catch (e: any) {
       toast({ title: "שגיאה בטעינת מודלים", description: e.message, variant: "destructive" });

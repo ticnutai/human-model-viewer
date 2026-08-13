@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+.local-server.pid
+.models-audit.json
+test-results/
+playwright-report/
 
 # Editor directories and files
 .vscode/*

@@ -1,8 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { getOrganInfoForMesh, type MeshOrganInfo } from "./ModelManager/utils";
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+import { loadCloudLibrary } from "@/lib/cloudModelRepository";
 
 type GalleryModel = {
   id: string;
@@ -111,20 +110,10 @@ export default function ModelGallery({ onSelectModel, currentModelUrl }: ModelGa
 
   const load = useCallback(async () => {
     setLoading(true);
-    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    const headers: Record<string, string> = {
-      apikey,
-      Authorization: `Bearer ${apikey}`,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    };
     try {
-      const [modRes, catRes] = await Promise.all([
-        fetch(`${SUPABASE_URL}/rest/v1/models?select=*&order=created_at.desc`, { headers }),
-        fetch(`${SUPABASE_URL}/rest/v1/model_categories?select=id,name,icon&order=sort_order`, { headers }),
-      ]);
-      if (modRes.ok) setModels(await modRes.json());
-      if (catRes.ok) setCategories(await catRes.json());
+      const library = await loadCloudLibrary();
+      setModels(library.models as GalleryModel[]);
+      setCategories(library.categories);
     } catch (e) {
       console.error("[ModelGallery] load error:", e);
     }

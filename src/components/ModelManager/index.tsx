@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,8 @@ import type {
   SketchfabSearchResult, UploadItem, LocalManifestAsset,
 } from "./types";
 import { SUPABASE_URL, SKETCHFAB_TOKEN_STORAGE_KEY } from "./types";
+import { loadCloudLibrary } from "@/lib/cloudModelRepository";
+import { useLocation } from "react-router-dom";
 
 interface ModelManagerProps {
   onSelectModel: (url: string) => void | Promise<void>;
@@ -28,6 +30,7 @@ interface ModelManagerProps {
 }
 
 export default function ModelManager({ onSelectModel, currentModelUrl }: ModelManagerProps) {
+  const location = useLocation();
   const [models, setModels] = useState<ModelRecord[]>([]);
   const [localModels, setLocalModels] = useState<ListModel[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -44,6 +47,14 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [autoNaming, setAutoNaming] = useState(false);
   const [managerTab, setManagerTab] = useState<"models" | "meshmap" | "allmappings">("models");
+  const [favoriteModels, setFavoriteModels] = useState<Set<string>>(() => { try { return new Set(JSON.parse(localStorage.getItem("favorite_models") || "[]")); } catch { return new Set(); } });
+  const [pinnedModels, setPinnedModels] = useState<Set<string>>(() => { try { return new Set(JSON.parse(localStorage.getItem("pinned_models") || "[]")); } catch { return new Set(); } });
+  const toggleFavorite = (id: string) => setFavoriteModels((current) => { const next=new Set(current); next.has(id)?next.delete(id):next.add(id); localStorage.setItem("favorite_models",JSON.stringify([...next])); return next; });
+  const togglePin = (id: string) => setPinnedModels((current) => { const next=new Set(current); next.has(id)?next.delete(id):next.add(id); localStorage.setItem("pinned_models",JSON.stringify([...next])); return next; });
+  useEffect(() => {
+    const requested = new URLSearchParams(location.search).get("tool");
+    if (requested === "models" || requested === "meshmap" || requested === "allmappings") setManagerTab(requested);
+  }, [location.search]);
   const [bgProcessingIds, setBgProcessingIds] = useState<Set<string>>(new Set());
   // Sketchfab
   const [sketchfabResults, setSketchfabResults] = useState<SketchfabSearchResult[]>([]);
@@ -51,6 +62,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [sketchfabError, setSketchfabError] = useState<string | null>(null);
   const [importingUid, setImportingUid] = useState<string | null>(null);
   const [showSketchfab, setShowSketchfab] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [showMaintenance, setShowMaintenance] = useState(false);
   const [sketchfabNextUrl, setSketchfabNextUrl] = useState<string | null>(null);
   const [sketchfabLoadingMore, setSketchfabLoadingMore] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(true);
@@ -63,63 +76,24 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   }>({ done: 0, total: 0, currentName: "", skipped: 0, failed: 0, successNames: [] });
   const batchAbortRef = useRef(false);
 
-  // ── Data loading using direct fetch (bypasses supabase-js client hang) ──
+  // ── Shared cloud library loader ──
   const load = useCallback(async (retryCount = 0) => {
     console.log("[ModelManager] load() called, retry:", retryCount);
     setModelsLoading(true);
 
-    const baseUrl = SUPABASE_URL;
-    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    const headers: Record<string, string> = {
-      apikey,
-      Authorization: `Bearer ${apikey}`,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    };
-
     const maxRetries = 2;
-    let catLoaded = false;
-    let modLoaded = false;
-
     try {
-      console.log("[ModelManager] Fetching categories via REST...");
-      const catRes = await fetch(`${baseUrl}/rest/v1/model_categories?select=*&order=sort_order`, { headers });
-      if (catRes.ok) {
-        const catData = await catRes.json();
-        console.log("[ModelManager] catResult:", catData.length);
-        setCatLoadError(null);
-        setCategories(catData);
-        catLoaded = true;
-      } else {
-        const errText = await catRes.text();
-        console.error("[ModelManager] categories error:", catRes.status, errText);
-        setCatLoadError(errText);
-      }
+      const library = await loadCloudLibrary({ retries: 0 });
+      setCatLoadError(null);
+      setCategories(library.categories);
+      setModels(library.models);
+      console.log("[ModelManager] ✅ Loaded", library.models.length, "models from cloud");
+      setModelsLoading(false);
     } catch (err: any) {
-      console.error("[ModelManager] categories load exception:", err?.message || err);
-    }
-
-    try {
-      console.log("[ModelManager] Fetching models via REST...");
-      const modRes = await fetch(`${baseUrl}/rest/v1/models?select=*&order=created_at.desc`, { headers });
-      if (modRes.ok) {
-        const modData = await modRes.json();
-        console.log("[ModelManager] ✅ Loaded", modData.length, "models from cloud");
-        setModels(modData);
-        modLoaded = true;
-      } else {
-        const errText = await modRes.text();
-        console.error("[ModelManager] models error:", modRes.status, errText);
-      }
-    } catch (err: any) {
-      console.error("[ModelManager] models load exception:", err?.message || err);
-    }
-
-    setModelsLoading(false);
-
-    if ((!catLoaded || !modLoaded) && retryCount < maxRetries) {
-      console.log(`[ModelManager] Incomplete load, retrying...`);
-      setTimeout(() => load(retryCount + 1), 800);
+      console.error("[ModelManager] library load exception:", err?.message || err);
+      setCatLoadError(err?.message || "טעינת ספריית המודלים נכשלה");
+      setModelsLoading(false);
+      if (retryCount < maxRetries) setTimeout(() => load(retryCount + 1), 800);
     }
   }, []);
 
@@ -184,28 +158,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     })();
   }, [models.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-generate thumbnails for models missing them (runs once after load)
-  const [autoThumbTriggered, setAutoThumbTriggered] = useState(false);
-  useEffect(() => {
-    if (autoThumbTriggered || models.length === 0 || batchGenerating) return;
-    const missing = models.filter(m => !m.thumbnail_url && m.file_url && (m.media_type || "glb") === "glb");
-    if (missing.length === 0) return;
-    setAutoThumbTriggered(true);
-    console.log(`[ModelManager] Auto-generating thumbnails for ${missing.length} models`);
-    (async () => {
-      setBatchGenerating(true);
-      for (const m of missing) {
-        setGeneratingThumbId(m.id);
-        try {
-          const blob = await generateThumbnailFromUrl(m.file_url!);
-          if (blob) await uploadThumbnailBlob(blob, m.id);
-        } catch (e) { console.warn("Auto-thumb failed for", m.id, e); }
-      }
-      setGeneratingThumbId(null);
-      setBatchGenerating(false);
-      await load();
-    })();
-  }, [models, autoThumbTriggered, batchGenerating]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Thumbnail generation is deliberately manual. Running WebGL thumbnail jobs
+  // while the library opens made the viewer feel frozen on slower machines.
 
   // ── Upload logic ──
   const updateUploadItem = (id: string, patch: Partial<UploadItem>) => {
@@ -645,7 +599,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     setLocalModels(prev => prev.map(m => m.id === id ? { ...m, displayName: name.trim() } : m));
   };
 
-  const handleDelete = async (rec: ModelRecord) => {
+  const deleteRecord = async (rec: ModelRecord) => {
     // Remove main file from storage
     const filesToRemove = [rec.file_name];
     // Also remove thumbnail if it's in the same bucket
@@ -665,8 +619,10 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     if (rec.file_url) {
       await supabase.from("model_mesh_mappings").delete().eq("model_url", rec.file_url);
     }
-    await load();
+    return true;
   };
+
+  const handleDelete = async (rec: ModelRecord) => { if (await deleteRecord(rec)) await load(); };
 
   const handleSaveEdit = async (modelId: string, form: { display_name: string; hebrew_name: string; notes: string; category_id: string | null; media_type: string }) => {
     await supabase.from("models").update({ display_name: form.display_name, hebrew_name: form.hebrew_name, notes: form.notes, category_id: form.category_id, media_type: form.media_type }).eq("id", modelId);
@@ -858,6 +814,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     : combinedBase;
 
   const combinedModels = [...searchFiltered].filter(m => !filterMash || modelHasMash(m)).sort((a, b) => {
+    if (Number(pinnedModels.has(b.id)) !== Number(pinnedModels.has(a.id))) return Number(pinnedModels.has(b.id)) - Number(pinnedModels.has(a.id));
     if (sortMode === "name") return a.displayName.localeCompare(b.displayName, "he");
     if (sortMode === "downloads") return (b.downloads - a.downloads) || (b.likes - a.likes);
     if (sortMode === "recommended") return (b.recommendedScore - a.recommendedScore) || (b.likes - a.likes);
@@ -870,6 +827,20 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   });
 
   const modelsWithoutThumb = models.filter(m => !m.thumbnail_url && m.file_url && (m.media_type || "glb") === "glb").length;
+  const duplicateGroups = useMemo(() => {
+    const groups = new Map<string, ModelRecord[]>();
+    for (const model of models) {
+      const key = (model.file_url || model.hebrew_name || model.display_name).trim().toLowerCase();
+      groups.set(key, [...(groups.get(key) || []), model]);
+    }
+    return [...groups.values()].filter((group) => group.length > 1);
+  }, [models]);
+  const duplicateCount = duplicateGroups.reduce((count, group) => count + group.length - 1, 0);
+  const handleDeleteDuplicates = async () => {
+    if (!duplicateCount || !confirm(`נמצאו ${duplicateCount} רשומות כפולות. להשאיר את הרשומה הראשונה בכל קבוצה ולמחוק את השאר?`)) return;
+    for (const record of duplicateGroups.flatMap((group) => group.slice(1))) await deleteRecord(record);
+    await load();
+  };
 
   const selectAllVisible = () => {
     const cloudIds = combinedModels.filter(m => m.source === "cloud" && m.record?.file_url).map(m => m.id);
@@ -877,9 +848,9 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }}>
+    <div className="model-manager flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }}>
       {/* Tab switcher */}
-      <div className="flex" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
+      <div className="desktop-duplicate-nav flex" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
         <button
           onClick={() => setManagerTab("models")}
           className="flex-1 text-[10px] font-bold py-2 cursor-pointer border-none transition-colors"
@@ -926,9 +897,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       ) : (
       <>
       {/* Header stats */}
-      <div className="flex items-center justify-between px-3 py-2.5" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)", background: "hsl(43 78% 47% / 0.05)" }}>
+      <div className="model-manager-header flex items-center justify-between px-3 py-2.5" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)", background: "hsl(43 78% 47% / 0.05)" }}>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>📦 מאגר מודלים</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "hsl(43 78% 47% / 0.15)", color: "hsl(43 78% 40%)" }}>
             {modelsLoading ? "⏳" : models.length} בענן
           </span>
@@ -936,7 +906,10 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
             {localModels.length} מקומיים
           </span>
         </div>
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="model-manager-toolbar flex items-center gap-1 flex-wrap">
+          <button onClick={() => setShowUpload(value => !value)} className="model-manager-action text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer">⬆️ {showUpload ? "סגור העלאה" : "הוסף מודל"}</button>
+          <button onClick={() => setShowMaintenance(value => !value)} className="model-manager-action text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer">🛠️ {showMaintenance ? "סגור כלים" : "כלי ניהול"}</button>
+          {showMaintenance && <>
           {models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "").length > 0 && (
             <button
               onClick={handleAutoNameAll}
@@ -957,6 +930,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               {batchGenerating ? `⏳ יוצר תמונות...` : `📸 צור תמונות (${modelsWithoutThumb})`}
             </button>
           )}
+          {duplicateCount > 0 && <button onClick={()=>void handleDeleteDuplicates()} title={duplicateGroups.map(group=>group[0].hebrew_name||group[0].display_name).join(", ")} className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer" style={{background:"hsl(0 70% 55% / .08)",color:"hsl(0 62% 43%)",border:"1px solid hsl(0 60% 52% / .28)"}}>⚠️ נקה כפילויות ({duplicateCount})</button>}
+          </>}
           {/* View mode toggle */}
           <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid hsl(43 60% 55% / 0.3)" }}>
             <button
@@ -1016,7 +991,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       </div>
 
       {/* Batch analysis toolbar */}
-      <div className="px-2 pt-1.5 pb-1 flex flex-col gap-1" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.15)" }}>
+      {showMaintenance && <div className="px-2 pt-1.5 pb-1 flex flex-col gap-1" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.15)" }}>
         <div className="flex items-center gap-1 flex-wrap">
           <button
             onClick={() => { setSelectMode(s => !s); if (selectMode) clearSelection(); }}
@@ -1113,7 +1088,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
             </div>
           );
         })()}
-      </div>
+      </div>}
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto sidebar-scroll">
@@ -1144,12 +1119,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         )}
 
         {/* Upload zone */}
-        <UploadZone
+        {showUpload && <UploadZone
           uploads={uploads}
           onUpload={handleUpload}
           onCancel={(id) => setUploads(prev => prev.filter(u => u.id !== id))}
           onDropFiles={handleDropFiles}
-        />
+        />}
 
         {/* Model list */}
         <div className="px-2 pt-2 pb-2">
@@ -1196,6 +1171,10 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
                   generatingThumbId={generatingThumbId}
                   viewMode={viewMode}
                   isBackgroundProcessing={bgProcessingIds.has(model.id.replace("local:", ""))}
+                  isFavorite={favoriteModels.has(model.id)}
+                  isPinned={pinnedModels.has(model.id)}
+                  onToggleFavorite={() => toggleFavorite(model.id)}
+                  onTogglePin={() => togglePin(model.id)}
                 />
               </div>
             ))}

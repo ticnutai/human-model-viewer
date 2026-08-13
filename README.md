@@ -1,73 +1,51 @@
-# Welcome to your Lovable project
+# נפלאות הגוף
 
-## Project info
+אטלס אנטומי תלת־ממדי, אינטראקטיבי ועברי לחקר החכמה, המורכבות והתיאום המופלא שבגוף האדם.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+המערכת נפתחת גם ללא חשבון ועובדת עם מודלים מקומיים, כך שמסלול הלמידה המרכזי אינו תלוי בשירות ענן. התחברות ו־Supabase מוסיפים סנכרון, ניהול מודלים ויכולות מתקדמות, אך אינם תנאי לחקר הגוף.
 
-## How can I edit this code?
+## חוויית האטלס המקצועית
 
-There are several ways of editing your application.
+- חמישה מודלי GLB מופרדים של Human Reference Atlas: לב, מוח, ריאות, כליה וכבד
+- מקור, ייחוס, רישיון CC BY 4.0 ומזהה UBERON לכל איבר
+- בחירת מבנים מתוך המודל, שקיפות, בידוד ותצוגה מפורקת
+- חיפוש מהיר, מידע מדעי, נקודות פלא ומסעות לימוד מודרכים
+- מדריך חכם מודע לסצנה שמפעיל איברים, שקיפות, פירוק, מסעות וחידונים מתוך שיחה בעברית
+- שלוש רמות הסבר, קשרים אנטומיים, קריינות וקלט קולי בדפדפנים תומכים
+- המחשות פיזיולוגיות ומעקב התקדמות מקומי ופרטי
+- טעינה לפי דרישה, מגבלת DPR ותקציב מקסימלי של 15MB לאיבר
+- ממשק RTL רספונסיבי שנבדק בדסקטופ וב־Pixel 7
+- בונה גוף עם 13 איברי HRA זכריים באותה מערכת קואורדינטות: מוח, חוט שדרה, נשימה, עיכול, שתן ועוד
+- ייבוא איברי GLB אישיים, כיוון X/Y/Z וקנה מידה ושמירה פרטית ב־IndexedDB
+- ספריית ומנהל ה־GLB המקוריים זמינים ישירות מכפתור "ספריית GLB"
 
-**Use Lovable**
+הצופה הניסיוני הקודם נשמר ב־`/legacy` לצורכי השוואה בלבד; הוא אינו מקור האנטומיה הראשי.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## הפעלה מקומית
 
-Changes made via Lovable will be committed automatically to this repo.
+נדרש Node.js עדכני.
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```powershell
+npm ci
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Vite יאזין כברירת מחדל ב־`http://127.0.0.1:7000`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## איכות ובדיקות
 
-**Use GitHub Codespaces**
+```powershell
+npm run test
+npm run typecheck
+npm run test:e2e
+npm run compliance:check
+npm run atlas:validate
+npm run models:validate
+npm run build
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+בדיקות Playwright מרימות שרת מבודד ב־`127.0.0.1:7011` ופועלות ב־headless. מניפסט הרישיונות נמצא ב־`asset-license-manifest.json` וחובה לעדכן אותו בעת הוספת נכס אנטומי. מסמך הארכיטקטורה והכללים להרחבת האטלס נמצא ב־`docs/ATLAS_ARCHITECTURE.md`.
 
-## What technologies are used for this project?
+## כיוון המוצר
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+המטרה אינה רק להציג מודל, אלא לבנות מסע גילוי: מעבר ממערכת למערכת, הדגמת קשרים ותהליכים בזמן אמת, הסברים מותאמי גיל, שאלות חקר, נגישות מלאה ומקורות מדעיים ברורים. המערכת מיועדת ללמידה ולהמחשה ואינה תחליף לייעוץ רפואי.

@@ -1,6 +1,6 @@
 import { Canvas, useLoader, useThree, ThreeEvent } from "@react-three/fiber";
-import { useNavigate } from "react-router-dom";
-import { OrbitControls } from "@react-three/drei";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Html, OrbitControls } from "@react-three/drei";
 import { Suspense, useRef, useCallback, useState, useEffect, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -16,7 +16,7 @@ import ModelManager from "./ModelManager/index";
 import AnalysisPanel from "./ModelManager/AnalysisPanel";
 import ModelGallery from "./ModelGallery";
 import DevPanel from "./DevPanel";
-import InteractiveOrgans, { type LayerType } from "./InteractiveOrgans";
+type LayerType = "skeleton" | "muscles" | "organs" | "vessels";
 import AnatomySourcesPanel from "./AnatomySourcesPanel";
 import {
   ClippingPlane,
@@ -26,15 +26,28 @@ import {
   CameraTour,
   PerformanceMonitor,
   SelectionOutline,
+  SystemAnimations,
 } from "./anatomy";
 import type { ClipAxis } from "./anatomy";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePreferences } from "@/hooks/usePreferences";
+import { loadCloudModels } from "@/lib/cloudModelRepository";
+import { useAppTheme } from "@/contexts/AppThemeContext";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const cloudUrl = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
-const LOCAL_DEFAULT_MODEL = cloudUrl("sketchfab_15f7ed2eefb244dc94d32b6a7d989355.glb");
+const LOCAL_MODEL_ROOT = "/models/sketchfab";
+const LOCAL_MODELS = {
+  body: `${LOCAL_MODEL_ROOT}/front-body-anatomy-15f7ed2eefb244dc94d32b6a7d989355/model.glb`,
+  thorax: `${LOCAL_MODEL_ROOT}/human-anatomy-heart-in-thorax-22ebd4abce9440639563807e72e5f8d1/model.glb`,
+  maleMuscles: `${LOCAL_MODEL_ROOT}/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3/model.glb`,
+  femaleMuscles: `${LOCAL_MODEL_ROOT}/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e/model.glb`,
+  maleSkeleton: `${LOCAL_MODEL_ROOT}/male-human-skeleton-zbrush-anatomy-study-665890c542be433fb18ef235cf987cef/model.glb`,
+  femaleSkeleton: `${LOCAL_MODEL_ROOT}/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b/model.glb`,
+  heart: `${LOCAL_MODEL_ROOT}/realistic-human-heart-3f8072336ce94d18b3d0d055a1ece089/model.glb`,
+} as const;
+const LOCAL_DEFAULT_MODEL = LOCAL_MODELS.body;
 const DEFAULT_MODEL = LOCAL_DEFAULT_MODEL;
 const SKETCHFAB_TOKEN_STORAGE_KEY = "sketchfab-api-token";
 const EFFECTS_PREFS_KEY = "anatomy-effects-prefs-v1";
@@ -70,18 +83,15 @@ function SearchableModelPicker({ lang, cloudModels, modelUrl, bodyModelUrl, onSe
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const cloudUrl = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
-
-  const LOCAL_MODELS = useMemo(() => [
-    { url: cloudUrl("sketchfab_15f7ed2eefb244dc94d32b6a7d989355.glb"), en: "Front Body Anatomy", he: "גוף קדמי" },
-    { url: cloudUrl("sketchfab_22ebd4abce9440639563807e72e5f8d1.glb"), en: "Heart in Thorax", he: "לב בחזה" },
-    { url: cloudUrl("sketchfab_991eb96938be4d0d8fadee241a1063d3.glb"), en: "Male Muscular", he: "מערכת שרירים גברית" },
-    { url: cloudUrl("sketchfab_9a596b6c24b344bfbe6bb5246290df0e.glb"), en: "Female Muscular", he: "מערכת שרירים נשית" },
-    { url: cloudUrl("sketchfab_665890c542be433fb18ef235cf987cef.glb"), en: "Male Skeleton", he: "שלד גברי" },
-    { url: cloudUrl("sketchfab_5f28b52cab3e439490727e0aede55a6b.glb"), en: "Female Skeleton", he: "שלד נשי" },
-    { url: cloudUrl("sketchfab_3f8072336ce94d18b3d0d055a1ece089.glb"), en: "Realistic Heart", he: "לב מפורט" },
-    { url: cloudUrl("sketchfab_a8c1612518af4bfe88e1c0a719bec463.glb"), en: "Thorax: Heart & Kidney", he: "חזה: לב וכליה" },
-  ].filter(m => m.url), []);
+  const localModelOptions = useMemo(() => [
+    { url: LOCAL_MODELS.body, en: "Front Body Anatomy", he: "גוף קדמי" },
+    { url: LOCAL_MODELS.thorax, en: "Heart in Thorax", he: "לב בחזה" },
+    { url: LOCAL_MODELS.maleMuscles, en: "Male Muscular", he: "מערכת שרירים גברית" },
+    { url: LOCAL_MODELS.femaleMuscles, en: "Female Muscular", he: "מערכת שרירים נשית" },
+    { url: LOCAL_MODELS.maleSkeleton, en: "Male Skeleton", he: "שלד גברי" },
+    { url: LOCAL_MODELS.femaleSkeleton, en: "Female Skeleton", he: "שלד נשי" },
+    { url: LOCAL_MODELS.heart, en: "Realistic Heart", he: "לב מפורט" },
+  ], []);
 
   const q = search.toLowerCase();
 
@@ -89,19 +99,19 @@ function SearchableModelPicker({ lang, cloudModels, modelUrl, bodyModelUrl, onSe
     !q || (m.display_name?.toLowerCase().includes(q)) || (m.hebrew_name?.toLowerCase().includes(q))
   ), [cloudModels, q]);
 
-  const filteredLocal = useMemo(() => LOCAL_MODELS.filter(m =>
+  const filteredLocal = useMemo(() => localModelOptions.filter(m =>
     !q || m.en.toLowerCase().includes(q) || m.he.includes(search)
-  ), [LOCAL_MODELS, q, search]);
+  ), [localModelOptions, q, search]);
 
   const selectedLabel = useMemo(() => {
     if (!bodyModelUrl) return lang === "en" ? "Default (Z-Anatomy)" : "ברירת מחדל (Z-Anatomy)";
     const cloud = cloudModels.find(m => m.file_url === bodyModelUrl);
     if (cloud) return cloud.hebrew_name || cloud.display_name;
-    const local = LOCAL_MODELS.find(m => m.url === bodyModelUrl);
+    const local = localModelOptions.find(m => m.url === bodyModelUrl);
     if (local) return lang === "en" ? local.en : local.he;
     if (bodyModelUrl === modelUrl) return lang === "en" ? "Current GLB Model" : "מודל GLB נוכחי";
     return bodyModelUrl.split("/").pop() || "Model";
-  }, [bodyModelUrl, cloudModels, LOCAL_MODELS, modelUrl, lang]);
+  }, [bodyModelUrl, cloudModels, localModelOptions, modelUrl, lang]);
 
   const handleSelect = (url: string | undefined) => {
     onSelect(url);
@@ -198,23 +208,6 @@ function SearchableModelPicker({ lang, cloudModels, modelUrl, bodyModelUrl, onSe
     </>
   );
 }
-type Theme = {
-  name: string; bg: string; canvasBg: string;
-  textPrimary: string; textSecondary: string;
-  panelBg: string; panelBorder: string;
-  accent: string; accentAlt: string;
-  accentBgHover: string; gradient: string; hintBg: string;
-};
-
-const THEMES: Theme[] = [
-  { name: "כחול-זהב כהה", bg: "hsl(222,22%,5%)", canvasBg: "#0c0f17", textPrimary: "hsl(45,30%,90%)", textSecondary: "hsl(220,12%,50%)", panelBg: "hsla(222,20%,9%,0.85)", panelBorder: "hsla(43,78%,47%,0.2)", accent: "hsl(43,78%,47%)", accentAlt: "#e05252", accentBgHover: "hsla(43,78%,47%,0.08)", gradient: "hsl(43,78%,47%)", hintBg: "hsla(222,20%,9%,0.8)" },
-  { name: "כהה חם", bg: "#1a1410", canvasBg: "#1a1410", textPrimary: "#f5e6d3", textSecondary: "#a89279", panelBg: "rgba(26,20,16,0.88)", panelBorder: "#3d2e1e", accent: "#f59e0b", accentAlt: "#ef4444", accentBgHover: "rgba(245,158,11,0.12)", gradient: "#f59e0b", hintBg: "rgba(26,20,16,0.8)" },
-  { name: "בהיר רפואי", bg: "#f0f4f8", canvasBg: "#e8eef4", textPrimary: "#1a2332", textSecondary: "#5a6a7a", panelBg: "rgba(255,255,255,0.9)", panelBorder: "#c8d4e0", accent: "#0077b6", accentAlt: "#d62828", accentBgHover: "rgba(0,119,182,0.08)", gradient: "#0077b6", hintBg: "rgba(255,255,255,0.85)" },
-  { name: "בהיר חמים", bg: "#fdf6ee", canvasBg: "#f8f0e3", textPrimary: "#2d1f0e", textSecondary: "#8a7560", panelBg: "rgba(255,252,245,0.92)", panelBorder: "#e0d0b8", accent: "#b45309", accentAlt: "#be123c", accentBgHover: "rgba(180,83,9,0.08)", gradient: "#b45309", hintBg: "rgba(255,252,245,0.88)" },
-  { name: "בהיר מודרני", bg: "#f8fafc", canvasBg: "#eef2f7", textPrimary: "#0f172a", textSecondary: "#64748b", panelBg: "rgba(255,255,255,0.92)", panelBorder: "#cbd5e1", accent: "#6366f1", accentAlt: "#ec4899", accentBgHover: "rgba(99,102,241,0.08)", gradient: "#6366f1", hintBg: "rgba(255,255,255,0.85)" },
-  { name: "ניגודיות גבוהה", bg: "#000000", canvasBg: "#0a0a0a", textPrimary: "#ffffff", textSecondary: "#ffff00", panelBg: "rgba(0,0,0,0.97)", panelBorder: "#ffffff", accent: "#00ff88", accentAlt: "#ff4444", accentBgHover: "rgba(0,255,136,0.18)", gradient: "#00ff88", hintBg: "rgba(0,0,0,0.9)" },
-];
-
 const configureGLTFLoader = (loader: GLTFLoader) => {
   loader.register(() => ({ name: "KHR_materials_pbrSpecularGlossiness" } as never));
 };
@@ -400,10 +393,12 @@ const SYSTEM_ICONS: Record<string, string> = {
 };
 
 const ModelViewer = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { lang, setLang, t: tr, isRTL } = useLanguage();
   const isMobile = useIsMobile();
   const { prefs: userPrefs, updatePrefs: updateUserPrefs } = usePreferences();
+  const { activeTheme } = useAppTheme();
   const savedEffectsPrefs = useMemo(() => {
     try { return JSON.parse(localStorage.getItem(EFFECTS_PREFS_KEY) || "{}"); } catch { return {} as Record<string, unknown>; }
   }, []);
@@ -411,13 +406,16 @@ const ModelViewer = () => {
   const cameraLookAtRef = useRef<[number, number, number] | null>(null);
   const [renderKey, setRenderKey] = useState(0);
   const [canvasKey, setCanvasKey] = useState(0);
-  const [modelUrl, setModelUrl] = useState(DEFAULT_MODEL);
+  const startupPanel = new URLSearchParams(window.location.search).get("panel");
+  const startupModel = new URLSearchParams(window.location.search).get("model");
+  const [modelUrl, setModelUrl] = useState(() => startupModel?.toLowerCase().includes(".glb") ? startupModel : DEFAULT_MODEL);
   const [selectedOrgan, setSelectedOrgan] = useState<OrganDetail | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDevPanel, setShowDevPanel] = useState(false);
-  const [themeIdx, setThemeIdx] = useState(0);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [useInteractive, setUseInteractive] = useState(false); // DEFAULT to GLB model
+  // The old procedural figure was intentionally retired. The studio now always
+  // starts with a licensed, real human GLB and never exposes the synthetic figure.
+  const useInteractive = false;
   const [atlasQuery, setAtlasQuery] = useState("");
   const [selectedSystem, setSelectedSystem] = useState("all");
   const [lessonActive, setLessonActive] = useState(false);
@@ -428,9 +426,18 @@ const ModelViewer = () => {
   const [visibleLayers, setVisibleLayers] = useState<Set<LayerType>>(new Set(["skeleton", "muscles", "organs", "vessels"]));
   const [showViewPopup, setShowViewPopup] = useState(false);
   const [showHintTooltip, setShowHintTooltip] = useState(false);
-  const [showOrganSidebar, setShowOrganSidebar] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "gallery" | "info" | "analysis">("organs");
-  const [showLayerPanel, setShowLayerPanel] = useState(true);
+  const [showOrganSidebar, setShowOrganSidebar] = useState(startupPanel === "models");
+  const [sidebarTab, setSidebarTab] = useState<"organs" | "models" | "gallery" | "info" | "analysis">(startupPanel === "models" ? "models" : "organs");
+  const [showLayerPanel, setShowLayerPanel] = useState(false);
+
+  useEffect(() => {
+    const requested = new URLSearchParams(location.search).get("panel");
+    if (requested && ["organs", "models", "gallery", "info", "analysis"].includes(requested)) {
+      setSidebarTab(requested as "organs" | "models" | "gallery" | "info" | "analysis");
+      setShowOrganSidebar(true);
+    }
+    if (new URLSearchParams(location.search).get("effects") === "1") setShowEffectsPanel(true);
+  }, [location.search]);
   const [exploredOrgans, setExploredOrgans] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem("anatomy-explored") || "[]")); } catch { return new Set(); }
   });
@@ -447,6 +454,15 @@ const ModelViewer = () => {
   const [showBloodFlow, setShowBloodFlow] = useState(Boolean(savedEffectsPrefs.showBloodFlow));
   const [showLabels3D, setShowLabels3D] = useState(Boolean(savedEffectsPrefs.showLabels3D));
   const [showXRayShader, setShowXRayShader] = useState(Boolean(savedEffectsPrefs.showXRayShader));
+  const [xRayColor, setXRayColor] = useState(typeof savedEffectsPrefs.xRayColor === "string" ? savedEffectsPrefs.xRayColor : "#00aaff");
+  const [xRayIntensity, setXRayIntensity] = useState(typeof savedEffectsPrefs.xRayIntensity === "number" ? savedEffectsPrefs.xRayIntensity : 1.2);
+  const [clipNegate, setClipNegate] = useState(Boolean(savedEffectsPrefs.clipNegate));
+  const [systemAnimations, setSystemAnimations] = useState(Boolean(savedEffectsPrefs.systemAnimations));
+  const [animateHeartbeat, setAnimateHeartbeat] = useState(savedEffectsPrefs.animateHeartbeat !== false);
+  const [animateBreathing, setAnimateBreathing] = useState(savedEffectsPrefs.animateBreathing !== false);
+  const [animateDigestion, setAnimateDigestion] = useState(savedEffectsPrefs.animateDigestion !== false);
+  const [systemAnimationIntensity, setSystemAnimationIntensity] = useState(typeof savedEffectsPrefs.systemAnimationIntensity === "number" ? savedEffectsPrefs.systemAnimationIntensity : 1);
+  const [sceneBrightness, setSceneBrightness] = useState(typeof savedEffectsPrefs.sceneBrightness === "number" ? savedEffectsPrefs.sceneBrightness : 1);
   const [cameraTourActive, setCameraTourActive] = useState(false);
   const [tourStopLabel, setTourStopLabel] = useState("");
   const [explodeAmount, setExplodeAmount] = useState(typeof savedEffectsPrefs.explodeAmount === "number" ? savedEffectsPrefs.explodeAmount : 0);
@@ -468,28 +484,9 @@ const ModelViewer = () => {
   // Fetch cloud models for body model picker and analysis panel
   useEffect(() => {
     const fetchCloudModels = async () => {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       console.log("[ModelViewer] Fetching cloud models via REST...");
-      
       try {
-        // Use direct REST API call instead of Supabase client to avoid hanging
-        const response = await fetch(
-          `${supabaseUrl}/rest/v1/models?select=*&order=display_name`,
-          {
-            headers: {
-              'apikey': supabaseKey,
-              'Authorization': `Bearer ${supabaseKey}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
+        const data = await loadCloudModels({ modelOrder: "display_name" });
         console.log("[ModelViewer] Cloud models loaded:", data?.length ?? 0, "models");
         if (data) {
           setCloudModels(data);
@@ -574,7 +571,11 @@ const ModelViewer = () => {
     });
     return enriched;
   }, [cloudMeshData]);
-  const t = THEMES[themeIdx];
+  const t = useMemo(() => ({
+    canvasBg: activeTheme.canvas,
+    accent: activeTheme.accent,
+    accentAlt: activeTheme.accentAlt,
+  }), [activeTheme]);
   const views = useMemo(() => VIEW_PRESETS.map(v => ({ ...v, label: tr(v.key) })), [tr]);
   const lessonSequence = useMemo(() => Object.keys(enrichedOrganDetails), [enrichedOrganDetails]);
 
@@ -620,9 +621,9 @@ const ModelViewer = () => {
 
   useEffect(() => {
     localStorage.setItem(EFFECTS_PREFS_KEY, JSON.stringify({
-      showClippingPlane, clipAxis, clipPosition, showBloodFlow, showLabels3D, showXRayShader, explodeAmount, focusSelected, showSelectionOutline, showPerfMonitor,
+      showClippingPlane, clipAxis, clipPosition, clipNegate, showBloodFlow, showLabels3D, showXRayShader, xRayColor, xRayIntensity, systemAnimations, animateHeartbeat, animateBreathing, animateDigestion, systemAnimationIntensity, sceneBrightness, explodeAmount, focusSelected, showSelectionOutline, showPerfMonitor,
     }));
-  }, [showClippingPlane, clipAxis, clipPosition, showBloodFlow, showLabels3D, showXRayShader, explodeAmount, focusSelected, showSelectionOutline, showPerfMonitor]);
+  }, [showClippingPlane, clipAxis, clipPosition, clipNegate, showBloodFlow, showLabels3D, showXRayShader, xRayColor, xRayIntensity, systemAnimations, animateHeartbeat, animateBreathing, animateDigestion, systemAnimationIntensity, sceneBrightness, explodeAmount, focusSelected, showSelectionOutline, showPerfMonitor]);
 
   const applyViewerPreset = useCallback((preset: "default" | "organs" | "skeletal" | "presentation" | "xray") => {
     if (preset === "default") {
@@ -685,7 +686,6 @@ const ModelViewer = () => {
           if (cloudVersion) {
             console.log("[ModelViewer] LFS pointer detected, resolved to cloud:", cloudVersion);
             setModelUrl(cloudVersion);
-            setUseInteractive(false);
             return;
           }
           setModelLoadWarning(isLikelyGitLfsPointer(prefix)
@@ -698,7 +698,6 @@ const ModelViewer = () => {
         const cloudVersion = tryResolveToCloud(url);
         if (cloudVersion) {
           setModelUrl(cloudVersion);
-          setUseInteractive(false);
           return;
         }
         setModelLoadWarning("לא ניתן לאמת את קובץ המודל שנבחר.");
@@ -706,7 +705,6 @@ const ModelViewer = () => {
       }
     }
     setModelUrl(url);
-    setUseInteractive(false);
   }, [tryResolveToCloud]);
 
   const focusOrganByKey = useCallback((key: string) => {
@@ -812,17 +810,21 @@ const ModelViewer = () => {
     URL.revokeObjectURL(url);
   }, [glbScanResult, modelUrl]);
 
-  const sidebarWidth = isMobile ? "100vw" : "380px";
+  const sidebarWidth = isMobile ? "100vw" : "420px";
+  const sidebarTitle = sidebarTab === "models" ? "ספריית מודלים" : sidebarTab === "gallery" ? "גלריית מודלים" : sidebarTab === "analysis" ? "ניתוח מודל" : sidebarTab === "info" ? "מידע אנטומי" : "אטלס איברים";
   const btnSz = isMobile ? 36 : 42;
 
   return (
-    <div dir={isRTL ? "rtl" : "ltr"} className="w-screen h-screen relative overflow-hidden bg-background" style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <div dir={isRTL ? "rtl" : "ltr"} className="w-screen h-screen relative overflow-hidden bg-background" style={{ fontFamily: "'Segoe UI', system-ui, sans-serif", filter:`brightness(${sceneBrightness})` }}>
 
       {/* ═══ HEADER ═══ */}
       <header className="absolute top-0 left-0 right-0 z-10 flex items-center justify-center bg-navy-deep border-b border-primary/30 shadow-lg" style={{ height: isMobile ? 44 : 52 }}>
-        <h1 className="font-bold text-primary tracking-tight" style={{ fontSize: isMobile ? "0.95rem" : "1.3rem" }}>
-          {tr("app.title")}
-        </h1>
+        <div className="text-center leading-tight">
+          <h1 className="font-bold text-primary tracking-tight" style={{ fontSize: isMobile ? "0.95rem" : "1.15rem" }}>
+            {tr("app.title")}
+          </h1>
+          {!isMobile && <p className="mt-0.5 text-[10px] text-muted-foreground">{tr("app.subtitle")}</p>}
+        </div>
         <div className="absolute flex gap-1" style={{ [isRTL ? "right" : "left"]: isMobile ? 8 : 16, top: "50%", transform: "translateY(-50%)" }}>
           {(["he", "en"] as const).map(l => (
             <button key={l} onClick={() => setLang(l)}
@@ -849,7 +851,7 @@ const ModelViewer = () => {
       )}
 
       {/* ═══ FLOATING LAYER PANEL (LEFT SIDE) ═══ */}
-      <div className={`absolute z-[12] transition-all duration-300 ${showLayerPanel ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+      {useInteractive && <div className={`absolute z-[12] transition-all duration-300 ${showLayerPanel ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         style={{ top: isMobile ? 52 : 62, [isRTL ? "right" : "left"]: isMobile ? 8 : 16, bottom: isMobile ? 52 : 62 }}>
         <div className="glass-panel p-2.5 flex flex-col gap-2 overflow-y-auto sidebar-scroll h-full" style={{ width: isMobile ? "auto" : 200 }}>
           {/* Mode switch */}
@@ -968,6 +970,9 @@ const ModelViewer = () => {
                 ))}
               </div>
               <input type="range" min={-200} max={200} value={Math.round(clipPosition * 100)} onChange={e => setClipPosition(Number(e.target.value) / 100)} className="w-full h-1.5" style={{ accentColor: "hsl(var(--primary))" }} />
+              <button onClick={() => setClipNegate(v => !v)} className={`w-full rounded-md py-1 text-[10px] font-bold border cursor-pointer ${clipNegate ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground border-border"}`} aria-label="הפוך כיוון חתך">
+                ↔ {lang === "en" ? "Invert direction" : "הפוך כיוון חתך"}
+              </button>
             </div>
           )}
 
@@ -979,10 +984,10 @@ const ModelViewer = () => {
           </div>
           <input type="range" min={0} max={150} value={Math.round(explodeAmount * 100)} onChange={e => setExplodeAmount(Number(e.target.value) / 100)} className="w-full h-1.5" style={{ accentColor: "hsl(var(--primary))" }} />
         </div>
-      </div>
+      </div>}
 
       {/* Layer panel toggle button */}
-      <button onClick={() => setShowLayerPanel(v => !v)}
+      {useInteractive && <button onClick={() => setShowLayerPanel(v => !v)}
         className={`absolute z-[13] tb-btn ${showLayerPanel ? "active" : ""}`}
         style={{
           top: isMobile ? 52 : 62,
@@ -991,21 +996,21 @@ const ModelViewer = () => {
           transition: "all 0.3s ease",
         }}
         title={showLayerPanel ? "סגור שכבות" : "שכבות"}
-      >🧩</button>
+      >🧩</button>}
 
       {/* ═══ ORGAN SIDEBAR — White/Navy/Gold ═══ */}
       {showOrganSidebar && (
-        <aside className="sidebar-panel absolute top-0 bottom-0 z-[15] flex flex-col shadow-2xl"
+        <aside className="sidebar-panel legacy-library-panel absolute top-0 bottom-0 z-[15] flex flex-col shadow-2xl"
           style={{
             [isRTL ? "left" : "right"]: 0, width: sidebarWidth,
-            background: "hsl(0 0% 100%)",
+            background: "var(--app-surface)",
             borderLeft: isRTL ? "none" : "1.5px solid hsl(43 60% 55% / 0.4)",
             borderRight: isRTL ? "1.5px solid hsl(43 60% 55% / 0.4)" : "none",
           }}>
           {/* Header */}
           <div className="shrink-0 px-4 pt-4 pb-3" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>🫀 {tr("panel.atlas")}</span>
+              <span className="text-sm font-extrabold legacy-library-title">📚 {sidebarTitle}</span>
               <button onClick={() => setShowOrganSidebar(false)} className="text-lg transition-colors bg-transparent border-none cursor-pointer p-1 rounded-lg hover:bg-gray-100" style={{ color: "hsl(220 15% 60%)" }}>✕</button>
             </div>
             <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>
@@ -1015,21 +1020,6 @@ const ModelViewer = () => {
             <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(220 20% 93%)" }}>
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(enrichedOrganDetails).length, 1) * 100)}%`, background: "linear-gradient(90deg, hsl(43 78% 47%), hsl(43 78% 55%))" }} />
             </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex shrink-0" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
-            {([
-              { id: "organs" as const, label: "איברים", icon: "🫀" },
-              { id: "gallery" as const, label: "צופה", icon: "🎬" },
-              { id: "models" as const, label: "קבצים", icon: "📂" },
-              { id: "analysis" as const, label: "ניתוח", icon: "🧠" },
-              { id: "info" as const, label: "מידע", icon: "ℹ️" },
-            ]).map(tab => (
-              <button key={tab.id} onClick={() => setSidebarTab(tab.id)}
-                className={`sidebar-tab ${sidebarTab === tab.id ? "active" : ""}`}
-              >{tab.icon} {tab.label}</button>
-            ))}
           </div>
 
           {/* Content */}
@@ -1214,19 +1204,7 @@ const ModelViewer = () => {
               width: isMobile ? "85vw" : "260px", maxHeight: isMobile ? "70vh" : "80vh", direction: isRTL ? "rtl" : "ltr",
             }}>
               <div className="text-sm font-bold text-foreground mb-3">{tr("settings.title")}</div>
-              <div className="text-xs font-bold text-foreground mb-2">🎨 {tr("settings.theme")}</div>
-              <div className="flex flex-col gap-1 mb-3">
-                {THEMES.map((theme, idx) => (
-                  <button key={theme.name} onClick={() => setThemeIdx(idx)} className={`settings-item ${idx === themeIdx ? "active" : ""}`}>
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ background: theme.gradient, border: idx === themeIdx ? `2px solid ${theme.accent}` : "2px solid transparent" }} />
-                      <span>{theme.name}</span>
-                    </div>
-                    {idx === themeIdx && <span className="text-primary">✓</span>}
-                  </button>
-                ))}
-              </div>
-              <div className="h-px bg-border my-2" />
+              <div className="text-[10px] text-muted-foreground mb-3 rounded-lg border border-border bg-card p-2">🎨 ערכת האתר הפעילה: <strong className="text-primary">{activeTheme.name}</strong><br />שינוי ועריכת ערכות נמצאים באייקון הפלטה בסרגל הראשי.</div>
               <div className="text-xs font-bold text-foreground mb-2">🌐 {tr("settings.language")}</div>
               <div className="flex gap-1 mb-3">
                 {(["he", "en"] as const).map(l => (
@@ -1282,7 +1260,7 @@ const ModelViewer = () => {
           )}
         </div>
 
-        <button onClick={() => navigate("/advanced")} className="tb-btn" style={{ width: btnSz, height: btnSz }} title="מצב מתקדם">
+        <button onClick={() => navigate("/advanced")} className="tb-btn desktop-duplicate-nav" style={{ width: btnSz, height: btnSz }} title="מצב מתקדם">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
           </svg>
@@ -1367,12 +1345,12 @@ const ModelViewer = () => {
             }}>
               <div className="text-sm font-bold text-foreground mb-1.5">⚖️ {lang === "en" ? "Compare" : "השוואה"}</div>
               {([
-                { label: lang === "en" ? "Front Body" : "גוף קדמי", url: cloudUrl("sketchfab_15f7ed2eefb244dc94d32b6a7d989355.glb") },
-                { label: lang === "en" ? "Heart in Thorax" : "לב בחזה", url: cloudUrl("sketchfab_22ebd4abce9440639563807e72e5f8d1.glb") },
-                { label: lang === "en" ? "🫀 Heart" : "🫀 לב", url: cloudUrl("sketchfab_3f8072336ce94d18b3d0d055a1ece089.glb") },
-                { label: lang === "en" ? "💪 Muscles" : "💪 שרירים", url: cloudUrl("sketchfab_991eb96938be4d0d8fadee241a1063d3.glb") },
-                { label: lang === "en" ? "🦴 Skeleton" : "🦴 שלד", url: cloudUrl("sketchfab_665890c542be433fb18ef235cf987cef.glb") },
-              ].filter(i => i.url)).map(item => (
+                { label: lang === "en" ? "Front Body" : "גוף קדמי", url: LOCAL_MODELS.body },
+                { label: lang === "en" ? "Heart in Thorax" : "לב בחזה", url: LOCAL_MODELS.thorax },
+                { label: lang === "en" ? "🫀 Heart" : "🫀 לב", url: LOCAL_MODELS.heart },
+                { label: lang === "en" ? "💪 Muscles" : "💪 שרירים", url: LOCAL_MODELS.maleMuscles },
+                { label: lang === "en" ? "🦴 Skeleton" : "🦴 שלד", url: LOCAL_MODELS.maleSkeleton },
+              ]).map(item => (
                 <button key={item.url} onClick={() => setCompareModelUrl(item.url)}
                   className={`settings-item mb-1 ${compareModelUrl === item.url ? "active" : ""}`}
                   style={{ textAlign: isRTL ? "right" : "left" }}
@@ -1396,6 +1374,7 @@ const ModelViewer = () => {
             }}>
               <div className="text-sm font-bold text-foreground mb-1">✨ {lang === "en" ? "3D Effects" : "אפקטים תלת-ממדיים"}</div>
               <div className="text-[10px] text-muted-foreground mb-3">{lang === "en" ? "Real-time visualization tools" : "כלי המחשה אנטומית"}</div>
+              <label className="block px-1 py-2 mb-2 rounded-lg border border-border text-[10px] text-muted-foreground"><span>{lang === "en" ? "Scene brightness" : "בהירות תצוגה"}: {Math.round(sceneBrightness*100)}%</span><input aria-label="בהירות תצוגה" className="w-full" type="range" min={55} max={145} value={Math.round(sceneBrightness*100)} onChange={e=>setSceneBrightness(Number(e.target.value)/100)}/></label>
 
               {useInteractive && (
                 <>
@@ -1419,6 +1398,29 @@ const ModelViewer = () => {
               <button onClick={() => setShowXRayShader(v => !v)} className={`settings-item mb-1 ${showXRayShader ? "active" : ""}`}>
                 <span>💀 X-Ray Shader</span><span>{showXRayShader ? "✓" : "✗"}</span>
               </button>
+              {showXRayShader && <div className="px-1 py-2 mb-1 rounded-lg border border-border">
+                <label className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground"><span>{lang === "en" ? "X-Ray color" : "צבע רנטגן"}</span><input aria-label="צבע רנטגן" type="color" value={xRayColor} onChange={e => setXRayColor(e.target.value)} className="w-8 h-6 border-0 bg-transparent" /></label>
+                <label className="block mt-2 text-[10px] text-muted-foreground"><span>{lang === "en" ? "Intensity" : "עוצמת רנטגן"}: {xRayIntensity.toFixed(1)}</span><input aria-label="עוצמת רנטגן" className="w-full" type="range" min={20} max={250} value={Math.round(xRayIntensity*100)} onChange={e => setXRayIntensity(Number(e.target.value)/100)} /></label>
+              </div>}
+
+              <button onClick={() => setShowClippingPlane(v => !v)} className={`settings-item mb-1 ${showClippingPlane ? "active" : ""}`}>
+                <span>🔪 {lang === "en" ? "Cross-section" : "חתך רוחבי"}</span><span>{showClippingPlane ? "✓" : "✗"}</span>
+              </button>
+              {showClippingPlane && <div className="grid gap-2 px-2 py-2 mb-1 rounded-lg border border-border">
+                <div className="flex gap-1">{(["x", "y", "z"] as ClipAxis[]).map(axis => <button key={axis} onClick={() => setClipAxis(axis)} className={`flex-1 rounded-md py-1 text-[10px] font-bold border ${clipAxis === axis ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}>{axis.toUpperCase()}</button>)}</div>
+                <input aria-label="מיקום חתך" type="range" min={-200} max={200} value={Math.round(clipPosition * 100)} onChange={e => setClipPosition(Number(e.target.value) / 100)} />
+                <button onClick={() => setClipNegate(v => !v)} className={`settings-item justify-center ${clipNegate ? "active" : ""}`} aria-label="הפוך כיוון חתך">↔ {lang === "en" ? "Invert direction" : "הפוך כיוון חתך"}</button>
+              </div>}
+
+              <label className="block px-2 py-2 mb-1 rounded-lg border border-border text-[10px] text-muted-foreground"><span>{lang === "en" ? "Exploded view" : "פירוק המודל"}: {Math.round(explodeAmount * 100)}%</span><input aria-label="פירוק המודל" className="w-full" type="range" min={0} max={150} value={Math.round(explodeAmount * 100)} onChange={e => setExplodeAmount(Number(e.target.value) / 100)} /></label>
+
+              <button onClick={() => setSystemAnimations(v => !v)} className={`settings-item mb-1 ${systemAnimations ? "active" : ""}`} aria-label="אנימציות מערכות">
+                <span>🫁 {lang === "en" ? "System animations" : "אנימציות מערכות"}</span><span>{systemAnimations ? "✓" : "✗"}</span>
+              </button>
+              {systemAnimations && <div className="grid gap-1 px-1 py-2 mb-1 rounded-lg border border-border">
+                {[["פעימת לב",animateHeartbeat,setAnimateHeartbeat],["נשימה",animateBreathing,setAnimateBreathing],["עיכול",animateDigestion,setAnimateDigestion]].map(([label,active,setter]) => <button key={String(label)} onClick={() => (setter as (value:boolean)=>void)(!active)} className={`settings-item ${active ? "active" : ""}`}><span>{String(label)}</span><span>{active ? "✓" : "✗"}</span></button>)}
+                <label className="block text-[10px] text-muted-foreground"><span>עוצמת אנימציה: {systemAnimationIntensity.toFixed(1)}</span><input aria-label="עוצמת אנימציה" className="w-full" type="range" min={20} max={200} value={Math.round(systemAnimationIntensity*100)} onChange={e => setSystemAnimationIntensity(Number(e.target.value)/100)} /></label>
+              </div>}
 
               <button onClick={() => setCameraTourActive(v => !v)} className={`settings-item mb-1 ${cameraTourActive ? "active" : ""}`}>
                 <span>🎥 {lang === "en" ? "Camera Tour" : "סיור מצלמה"}</span><span>{cameraTourActive ? "⏹" : "▶"}</span>
@@ -1490,20 +1492,17 @@ const ModelViewer = () => {
           <directionalLight position={[5, 5, 5]} intensity={1.2} />
           <directionalLight position={[-5, 3, -5]} intensity={0.4} color={t.accentAlt} />
           <pointLight position={[0, 3, 0]} intensity={0.5} color={t.accent} />
-          <Suspense fallback={null}>
+          <Suspense fallback={<Html center><div className="legacy-model-loader"><span />טוען מודל אנושי תלת־ממדי…</div></Html>}>
             <ModelErrorBoundary key={modelUrl} onError={msg => { setModelLoadWarning(msg); if (modelUrl !== LOCAL_DEFAULT_MODEL) setModelUrl(LOCAL_DEFAULT_MODEL); }}>
-              {useInteractive ? (
-                <InteractiveOrgans onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} visibleLayers={visibleLayers} explodeAmount={explodeAmount} focusSelected={focusSelected} animationSpeed={animationSpeed} pathologyKeys={pathologyKeys} layerOpacities={layerOpacities} peelAmount={peelAmount} bodyModelUrl={bodyModelUrl} cloudShapes={dynamicShapes} cloudPeelDirs={dynamicPeelDirs} />
-              ) : (
-                <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} onScan={handleGlbScan} />
-              )}
+              <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} onScan={handleGlbScan} />
             </ModelErrorBoundary>
           </Suspense>
-          <ClippingPlane enabled={showClippingPlane} axis={clipAxis} position={clipPosition} />
+          <ClippingPlane enabled={showClippingPlane} axis={clipAxis} position={clipPosition} negate={clipNegate} />
           {useInteractive && <BloodFlowParticles enabled={showBloodFlow} />}
           {useInteractive && <AnatomyLabels3D enabled={showLabels3D} lang={lang} accent={t.accent} selectedKey={selectedOrgan?.meshName} explodeAmount={explodeAmount} onSelect={handleOrganSelect} />}
           <SelectionOutline enabled={showSelectionOutline} selectedName={selectedOrgan?.meshName} color={t.accent} />
-          <XRayShader enabled={showXRayShader} color={t.accent} intensity={1.2} />
+          <XRayShader enabled={showXRayShader} color={xRayColor} intensity={xRayIntensity} />
+          <SystemAnimations enabled={systemAnimations} heartbeat={animateHeartbeat} breathing={animateBreathing} digestion={animateDigestion} speed={animationSpeed} intensity={systemAnimationIntensity} />
           <CameraTour active={cameraTourActive} onStopChange={(_idx, stop) => setTourStopLabel(stop.label)} onComplete={() => { setCameraTourActive(false); setTourStopLabel(""); }} />
           <PerformanceMonitor enabled={showPerfMonitor} />
           <CameraController key={renderKey} targetPosition={cameraTargetRef.current} targetLookAt={cameraLookAtRef.current} />

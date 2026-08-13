@@ -8,7 +8,7 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://127.0.0.1:7011",
     trace: "on-first-retry",
     video: "on-first-retry",
     screenshot: "only-on-failure",
@@ -19,6 +19,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: /.*mobile\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
@@ -27,6 +28,25 @@ export default defineConfig({
         },
       },
     },
+    {
+      name: "mobile-android",
+      testMatch: /.*mobile\.spec\.ts/,
+      use: {
+        ...devices["Pixel 7"],
+        locale: "he-IL",
+        colorScheme: "dark",
+        launchOptions: {
+          args: ["--use-gl=swiftshader", "--disable-web-security"],
+        },
+      },
+    },
   ],
-  // Dev server already running on port 3000 — no need to spawn one
+  webServer: {
+    command: "npm run dev -- --port 7011 --strictPort",
+    url: "http://127.0.0.1:7011",
+    reuseExistingServer: false,
+    timeout: 120_000,
+    stdout: "pipe",
+    stderr: "pipe",
+  },
 });

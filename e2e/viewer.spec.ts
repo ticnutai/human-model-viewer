@@ -1,180 +1,123 @@
 import { test, expect } from "@playwright/test";
-import { mockAuth } from "./helpers/mock-auth";
 
-/**
- * Main Viewer E2E Tests
- *
- * Tests the authenticated ModelViewer page (/).
- * Supabase API calls are intercepted to simulate a logged-in user.
- */
-
-test.describe("Viewer – Page Load", () => {
+test.describe("Professional anatomy atlas", () => {
   test.beforeEach(async ({ page }) => {
-    await mockAuth(page);
     await page.goto("/");
-    // Wait for the loading spinner to disappear (Suspense + 3s auth safety timeout)
-    await page.waitForSelector(".animate-spin", { state: "detached", timeout: 12_000 }).catch(() => {});
+    await expect(page.getByTestId("professional-atlas")).toBeVisible();
   });
 
-  test("loads on the root route without redirect", async ({ page }) => {
+  test("opens directly as a guest and renders the WebGL stage", async ({ page }) => {
     await expect(page).toHaveURL("/");
+    await expect(page.getByRole("heading", { name: "הלב", level: 1 })).toBeVisible();
+    await expect(page.locator("canvas")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("נתוני HuBMAP")).toBeVisible();
   });
 
-  test("renders a WebGL canvas element", async ({ page }) => {
-    await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
+  test("offers five curated and licensed organs", async ({ page }) => {
+    await expect(page.locator(".atlas-card")).toHaveCount(5);
+    await expect(page.getByText("אטלס מדעי אחיד • רישיון CC BY 4.0")).toBeVisible();
+    await expect(page.getByText("Human Reference Atlas")).toBeVisible();
   });
 
-  test("toolbar has multiple title-attributed buttons", async ({ page }) => {
-    const toolbarButtons = page.locator("button[title]");
-    await expect(toolbarButtons.first()).toBeVisible({ timeout: 10_000 });
-    const count = await toolbarButtons.count();
-    expect(count).toBeGreaterThanOrEqual(5);
-  });
-});
-
-test.describe("Viewer – Toolbar Buttons", () => {
-  test.beforeEach(async ({ page }) => {
-    await mockAuth(page);
-    await page.goto("/");
-    await page.locator("canvas").waitFor({ timeout: 15_000 });
+  test("changes model and information when selecting the brain", async ({ page }) => {
+    const brain = page.locator(".atlas-card").filter({ hasText: "המוח" });
+    await brain.click();
+    await expect(brain).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("heading", { name: "המוח", level: 1 })).toBeVisible();
+    await expect(page.getByLabel("מודל תלת־ממדי של המוח").getByText("רשת המידע והבקרה של הגוף")).toBeVisible();
+    await expect(page.getByText("11.42MB")).toBeVisible();
   });
 
-  test("Settings button opens settings panel with theme choices", async ({ page }) => {
-    const settingsBtn = page.locator('button[title="הגדרות"]');
-    await expect(settingsBtn).toBeVisible({ timeout: 10_000 });
-    await settingsBtn.click();
-    // tr("settings.theme") = "ערכת נושא"
-    await expect(page.getByText("ערכת נושא")).toBeVisible({ timeout: 5_000 });
+  test("keeps normalized camera framing while switching every organ", async ({ page }) => {
+    for (const name of ["המוח", "הריאות", "הכליה", "הכבד", "הלב"]) {
+      await page.locator(".atlas-card").filter({ hasText: name }).click();
+      await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
+      await expect(page.locator("canvas")).toBeVisible();
+      await expect(page.locator(".pro-stage-error")).toHaveCount(0);
+    }
   });
 
-  test("Settings panel closes on second click (toggle)", async ({ page }) => {
-    const settingsBtn = page.locator('button[title="הגדרות"]');
-    await settingsBtn.click();
-    await page.getByText("ערכת נושא").waitFor({ timeout: 5_000 });
-    await settingsBtn.click();
-    await expect(page.getByText("ערכת נושא")).not.toBeVisible({ timeout: 3_000 });
+  test("filters the catalog and clears the search", async ({ page }) => {
+    const search = page.getByRole("textbox", { name: "חיפוש באטלס" });
+    await search.fill("כליה");
+    await expect(page.locator(".atlas-card")).toHaveCount(1);
+    await expect(page.getByRole("button", { name: /הכליה/ })).toBeVisible();
+    await page.getByRole("button", { name: "נקה חיפוש" }).click();
+    await expect(page.locator(".atlas-card")).toHaveCount(5);
   });
 
-  test("Help button opens hint tooltip with rotation hint", async ({ page }) => {
-    const helpBtn = page.locator('button[title="עזרה"]');
-    await expect(helpBtn).toBeVisible({ timeout: 10_000 });
-    await helpBtn.click();
-    // tr("hint.rotate") = "🖱️ סיבוב"
-    await expect(page.getByText(/סיבוב/)).toBeVisible({ timeout: 5_000 });
+  test("exposes stable 3D controls", async ({ page }) => {
+    await expect(page.getByRole("slider", { name: "שקיפות המודל" })).toHaveValue("100");
+    await page.getByRole("slider", { name: "שקיפות המודל" }).fill("55");
+    await expect(page.getByRole("slider", { name: "שקיפות המודל" })).toHaveValue("55");
+    await page.getByTitle("עצור סיבוב").click();
+    await expect(page.getByTitle("הפעל סיבוב")).toBeVisible();
   });
 
-  test("Effects panel button opens 3D effects panel", async ({ page }) => {
-    const effectsBtn = page.locator('button[title="אפקטים תלת-ממדיים"]');
-    await expect(effectsBtn).toBeVisible({ timeout: 10_000 });
-    await effectsBtn.click();
-    // Panel title: "אפקטים תלת-ממדיים מקצועיים"
-    await expect(page.getByText("אפקטים תלת-ממדיים מקצועיים")).toBeVisible({ timeout: 5_000 });
+  test("runs the guided journey from start to finish", async ({ page }) => {
+    await page.getByRole("button", { name: /התחל: מסע של טיפת דם/ }).click();
+    const dialog = page.getByRole("dialog", { name: "מסע של טיפת דם" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "העלייה הימנית" })).toBeVisible();
+    await dialog.getByRole("button", { name: /הבא/ }).click();
+    await expect(dialog.getByRole("heading", { name: "החדר הימני" })).toBeVisible();
+    await dialog.getByRole("button", { name: /הבא/ }).click();
+    await dialog.getByRole("button", { name: /הבא/ }).click();
+    await dialog.getByRole("button", { name: /סיום/ }).click();
+    await expect(dialog).toBeHidden();
   });
 
-  test("Effects panel has preset buttons", async ({ page }) => {
-    await page.locator('button[title="אפקטים תלת-ממדיים"]').click();
-    await page.getByText("אפקטים תלת-ממדיים מקצועיים").waitFor({ timeout: 5_000 });
-    await expect(page.getByRole("button", { name: "ברירת מחדל" })).toBeVisible({ timeout: 3_000 });
+  test("shows interaction help", async ({ page }) => {
+    await page.getByRole("button", { name: "עזרה" }).click();
+    await expect(page.getByText("גרירה — סיבוב")).toBeVisible();
+    await expect(page.getByText("לחיצה — בחירת מבנה")).toBeVisible();
   });
 
-  test("Symptom search button opens search panel with input", async ({ page }) => {
-    const symptomBtn = page.locator('button[title="חיפוש סימפטום → איבר"]');
-    await expect(symptomBtn).toBeVisible({ timeout: 10_000 });
-    await symptomBtn.click();
-    // Input placeholder: "למשל: כאב חזה, סוכרת, דלקת…"
-    await expect(page.getByPlaceholder("למשל: כאב חזה, סוכרת, דלקת…")).toBeVisible({ timeout: 5_000 });
+  test("smart guide controls the scene from a Hebrew request", async ({ page }) => {
+    await page.getByRole("button", { name: /מדריך חכם/ }).click();
+    const guide = page.getByLabel("המדריך החכם");
+    const input = guide.getByRole("textbox", { name: "שאלה למדריך החכם" });
+    await input.fill("תראה לי את הכליה שקופה");
+    await guide.getByRole("button", { name: "שלח שאלה" }).click();
+    await expect(page.getByRole("heading", { name: "הכליה", level: 1 })).toBeVisible();
+    await expect(page.getByRole("slider", { name: "שקיפות המודל" })).toHaveValue("38");
+    await expect(guide.getByText(/הוספתי שקיפות למודל של הכליה/)).toBeVisible();
   });
 
-  test("Symptom search shows matching organs for 'כאב לב' (chest pain)", async ({ page }) => {
-    await page.locator('button[title="חיפוש סימפטום → איבר"]').click();
-    const input = page.getByPlaceholder("למשל: כאב חזה, סוכרת, דלקת…");
-    await input.waitFor({ timeout: 5_000 });
-    // "כאב לב" maps to heart + aorta in DISEASE_ORGAN_MAP
-    await input.fill("כאב לב");
-    // The panel should show organ buttons (heart = "לב")
-    await expect(page.getByRole("button", { name: /לב|heart/i }).first()).toBeVisible({ timeout: 5_000 });
+  test("learning level persists locally", async ({ page }) => {
+    await page.getByRole("button", { name: /מדריך חכם/ }).click();
+    await page.getByLabel("רמת הסבר").getByRole("button", { name: "מתקדם" }).click();
+    await page.reload();
+    await page.getByRole("button", { name: /מדריך חכם/ }).click();
+    await expect(page.getByLabel("רמת הסבר").getByRole("button", { name: "מתקדם" })).toHaveClass(/is-active/);
   });
 
-  test("Compare button opens compare panel with model list", async ({ page }) => {
-    const compareBtn = page.locator('button[title="השוואת שני מודלים"]');
-    await expect(compareBtn).toBeVisible({ timeout: 10_000 });
-    await compareBtn.click();
-    // Panel header: "השוואת מודלים"
-    await expect(page.getByText("השוואת מודלים")).toBeVisible({ timeout: 5_000 });
-    // Panel has model choices (e.g. "גוף קדמי")
-    await expect(page.getByRole("button", { name: "גוף קדמי" })).toBeVisible({ timeout: 3_000 });
+  test("quiz gives scientific feedback and records progress", async ({ page }) => {
+    await page.getByRole("button", { name: /בחן אותי על הלב/ }).click();
+    const quiz = page.getByRole("dialog", { name: "חידון על הלב" });
+    await quiz.getByRole("button", { name: /החדר השמאלי/ }).click();
+    await expect(quiz.getByText("מצוין!")).toBeVisible();
+    await expect(quiz.getByText(/דופן החדר השמאלי/)).toBeVisible();
   });
 
-  test("Compare mode renders the split-screen overlay with two labels", async ({ page }) => {
-    await page.locator('button[title="השוואת שני מודלים"]').click();
-    // Wait for the split-screen dividers to appear
-    await expect(page.getByText("A — מודל נוכחי")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("B — מודל להשוואה")).toBeVisible({ timeout: 5_000 });
+  test("physiology simulation can start and stop", async ({ page }) => {
+    await page.getByTitle("הפעל המחשה פיזיולוגית").click();
+    await expect(page.getByTitle("עצור המחשה")).toBeVisible();
+    await page.getByTitle("עצור המחשה").click();
+    await expect(page.getByTitle("הפעל המחשה פיזיולוגית")).toBeVisible();
   });
 
-  test("Compare mode adds a second canvas", async ({ page }) => {
-    await page.locator('button[title="השוואת שני מודלים"]').click();
-    await page.getByText("B — מודל להשוואה").waitFor({ timeout: 10_000 });
-    // There should now be two canvas elements
-    await expect(page.locator("canvas")).toHaveCount(2, { timeout: 15_000 });
-  });
-
-  test("Atlas sidebar opens organ list", async ({ page }) => {
-    const atlasBtn = page.locator('[title="אטלס"]');
-    await expect(atlasBtn).toBeVisible({ timeout: 10_000 });
-    await atlasBtn.click();
-    // Sidebar shows the atlas header "🫀 אטלס"
-    await expect(page.getByText(/אטלס/)).toBeVisible({ timeout: 5_000 });
-    // And organ buttons are listed
-    await expect(page.locator("button").filter({ hasText: /לב|כבד|ריאות|כליה/i }).first()).toBeVisible({ timeout: 5_000 });
-  });
-});
-
-test.describe("Viewer – Interactive Mode with Effects Panel", () => {
-  test.beforeEach(async ({ page }) => {
-    await mockAuth(page);
-    await page.goto("/");
-    await page.locator("canvas").waitFor({ timeout: 15_000 });
-    // Switch from GLB mode (default) to Interactive mode
-    // When useInteractive=false, the button title is "📦 מודל GLB"
-    const modeBtn = page.locator('button[title="📦 מודל GLB"]');
-    await expect(modeBtn).toBeVisible({ timeout: 10_000 });
-    await modeBtn.click();
-    // Open effects panel
-    await page.locator('button[title="אפקטים תלת-ממדיים"]').click();
-    await page.getByText("אפקטים תלת-ממדיים מקצועיים").waitFor({ timeout: 5_000 });
-  });
-
-  test("animation speed slider appears in interactive mode", async ({ page }) => {
-    await expect(page.getByText("מהירות אנימציה")).toBeVisible({ timeout: 5_000 });
-    const slider = page.locator('input[type="range"]').filter({ hasNot: page.locator('[style*="accentColor"]') }).first();
-    await expect(slider).toBeVisible();
-  });
-
-  test("animation speed slider has a positive default value", async ({ page }) => {
-    const slider = page.locator('input[type="range"]').last();
-    await expect(slider).toBeVisible();
-    const value = await slider.inputValue();
-    expect(Number(value)).toBeGreaterThan(0);
-  });
-
-  test("pathology mode toggle is visible in interactive mode", async ({ page }) => {
-    // tr: "מצב פתולוגיה"
-    await expect(page.getByText("מצב פתולוגיה")).toBeVisible({ timeout: 5_000 });
-  });
-
-  test("enabling pathology mode shows disease input", async ({ page }) => {
-    const pathologyBtn = page.getByRole("button", { name: /מצב פתולוגיה/ });
-    await pathologyBtn.click();
-    await expect(page.getByPlaceholder(/כאב לב|heart disease/i)).toBeVisible({ timeout: 3_000 });
-  });
-});
-
-test.describe("Viewer – Screenshot Button", () => {
-  test("screenshot button exists in toolbar", async ({ page }) => {
-    await mockAuth(page);
-    await page.goto("/");
-    await page.locator("canvas").waitFor({ timeout: 15_000 });
-    await expect(page.locator('button[title="צילום מסך"]')).toBeVisible({ timeout: 10_000 });
+  test("has no runtime errors or failed local model requests", async ({ page }) => {
+    const errors: string[] = [];
+    const failedModels: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("requestfailed", (request) => {
+      if (request.url().includes("/models/")) failedModels.push(request.url());
+    });
+    await page.reload();
+    await expect(page.locator("canvas")).toBeVisible({ timeout: 20_000 });
+    await page.waitForTimeout(1_500);
+    expect(errors).toEqual([]);
+    expect(failedModels).toEqual([]);
   });
 });

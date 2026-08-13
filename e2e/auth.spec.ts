@@ -26,7 +26,7 @@ test.describe("Auth Page", () => {
   });
 
   test("remember-me checkbox is visible in login mode", async ({ page }) => {
-    await expect(page.getByText("זכור אותי במכשיר הזה")).toBeVisible();
+    await expect(page.getByText("זכור אותי", { exact: true })).toBeVisible();
     await expect(page.locator('input[type="checkbox"]')).toBeVisible();
   });
 
@@ -90,12 +90,12 @@ test.describe("Auth Page", () => {
   });
 });
 
-test.describe("Auth Redirect", () => {
-  test("unauthenticated user is redirected from / to /auth", async ({ page }) => {
+test.describe("Guest Access", () => {
+  test("unauthenticated visitors can explore without an account", async ({ page }) => {
     // Clear any cached session
     await page.context().clearCookies();
     await page.goto("/");
-    await expect(page).toHaveURL(/\/auth/);
-    await expect(page.getByText("התחברות")).toBeVisible();
+    await expect(page).toHaveURL("/");
+    await expect(page.getByTestId("professional-atlas")).toBeVisible();
   });
 });

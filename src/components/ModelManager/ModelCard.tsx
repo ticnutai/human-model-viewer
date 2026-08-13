@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Pencil, Trash2, Play, Pause, Camera, FlaskConical, ClipboardList, Loader2 } from "lucide-react";
+import { Eye, Pencil, Trash2, Play, Pause, Camera, FlaskConical, ClipboardList, Loader2, Pin, Star } from "lucide-react";
 import { getOrganHintFromUrl, getBestOrganDetail } from "../OrganData";
 import { formatSize, getMediaIcon, translateMeshName, autoHebrewName, getOrganInfoForMesh } from "./utils";
 import type { MeshOrganInfo } from "./utils";
@@ -24,6 +24,10 @@ interface ModelCardProps {
   generatingThumbId: string | null;
   viewMode?: "list" | "grid";
   isBackgroundProcessing?: boolean;
+  isFavorite?: boolean;
+  isPinned?: boolean;
+  onToggleFavorite?: () => void;
+  onTogglePin?: () => void;
 }
 
 export default function ModelCard({
@@ -31,6 +35,7 @@ export default function ModelCard({
   onSaveEdit, onSaveInlineName, onSaveDisplayName, onEditLocalName, onReanalyze,
   onGenerateThumbnail, reanalyzingId, generatingThumbId, viewMode = "list",
   isBackgroundProcessing = false,
+  isFavorite = false, isPinned = false, onToggleFavorite, onTogglePin,
 }: ModelCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -40,13 +45,14 @@ export default function ModelCard({
   const [displayNameValue, setDisplayNameValue] = useState("");
   const [confirmDel, setConfirmDel] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [thumbFailed, setThumbFailed] = useState(false);
 
   const rec = model.record;
   const isCloud = model.source === "cloud";
   const hebrewName = rec?.hebrew_name || "";
   const catName = categories.find(c => c.id === model.categoryId);
   const mediaIcon = getMediaIcon(model.mediaType);
-  const thumb = rec?.thumbnail_url || null;
+  const thumb = !thumbFailed ? rec?.thumbnail_url || null : null;
   const isGenerating = generatingThumbId === rec?.id;
 
   const cleanDisplayName = model.displayName
@@ -143,7 +149,7 @@ export default function ModelCard({
   if (viewMode === "grid") {
     return (
       <div
-        className="rounded-xl transition-all overflow-hidden flex flex-col group"
+        className="model-card rounded-xl transition-all overflow-hidden flex flex-col group"
         style={{
           border: isActive ? "2px solid hsl(43 78% 47%)" : "1px solid hsl(43 60% 55% / 0.2)",
           background: "hsl(0 0% 100%)",
@@ -153,17 +159,24 @@ export default function ModelCard({
         {/* Thumbnail area */}
         <div
           onClick={() => onSelect(model.url)}
-          className="aspect-square w-full relative flex items-center justify-center overflow-hidden cursor-pointer"
+          className="model-card-media aspect-square w-full relative flex items-center justify-center overflow-hidden cursor-pointer"
           style={{ background: thumb ? "hsl(220 20% 96%)" : placeholderInfo.bg }}
         >
           {thumb ? (
-            <img
-              src={thumb}
-              alt={cleanDisplayName}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              decoding="async"
-            />
+            <>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3" style={{ background: placeholderInfo.bg }}>
+                <span className="text-5xl drop-shadow-sm">{placeholderInfo.icon}</span>
+                <span className="text-[10px] font-bold text-center" style={{ color: "hsl(220 30% 35%)" }}>{displayHebrew || cleanDisplayName.slice(0, 24)}</span>
+              </div>
+              <img
+                src={thumb}
+                alt={cleanDisplayName}
+                className="relative z-[1] w-full h-full object-cover"
+                loading="lazy"
+                decoding="async"
+                onError={() => setThumbFailed(true)}
+              />
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2 p-3">
               <span className="text-5xl drop-shadow-sm">{placeholderInfo.icon}</span>
@@ -226,7 +239,7 @@ export default function ModelCard({
         </div>
 
         {/* Info */}
-        <div className="px-2.5 pt-2 pb-1.5 flex flex-col gap-0.5">
+        <div className="model-card-info px-2.5 pt-2 pb-1.5 flex flex-col gap-0.5">
           <div className="text-[12px] font-bold leading-snug" dir="rtl" style={{ color: "hsl(220 40% 13%)", wordBreak: "break-word", lineHeight: "1.3" }}>
             {displayHebrew || cleanDisplayName}
           </div>
@@ -241,12 +254,18 @@ export default function ModelCard({
         </div>
 
         {/* Action bar */}
-        <div className="flex items-center justify-between px-2 py-1.5 mt-auto" style={{ borderTop: "1px solid hsl(43 60% 55% / 0.15)", background: "hsl(220 20% 98%)" }} onClick={e => e.stopPropagation()}>
+        <div className="model-card-actions flex items-center justify-between px-2 py-1.5 mt-auto" style={{ borderTop: "1px solid hsl(43 60% 55% / 0.15)", background: "hsl(220 20% 98%)" }} onClick={e => e.stopPropagation()}>
           <div className="flex items-center gap-1">
             <ActionBtn onClick={() => onSelect(model.url)} title={isActive ? "מודל פעיל" : "הפעל"} icon={isActive ? <Pause size={13} /> : <Play size={13} />} variant={isActive ? "active" : "default"} />
             <ActionBtn onClick={handleEdit} title="ערוך שם" icon={<Pencil size={13} />} />
             {isCloud && rec && (
               <ActionBtn onClick={() => setExpanded(!expanded)} title="פרטים" icon={<ClipboardList size={13} />} variant={expanded ? "active" : "default"} />
+            )}
+            {isCloud && onToggleFavorite && (
+              <ActionBtn onClick={onToggleFavorite} title={isFavorite ? "הסר מהמועדפים" : "הוסף למועדפים"} icon={<Star size={13} fill={isFavorite ? "currentColor" : "none"}/>} variant={isFavorite ? "active" : "default"}/>
+            )}
+            {isCloud && onTogglePin && (
+              <ActionBtn onClick={onTogglePin} title={isPinned ? "בטל הצמדה" : "הצמד למעלה"} icon={<Pin size={13} fill={isPinned ? "currentColor" : "none"}/>} variant={isPinned ? "active" : "default"}/>
             )}
           </div>
           {confirmDel ? (
@@ -429,6 +448,12 @@ export default function ModelCard({
           <ActionBtn onClick={handleEdit} title="ערוך שם" icon={<Pencil size={14} />} />
           {isCloud && rec && (
             <ActionBtn onClick={() => setExpanded(!expanded)} title="פרטים" icon={<ClipboardList size={14} />} variant={expanded ? "active" : "default"} />
+          )}
+          {isCloud && onToggleFavorite && (
+            <ActionBtn onClick={onToggleFavorite} title={isFavorite ? "הסר מהמועדפים" : "הוסף למועדפים"} icon={<Star size={14} fill={isFavorite ? "currentColor" : "none"}/>} variant={isFavorite ? "active" : "default"}/>
+          )}
+          {isCloud && onTogglePin && (
+            <ActionBtn onClick={onTogglePin} title={isPinned ? "בטל הצמדה" : "הצמד למעלה"} icon={<Pin size={14} fill={isPinned ? "currentColor" : "none"}/>} variant={isPinned ? "active" : "default"}/>
           )}
           {confirmDel ? (
             <div className="flex flex-col gap-0.5">
