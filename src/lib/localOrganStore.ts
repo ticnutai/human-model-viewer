@@ -26,7 +26,7 @@ function openDatabase() {
 
 export async function listLocalOrgans(): Promise<LocalOrgan[]> {
   const db = await openDatabase();
-  return new Promise((resolve, reject) => {
+  return new Promise<LocalOrgan[]>((resolve, reject) => {
     const request = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).getAll();
     request.onsuccess = () => resolve((request.result as LocalOrgan[]).sort((a, b) => a.createdAt - b.createdAt));
     request.onerror = () => reject(request.error);

@@ -32,6 +32,7 @@ import type { ClipAxis } from "./anatomy";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePreferences } from "@/hooks/usePreferences";
+import type { ModelRecord } from "@/components/ModelManager/types";
 import { loadCloudModels } from "@/lib/cloudModelRepository";
 import { useAppTheme } from "@/contexts/AppThemeContext";
 
@@ -366,7 +367,7 @@ function CameraController({ targetPosition, targetLookAt }: { targetPosition: [n
   return null;
 }
 
-const IconBtn = ({ onClick, active, icon, title, size = 40, className: extraClass }: { onClick: () => void; active?: boolean; icon: string; title?: string; size?: number; t: Theme; className?: string }) => (
+const IconBtn = ({ onClick, active, icon, title, size = 40, className: extraClass }: { onClick: () => void; active?: boolean; icon: string; title?: string; size?: number; t?: unknown; className?: string }) => (
   <button onClick={onClick} title={title} className={`tb-btn ${active ? "active" : ""} ${extraClass || ""}`} style={{ width: size, height: size, fontSize: size * 0.42 }}>{icon}</button>
 );
 
@@ -408,14 +409,14 @@ const ModelViewer = () => {
   const [canvasKey, setCanvasKey] = useState(0);
   const startupPanel = new URLSearchParams(window.location.search).get("panel");
   const startupModel = new URLSearchParams(window.location.search).get("model");
-  const [modelUrl, setModelUrl] = useState(() => startupModel?.toLowerCase().includes(".glb") ? startupModel : DEFAULT_MODEL);
+  const [modelUrl, setModelUrl] = useState<string>(() => startupModel?.toLowerCase().includes(".glb") ? startupModel : DEFAULT_MODEL);
   const [selectedOrgan, setSelectedOrgan] = useState<OrganDetail | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDevPanel, setShowDevPanel] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
   // The old procedural figure was intentionally retired. The studio now always
   // starts with a licensed, real human GLB and never exposes the synthetic figure.
-  const useInteractive = false;
+  const [useInteractive, setUseInteractive] = useState(false);
   const [atlasQuery, setAtlasQuery] = useState("");
   const [selectedSystem, setSelectedSystem] = useState("all");
   const [lessonActive, setLessonActive] = useState(false);
@@ -479,7 +480,7 @@ const ModelViewer = () => {
   const [layerOpacities, setLayerOpacities] = useState<Record<LayerType, number>>({ skeleton: 1, muscles: 1, organs: 1, vessels: 1 });
   const [peelAmount, setPeelAmount] = useState(0);
   const [bodyModelUrl, setBodyModelUrl] = useState<string | undefined>(undefined);
-  const [cloudModels, setCloudModels] = useState<{ id: string; display_name: string; hebrew_name: string | null; file_url: string | null; file_name?: string; file_size?: number | null; mesh_parts?: any; category_id?: string | null; created_at?: string; thumbnail_url?: string | null; notes?: string | null; media_type?: string | null }[]>([]);
+  const [cloudModels, setCloudModels] = useState<ModelRecord[]>([]);
 
   // Fetch cloud models for body model picker and analysis panel
   useEffect(() => {
