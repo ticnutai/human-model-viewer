@@ -24,6 +24,31 @@ test.describe("Body builder and GLB library", () => {
     await expect(page.getByText("12/13")).toBeVisible();
   });
 
+  test("moves the whole body with the mouse and restores the view after reload", async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem("niflaot-body-builder-camera-v1"));
+    await page.reload();
+    await expect(page.getByRole("button", { name: "מצב הזזה" })).toHaveClass(/is-active/);
+    const canvas = page.locator("canvas");
+    const box = await canvas.boundingBox();
+    expect(box).not.toBeNull();
+    if (!box) return;
+    const startX = box.x + box.width * .5;
+    const startY = box.y + box.height * .55;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 130, startY + 90, { steps: 8 });
+    await page.mouse.up();
+    const saved = await page.evaluate(() => localStorage.getItem("niflaot-body-builder-camera-v1"));
+    expect(saved).toBeTruthy();
+    const parsed = JSON.parse(saved!);
+    expect(Math.abs(parsed.target[0]) + Math.abs(parsed.target[1] + .12)).toBeGreaterThan(.01);
+    await page.reload();
+    await expect(page.locator(".body-stage")).toHaveAttribute("data-camera-restored", "true");
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("niflaot-body-builder-camera-v1"))).toBe(saved);
+    await page.getByRole("button", { name: "אפס מיקום ותצוגה" }).click();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("niflaot-body-builder-camera-v1"))).toBeNull();
+  });
+
   test("imports, persists, positions, and removes a local GLB organ", async ({ page }) => {
     await page.getByRole("button", { name: /ייבוא איבר GLB חדש/ }).click();
     const dialog = page.getByRole("dialog", { name: "הוספת איבר GLB" });

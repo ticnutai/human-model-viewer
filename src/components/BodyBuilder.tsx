@@ -1,9 +1,10 @@
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, ThreeEvent } from "@react-three/fiber";
 import { Html, OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
-import { ArrowRight, Box, Eye, EyeOff, FolderOpen, Layers3, Menu, Plus, RotateCcw, Save, Trash2, Upload, X } from "lucide-react";
+import type { OrbitControls as OrbitControlsImpl } from "three/examples/jsm/controls/OrbitControls.js";
+import { ArrowRight, Box, Eye, EyeOff, FolderOpen, Layers3, Menu, Move, Plus, Rotate3D, RotateCcw, Save, Trash2, Upload, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BODY_REFERENCE_LAYERS } from "@/data/bodyReferenceLayers";
 import { listLocalOrgans, removeLocalOrgan, saveLocalOrgan, type LocalOrgan } from "@/lib/localOrganStore";
@@ -11,6 +12,17 @@ import { cn } from "@/lib/utils";
 import { useAppTheme } from "@/contexts/AppThemeContext";
 
 type BodyLayer = { id: string; name: string; url: string; color: string; visible: boolean; local?: LocalOrgan };
+type CameraView = { position: [number, number, number]; target: [number, number, number] };
+const BODY_VIEW_KEY = "niflaot-body-builder-camera-v1";
+const DEFAULT_BODY_VIEW: CameraView = { position: [0, -.12, 5.3], target: [0, -.12, 0] };
+
+function readCameraView(): CameraView {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BODY_VIEW_KEY) || "null") as CameraView | null;
+    const valid = (value: unknown) => Array.isArray(value) && value.length === 3 && value.every((item) => Number.isFinite(item));
+    return saved && valid(saved.position) && valid(saved.target) ? saved : DEFAULT_BODY_VIEW;
+  } catch { return DEFAULT_BODY_VIEW; }
+}
 
 function Loader() {
   const { active, progress } = useProgress();
@@ -71,6 +83,9 @@ export default function BodyBuilder() {
   const [importOpen, setImportOpen] = useState(false);
   const [cameraKey, setCameraKey] = useState(0);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [cameraView, setCameraView] = useState<CameraView>(readCameraView);
+  const [interactionMode, setInteractionMode] = useState<"move" | "rotate">("move");
+  const controlsRef = useRef<OrbitControlsImpl>(null);
 
   useEffect(() => { void listLocalOrgans().then(setLocalOrgans); }, []);
   const layers: BodyLayer[] = useMemo(() => [
@@ -80,6 +95,22 @@ export default function BodyBuilder() {
 
   const toggleLayer = (id: string) => setHidden((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
   const deleteOrgan = async (id: string) => { await removeLocalOrgan(id); setLocalOrgans((items) => items.filter((item) => item.id !== id)); };
+  const saveCameraView = () => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const next: CameraView = {
+      position: controls.object.position.toArray() as [number, number, number],
+      target: controls.target.toArray() as [number, number, number],
+    };
+    localStorage.setItem(BODY_VIEW_KEY, JSON.stringify(next));
+    setCameraView(next);
+  };
+  const resetCameraView = () => {
+    localStorage.removeItem(BODY_VIEW_KEY);
+    setCameraView(DEFAULT_BODY_VIEW);
+    setInteractionMode("move");
+    setCameraKey((value) => value + 1);
+  };
 
   return <div className="body-builder" dir="rtl">
     <header className="body-builder-header">
@@ -99,16 +130,24 @@ export default function BodyBuilder() {
         </div>)}</div>
         <button className="body-add" onClick={() => setImportOpen(true)}><Upload /> ייבוא איבר GLB חדש</button>
       </aside>
-      <section className="body-stage" aria-label="גוף מורכב תלת־ממדי">
-        <div className="body-stage-title"><span>מצב הרכבה</span><h1>הגוף נבנה שכבה אחר שכבה</h1><p>לחץ על איבר כדי לבחור אותו • כבה שכבות כדי לחקור יחסים</p></div>
-        <Canvas key={cameraKey} dpr={[1,1.5]} camera={{ position:[0,.22,3.5], fov:38, near:.01, far:20 }} gl={{ antialias:true,powerPreference:"high-performance" }} onPointerMissed={() => setSelected(null)}>
+      <section className="body-stage" aria-label="גוף מורכב תלת־ממדי" data-camera-restored={localStorage.getItem(BODY_VIEW_KEY) ? "true" : "false"}>
+        <div className="body-stage-title"><span>מצב הרכבה</span><h1>הגוף נבנה שכבה אחר שכבה</h1><p>{interactionMode === "move" ? "גרור כדי להזיז את הגוף • גלגלת לקירוב והרחבה" : "גרור כדי לסובב • גלגלת לקירוב והרחבה"}</p></div>
+        <Canvas key={cameraKey} dpr={[1,1.5]} camera={{ position:cameraView.position, fov:38, near:.01, far:20 }} gl={{ antialias:true,powerPreference:"high-performance" }} onPointerMissed={() => setSelected(null)}>
           <color attach="background" args={[activeTheme.canvas]} />
           <ambientLight intensity={1.4}/><hemisphereLight intensity={1.2} color="#dcecff" groundColor="#080c15"/><directionalLight position={[-2,3,3]} intensity={3}/><pointLight position={[2,.8,2]} intensity={4} color="#83a7ff"/>
           {guide && <BodyGuide />}
           <Suspense fallback={<Loader />}><group position={[0,-.45,0]} scale={2.25}>{layers.filter((layer) => layer.visible).map((layer) => layer.local ? <ImportedOrgan key={layer.id} layer={layer} opacity={opacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/> : <ReferenceOrgan key={layer.id} layer={layer} opacity={opacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/>)}</group></Suspense>
-          <OrbitControls makeDefault target={[0,.22,0]} enableDamping minDistance={.8} maxDistance={6}/>
+          <OrbitControls ref={controlsRef} makeDefault target={cameraView.target} enableDamping minDistance={.8} maxDistance={7} screenSpacePanning
+            mouseButtons={{ LEFT: interactionMode === "move" ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: interactionMode === "move" ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN }}
+            onEnd={saveCameraView}/>
         </Canvas>
-        <div className="body-tools"><button className={cn(guide&&"is-active")} onClick={() => setGuide((value)=>!value)} title="מתאר גוף"><Box/></button><label><Eye/><input type="range" min="20" max="100" value={opacity*100} onChange={(event)=>setOpacity(Number(event.target.value)/100)} aria-label="שקיפות שכבות הגוף"/></label><button onClick={()=>setCameraKey((value)=>value+1)} title="אפס מצלמה"><RotateCcw/></button></div>
+        <div className="body-tools">
+          <button className={cn(interactionMode === "move"&&"is-active")} onClick={() => setInteractionMode("move")} title="הזזת הגוף" aria-label="מצב הזזה"><Move/></button>
+          <button className={cn(interactionMode === "rotate"&&"is-active")} onClick={() => setInteractionMode("rotate")} title="סיבוב הגוף" aria-label="מצב סיבוב"><Rotate3D/></button>
+          <button className={cn(guide&&"is-active")} onClick={() => setGuide((value)=>!value)} title="מתאר גוף"><Box/></button>
+          <label><Eye/><input type="range" min="20" max="100" value={opacity*100} onChange={(event)=>setOpacity(Number(event.target.value)/100)} aria-label="שקיפות שכבות הגוף"/></label>
+          <button onClick={resetCameraView} title="אפס מיקום ותצוגה" aria-label="אפס מיקום ותצוגה"><RotateCcw/></button>
+        </div>
       </section>
     </main>
     {importOpen && <ImportOrganDialog onClose={() => setImportOpen(false)} onSaved={(organ) => { setLocalOrgans((items)=>[...items,organ]); setImportOpen(false); }} />}
