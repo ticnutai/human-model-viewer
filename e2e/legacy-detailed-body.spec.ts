@@ -84,3 +84,33 @@ test("clicking an atlas organ isolates its real mesh instead of only selecting t
   await expect(viewer).not.toHaveAttribute("data-selected-mesh", "");
   await expect(page.getByRole("status")).toContainText("מציג כעת: מסתמי הלב");
 });
+
+test("floating anatomy tools isolate, dim, hide, restore and cut the selected organ", async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/legacy?panel=organs");
+  const heart = page.locator(".organ-card").filter({ hasText: "מסתמי הלב" }).first();
+  await expect(heart).toBeVisible({ timeout: 60_000 });
+  await heart.click();
+
+  const tools = page.getByRole("region", { name: "כלי אנטומיה מהירים" });
+  const viewer = page.getByTestId("anatomy-viewer-canvas");
+  await expect(tools).toBeVisible();
+  await tools.getByRole("button", { name: "בודד חלק" }).click();
+  await expect(tools.getByRole("button", { name: "בודד חלק" })).toHaveAttribute("aria-pressed", "true");
+  await tools.getByRole("button", { name: "עמעם סביב" }).click();
+  await expect(tools.getByRole("button", { name: "עמעם סביב" })).toHaveAttribute("aria-pressed", "true");
+  await tools.getByRole("button", { name: "הסתר חלק" }).click();
+  await expect(viewer).toHaveAttribute("data-hidden-mesh-count", "1");
+  await tools.getByRole("button", { name: "החזר אחרון" }).click();
+  await expect(viewer).toHaveAttribute("data-hidden-mesh-count", "0");
+  await tools.getByRole("button", { name: "חיתוך" }).click();
+  await expect(tools.getByLabel("עומק חיתוך מהיר")).toBeVisible();
+  await tools.getByRole("button", { name: "חזית" }).click();
+  await tools.getByLabel("עומק חיתוך מהיר").fill("45");
+  await tools.getByRole("button", { name: "הצג הכל" }).click();
+  await expect(tools.getByLabel("עומק חיתוך מהיר")).toBeHidden();
+  await expect(viewer).toHaveAttribute("data-focus-selected", "false");
+  expect(errors).toEqual([]);
+});

@@ -220,7 +220,7 @@ const configureGLTFLoader = (loader: GLTFLoader) => {
 };
 
 // ── 3D Model component ──
-function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, mappedDetails, onScan }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; mappedDetails: Map<string, OrganDetail>; onScan?: (organs: ScannedOrgan[]) => void }) {
+function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, mappedDetails, onScan }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; focusOpacity: number; hiddenMeshes: Set<string>; mappedDetails: Map<string, OrganDetail>; onScan?: (organs: ScannedOrgan[]) => void }) {
   const { lang } = useLanguage();
   const gltf = useLoader(GLTFLoader, url, configureGLTFLoader);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
@@ -308,10 +308,13 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
         const mappedSelection = selectedMesh ? getMappedDetail(getDetectionCandidates(mesh)) : null;
         const isSelected = Boolean(selectedMesh) && (mesh.name === selectedMesh || mappedSelection?.meshName === selectedMesh);
         const isGhosted = focusSelected && Boolean(selectedMesh) && !isSelected;
+        const meshKeys = [mesh.name, mappedSelection?.meshName].filter(Boolean).map(name => canonicalMeshKey(String(name)).toLocaleLowerCase("en"));
+        const isHidden = meshKeys.some(name => hiddenMeshes.has(name));
+        mesh.visible = !isHidden;
         materials.forEach((mat) => {
           const typed = mat as THREE.MeshStandardMaterial;
           if ("transparent" in typed) typed.transparent = isGhosted || xRayOpacity < 0.99 || isSelected;
-          if ("opacity" in typed) typed.opacity = isGhosted ? 0.12 : isSelected ? Math.max(0.92, xRayOpacity) : xRayOpacity;
+          if ("opacity" in typed) typed.opacity = isGhosted ? focusOpacity : isSelected ? Math.max(0.92, xRayOpacity) : xRayOpacity;
           if ("depthWrite" in typed) typed.depthWrite = !isGhosted;
           if (typed.isMeshStandardMaterial) {
             if (isSelected) typed.emissive = new THREE.Color(accent);
@@ -328,7 +331,7 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
         }
       }
     });
-  }, [selectedMesh, sceneClone, accent, xRayOpacity, explodeAmount, focusSelected, normalizedTransform.center, getDetectionCandidates, getMappedDetail]);
+  }, [selectedMesh, sceneClone, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, normalizedTransform.center, getDetectionCandidates, getMappedDetail]);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -566,6 +569,10 @@ const ModelViewer = () => {
   const [tourStopLabel, setTourStopLabel] = useState("");
   const [explodeAmount, setExplodeAmount] = useState(typeof savedEffectsPrefs.explodeAmount === "number" ? savedEffectsPrefs.explodeAmount : 0);
   const [focusSelected, setFocusSelected] = useState(Boolean(savedEffectsPrefs.focusSelected));
+  const [focusOpacity, setFocusOpacity] = useState(typeof savedEffectsPrefs.focusOpacity === "number" ? savedEffectsPrefs.focusOpacity : 0.12);
+  const [hiddenMeshes, setHiddenMeshes] = useState<Set<string>>(new Set());
+  const [hiddenMeshHistory, setHiddenMeshHistory] = useState<string[]>([]);
+  const [showQuickTools, setShowQuickTools] = useState(true);
   const [showSelectionOutline, setShowSelectionOutline] = useState(savedEffectsPrefs.showSelectionOutline !== false);
   const [showPerfMonitor, setShowPerfMonitor] = useState(Boolean(savedEffectsPrefs.showPerfMonitor));
   const [showEffectsPanel, setShowEffectsPanel] = useState(false);
@@ -768,9 +775,9 @@ const ModelViewer = () => {
 
   useEffect(() => {
     localStorage.setItem(EFFECTS_PREFS_KEY, JSON.stringify({
-      showClippingPlane, clipAxis, clipPosition, clipNegate, showBloodFlow, showLabels3D, showXRayShader, xRayColor, xRayIntensity, systemAnimations, animateHeartbeat, animateBreathing, animateDigestion, systemAnimationIntensity, sceneBrightness, explodeAmount, focusSelected, showSelectionOutline, showPerfMonitor,
+      showClippingPlane, clipAxis, clipPosition, clipNegate, showBloodFlow, showLabels3D, showXRayShader, xRayColor, xRayIntensity, systemAnimations, animateHeartbeat, animateBreathing, animateDigestion, systemAnimationIntensity, sceneBrightness, explodeAmount, focusSelected, focusOpacity, showSelectionOutline, showPerfMonitor,
     }));
-  }, [showClippingPlane, clipAxis, clipPosition, clipNegate, showBloodFlow, showLabels3D, showXRayShader, xRayColor, xRayIntensity, systemAnimations, animateHeartbeat, animateBreathing, animateDigestion, systemAnimationIntensity, sceneBrightness, explodeAmount, focusSelected, showSelectionOutline, showPerfMonitor]);
+  }, [showClippingPlane, clipAxis, clipPosition, clipNegate, showBloodFlow, showLabels3D, showXRayShader, xRayColor, xRayIntensity, systemAnimations, animateHeartbeat, animateBreathing, animateDigestion, systemAnimationIntensity, sceneBrightness, explodeAmount, focusSelected, focusOpacity, showSelectionOutline, showPerfMonitor]);
 
   const applyViewerPreset = useCallback((preset: "default" | "organs" | "skeletal" | "presentation" | "xray") => {
     if (preset === "default") {
@@ -876,6 +883,52 @@ const ModelViewer = () => {
     }
     if (organ.cameraPos) handleViewChange(organ.cameraPos, organ.lookAt);
   }, [cloudMeshData, enrichedOrganDetails, handleSelectModel, handleViewChange, modelUrl]);
+
+  const isolateSelected = useCallback(() => {
+    if (!selectedOrgan) return;
+    setHiddenMeshes(new Set());
+    setHiddenMeshHistory([]);
+    setFocusOpacity(0.035);
+    setFocusSelected(true);
+    setXRayOpacity(1);
+    setShowSelectionOutline(true);
+  }, [selectedOrgan]);
+
+  const dimAroundSelected = useCallback(() => {
+    if (!selectedOrgan) return;
+    setFocusOpacity(0.24);
+    setFocusSelected(true);
+    setXRayOpacity(1);
+    setShowSelectionOutline(true);
+  }, [selectedOrgan]);
+
+  const hideSelected = useCallback(() => {
+    if (!selectedOrgan) return;
+    const key = canonicalMeshKey(selectedOrgan.meshName).toLocaleLowerCase("en");
+    setHiddenMeshes(previous => new Set(previous).add(key));
+    setHiddenMeshHistory(previous => [...previous.filter(item => item !== key), key]);
+    setFocusSelected(false);
+  }, [selectedOrgan]);
+
+  const restoreLastHidden = useCallback(() => {
+    const last = hiddenMeshHistory.at(-1);
+    if (!last) return;
+    setHiddenMeshes(previous => { const next = new Set(previous); next.delete(last); return next; });
+    setHiddenMeshHistory(previous => previous.slice(0, -1));
+  }, [hiddenMeshHistory]);
+
+  const resetQuickTools = useCallback(() => {
+    setShowClippingPlane(false);
+    setClipAxis("y");
+    setClipPosition(0);
+    setClipNegate(false);
+    setXRayOpacity(1);
+    setExplodeAmount(0);
+    setFocusSelected(false);
+    setFocusOpacity(0.12);
+    setHiddenMeshes(new Set());
+    setHiddenMeshHistory([]);
+  }, []);
 
   const moveLesson = useCallback((direction: 1 | -1) => {
     setLessonIndex(prev => { const next = (prev + direction + lessonSequence.length) % lessonSequence.length; focusOrganByKey(lessonSequence[next]); return next; });
@@ -1740,8 +1793,48 @@ const ModelViewer = () => {
         <OrganDialog organ={selectedOrgan} onClose={() => setSelectedOrgan(null)} theme={t} />
       )}
 
+      {/* Contextual anatomy tools: the common actions stay one click away. */}
+      <div className="absolute z-[14] flex items-end gap-2" style={{ right: isMobile ? 12 : 72, bottom: isMobile ? 70 : 88, direction: "rtl" }}>
+        <button
+          aria-label={showQuickTools ? "סגור כלים מהירים" : "פתח כלים מהירים"}
+          aria-expanded={showQuickTools}
+          onClick={() => setShowQuickTools(value => !value)}
+          className={`tb-btn shrink-0 shadow-xl ${showQuickTools || focusSelected || showClippingPlane || hiddenMeshes.size > 0 ? "active" : ""}`}
+          style={{ width: isMobile ? 44 : 50, height: isMobile ? 44 : 50, fontSize: 20 }}
+          title="כלי אנטומיה מהירים"
+        >🩻</button>
+        {showQuickTools && (
+          <section aria-label="כלי אנטומיה מהירים" className="glass-panel w-[min(620px,calc(100vw-150px))] p-2.5 shadow-2xl">
+            <div className="mb-2 flex items-center justify-between gap-3 px-1">
+              <div className="min-w-0">
+                <div className="truncate text-xs font-extrabold text-foreground">כלים מהירים {selectedOrgan ? `· ${selectedOrgan.name}` : ""}</div>
+                <div className="text-[9px] text-muted-foreground">בחר חלק במודל או ברשימה, ואז הפעל פעולה</div>
+              </div>
+              {hiddenMeshes.size > 0 && <span className="shrink-0 rounded-full bg-primary/15 px-2 py-1 text-[9px] font-bold text-primary">{hiddenMeshes.size} מוסתרים</span>}
+            </div>
+            <div className="grid grid-cols-6 gap-1.5">
+              <button disabled={!selectedOrgan} onClick={isolateSelected} aria-pressed={focusSelected && focusOpacity < 0.1} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35 ${focusSelected && focusOpacity < 0.1 ? "active" : ""}`}><span className="text-base">🎯</span><span className="text-[9px] font-bold">בודד חלק</span></button>
+              <button disabled={!selectedOrgan} onClick={dimAroundSelected} aria-pressed={focusSelected && focusOpacity >= 0.1} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35 ${focusSelected && focusOpacity >= 0.1 ? "active" : ""}`}><span className="text-base">🌫️</span><span className="text-[9px] font-bold">עמעם סביב</span></button>
+              <button disabled={!selectedOrgan} onClick={hideSelected} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35"><span className="text-base">🙈</span><span className="text-[9px] font-bold">הסתר חלק</span></button>
+              <button disabled={hiddenMeshHistory.length === 0} onClick={restoreLastHidden} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35"><span className="text-base">↩️</span><span className="text-[9px] font-bold">החזר אחרון</span></button>
+              <button onClick={() => setShowClippingPlane(value => !value)} aria-pressed={showClippingPlane} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center ${showClippingPlane ? "active" : ""}`}><span className="text-base">✂️</span><span className="text-[9px] font-bold">חיתוך</span></button>
+              <button onClick={resetQuickTools} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center"><span className="text-base">⟲</span><span className="text-[9px] font-bold">הצג הכל</span></button>
+            </div>
+            {showClippingPlane && (
+              <div className="mt-2 grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-xl border border-primary/25 bg-background/55 p-2">
+                <div className="flex gap-1" aria-label="כיוון החיתוך">
+                  {([['x', 'צד'], ['y', 'גובה'], ['z', 'חזית']] as [ClipAxis, string][]).map(([axis, label]) => <button key={axis} onClick={() => setClipAxis(axis)} aria-pressed={clipAxis === axis} className={`rounded-lg border px-2 py-1 text-[9px] font-bold ${clipAxis === axis ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}>{label}</button>)}
+                </div>
+                <label className="flex items-center gap-2 text-[9px] text-muted-foreground"><span className="whitespace-nowrap">עומק</span><input aria-label="עומק חיתוך מהיר" className="w-full" type="range" min={-200} max={200} value={Math.round(clipPosition * 100)} onChange={event => setClipPosition(Number(event.target.value) / 100)} /></label>
+                <button onClick={() => setClipNegate(value => !value)} aria-pressed={clipNegate} className={`rounded-lg border px-2 py-1 text-[9px] font-bold ${clipNegate ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>↔ הפוך</button>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+
       {/* ═══ 3D CANVAS ═══ */}
-      <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-focus-selected={focusSelected ? "true" : "false"} data-model-url={modelUrl}>
+      <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-focus-selected={focusSelected ? "true" : "false"} data-hidden-mesh-count={hiddenMeshes.size} data-model-url={modelUrl}>
         <Canvas key={canvasKey} camera={{ position: [0, 1, 4], fov: 50 }}
           gl={{ antialias: true, powerPreference: "high-performance" }}
           onCreated={({ gl }) => { gl.domElement.addEventListener("webglcontextlost", (e) => { e.preventDefault(); setTimeout(() => setCanvasKey(k => k + 1), 1000); }, false); }}
@@ -1753,7 +1846,7 @@ const ModelViewer = () => {
           <pointLight position={[0, 3, 0]} intensity={0.5} color={t.accent} />
           <Suspense fallback={<Html center><div className="legacy-model-loader"><span />טוען מודל אנושי תלת־ממדי…</div></Html>}>
             <ModelErrorBoundary key={modelUrl} onError={msg => { setModelLoadWarning(msg); if (modelUrl !== LOCAL_DEFAULT_MODEL) setModelUrl(LOCAL_DEFAULT_MODEL); }}>
-              <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} mappedDetails={currentMappedDetails} onScan={handleGlbScan} />
+              <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} focusOpacity={focusOpacity} hiddenMeshes={hiddenMeshes} mappedDetails={currentMappedDetails} onScan={handleGlbScan} />
             </ModelErrorBoundary>
           </Suspense>
           <ClippingPlane enabled={showClippingPlane} axis={clipAxis} position={clipPosition} negate={clipNegate} />
@@ -1790,7 +1883,7 @@ const ModelViewer = () => {
               <directionalLight position={[5, 5, 5]} intensity={1.0} />
               <Suspense fallback={null}>
                 <ModelErrorBoundary>
-                  <Model url={compareModelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} mappedDetails={currentMappedDetails} />
+                  <Model url={compareModelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} focusOpacity={focusOpacity} hiddenMeshes={hiddenMeshes} mappedDetails={currentMappedDetails} />
                 </ModelErrorBoundary>
               </Suspense>
               <OrbitControls enableDamping dampingFactor={0.05} minDistance={0.6} maxDistance={60} />
