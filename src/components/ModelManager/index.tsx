@@ -21,7 +21,7 @@ import type {
 } from "./types";
 import { SUPABASE_URL, SKETCHFAB_TOKEN_STORAGE_KEY } from "./types";
 import { loadCloudLibrary } from "@/lib/cloudModelRepository";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface ModelManagerProps {
   onSelectModel: (url: string) => void | Promise<void>;
@@ -31,6 +31,7 @@ interface ModelManagerProps {
 
 export default function ModelManager({ onSelectModel, currentModelUrl }: ModelManagerProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [models, setModels] = useState<ModelRecord[]>([]);
   const [localModels, setLocalModels] = useState<ListModel[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -931,6 +932,23 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           >🔎 Sketchfab</button>
         </div>
       </div>
+
+      <section className="mx-3 mt-3 overflow-hidden rounded-2xl border border-primary/35 bg-gradient-to-br from-primary/15 via-card to-emerald-500/10 shadow-sm" aria-label="מודל גוף HRA מתקדם">
+        <div className="flex items-center gap-3 p-3">
+          <div className="relative flex h-16 w-14 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-background/70 text-4xl" aria-hidden="true">
+            🧍<span className="absolute -bottom-1 -left-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[8px] font-black text-white">HRA</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5"><h3 className="text-sm font-black text-foreground">גוף HRA מתקדם ומשוכלל</h3><span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold text-emerald-600">פעיל</span></div>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">המודל המדעי החדש: זכר ונקבה, 51 שכבות GLB ו־1,330 מבנים. נטען איבר־איבר כדי להישאר מהיר ויציב.</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <button onClick={() => navigate("/body-builder?sex=male")} className="rounded-lg bg-primary px-3 py-1.5 text-[10px] font-black text-primary-foreground">פתח גוף זכרי</button>
+              <button onClick={() => navigate("/body-builder?sex=female")} className="rounded-lg border border-primary/40 bg-background/70 px-3 py-1.5 text-[10px] font-black text-foreground">פתח גוף נקבי</button>
+              <button onClick={() => navigate("/legacy?panel=models&tool=meshmap")} className="rounded-lg border border-border bg-background/60 px-3 py-1.5 text-[10px] font-bold text-muted-foreground">מיפוי 1,330 המבנים</button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Categories */}
       <CategoryTabs

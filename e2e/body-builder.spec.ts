@@ -5,6 +5,10 @@ test.describe("Body builder and GLB library", () => {
   test("opens the existing GLB management system directly", async ({ page }) => {
     await page.goto("/legacy?panel=models&tool=models");
     await expect(page.locator(".legacy-library-title")).toContainText("סטודיו GLB", { timeout: 20_000 });
+    const hraCard = page.getByRole("region", { name: "מודל גוף HRA מתקדם" });
+    await expect(hraCard).toContainText("51 שכבות GLB ו־1,330 מבנים");
+    await expect(hraCard.getByRole("button", { name: "פתח גוף זכרי" })).toBeVisible();
+    await expect(hraCard.getByRole("button", { name: "פתח גוף נקבי" })).toBeVisible();
     await expect(page.getByText(/גרור קבצים|העלאת קבצים/).first()).toBeHidden();
     await page.getByRole("button", { name: /הוסף מודל/ }).click();
     await expect(page.getByText(/גרור קבצים|העלאת קבצים/).first()).toBeVisible({ timeout: 10_000 });
