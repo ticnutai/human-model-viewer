@@ -31,6 +31,7 @@ import BloodFlowParticles from "./anatomy/BloodFlowParticles";
 import CameraTour from "./anatomy/CameraTour";
 import SystemAnimations from "./anatomy/SystemAnimations";
 import { loadCloudLibrary } from "@/lib/cloudModelRepository";
+import type { ModelRecord } from "@/components/ModelManager/types";
 import { HUMAN_ATLAS_BY_ID } from "@/data/humanAtlasCatalog";
 
 // ─── Model definitions ───────────────────────────────────────────────────────
@@ -787,7 +788,7 @@ export default function AdvancedAnatomyViewer() {
   const theme = THEMES[themeId];
 
   // Cloud models from DB
-  const [cloudModels, setCloudModels] = useState<{ id: string; display_name: string; hebrew_name: string | null; file_url: string | null; mesh_parts: any; category_id: string | null }[]>([]);
+  const [cloudModels, setCloudModels] = useState<ModelRecord[]>([]);
   const [cloudCategories, setCloudCategories] = useState<{ id: string; name: string; icon: string | null }[]>([]);
 
   useEffect(() => {
@@ -1954,7 +1955,7 @@ function InfoSection({ title, theme, children }: { title: string; theme: typeof 
 // ─── Cloud Model Button ─────────────────────────────────────────────────────
 
 function CloudModelBtn({ mod, theme, isCloudModel, cloudModelUrl, isFav, isPinned, onSelect, onCtx, isEditing, editName, setEditName, editDisplayName, setEditDisplayName, onRename, onCancelEdit }: {
-  mod: { id: string; display_name: string; hebrew_name: string | null; file_url: string | null };
+  mod: ModelRecord;
   theme: typeof THEMES["dark"];
   isCloudModel: boolean;
   cloudModelUrl: string | null;

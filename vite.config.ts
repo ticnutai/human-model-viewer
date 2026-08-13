@@ -8,10 +8,16 @@ const normalizePath = (id: string) => id.split("\\").join("/");
 const manualChunks = (id: string) => {
   const normalizedId = normalizePath(id);
 
+  if (normalizedId.includes("commonjsHelpers") || normalizedId.includes("vite/preload-helper")) {
+    return "vendor-react";
+  }
+
   if (normalizedId.includes("node_modules")) {
-    if (/[\\/]node_modules[\\/](react|react-dom|react-router-dom)[\\/]/.test(id)) {
+    if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-is|use-sync-external-store|object-assign)[\\/]/.test(normalizedId)) {
       return "vendor-react";
     }
+
+
     if (/[\\/]node_modules[\\/]@tanstack[\\/]react-query[\\/]/.test(id)) {
       return "vendor-query";
     }

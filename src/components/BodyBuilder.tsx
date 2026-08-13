@@ -3,7 +3,7 @@ import { Canvas, ThreeEvent } from "@react-three/fiber";
 import { Html, OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
-import type { OrbitControls as OrbitControlsImpl } from "three/examples/jsm/controls/OrbitControls.js";
+
 import { ArrowRight, Box, Eye, EyeOff, FolderOpen, Layers3, Menu, Move, Plus, Rotate3D, RotateCcw, Save, Trash2, Upload, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BODY_REFERENCE_LAYERS } from "@/data/bodyReferenceLayers";
@@ -85,7 +85,7 @@ export default function BodyBuilder() {
   const [layersOpen, setLayersOpen] = useState(false);
   const [cameraView, setCameraView] = useState<CameraView>(readCameraView);
   const [interactionMode, setInteractionMode] = useState<"move" | "rotate">("move");
-  const controlsRef = useRef<OrbitControlsImpl>(null);
+  const controlsRef = useRef<any>(null);
 
   useEffect(() => { void listLocalOrgans().then(setLocalOrgans); }, []);
   const layers: BodyLayer[] = useMemo(() => [
