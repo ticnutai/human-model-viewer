@@ -9,9 +9,10 @@ const manualChunks = (id: string) => {
   const normalizedId = normalizePath(id);
 
   if (normalizedId.includes("node_modules")) {
-    if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler|react-is|use-sync-external-store|prop-types|object-assign)[\\/]/.test(normalizedId)) {
+    if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-is|use-sync-external-store|object-assign)[\\/]/.test(normalizedId)) {
       return "vendor-react";
     }
+
 
     if (/[\\/]node_modules[\\/]@tanstack[\\/]react-query[\\/]/.test(id)) {
       return "vendor-query";
