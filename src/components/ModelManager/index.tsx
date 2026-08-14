@@ -667,7 +667,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         supabase.from("models").update(updateData).eq("id", rec.id),
         new Promise((_, reject) => setTimeout(() => reject(new Error("DB Update timeout")), 15000))
       ]);
-      console.log(`[Reanalyze] ✅ ${rec.display_name}: ${translated.length} meshes (method: ${result.method}, ${result.durationMs}ms)`);
+      console.log(`[Reanalyze] ✅ ${rec.display_name}: ${result.meshNames.length} meshes (method: ${result.method}, ${result.durationMs}ms)`);
       await load();
     } catch (e) {
       console.error("[Reanalyze] ❌ Failed:", e);
@@ -733,8 +733,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           supabase.from("models").update(updateData).eq("id", m.id),
           new Promise((_, reject) => setTimeout(() => reject(new Error("DB Update timeout")), 15000))
         ]);
-        successNames.push(`${name} (${translated.length} · ${result.method})`);
-        console.log(`[BatchAnalysis] ✅ ${name}: ${translated.length} meshes (${result.method}, ${result.durationMs}ms)`);
+        successNames.push(`${name} (${result.meshNames.length} · ${result.method})`);
+        console.log(`[BatchAnalysis] ✅ ${name}: ${result.meshNames.length} meshes (${result.method}, ${result.durationMs}ms)`);
       } catch (e) {
         console.warn(`[BatchAnalysis] ❌ Failed for ${name}:`, e);
         failed++;
