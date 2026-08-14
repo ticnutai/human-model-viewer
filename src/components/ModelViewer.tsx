@@ -930,6 +930,32 @@ const ModelViewer = () => {
     setHiddenMeshHistory([]);
   }, []);
 
+  const restoreHiddenMesh = useCallback((key: string) => {
+    setHiddenMeshes(previous => { const next = new Set(previous); next.delete(key); return next; });
+    setHiddenMeshHistory(previous => previous.filter(item => item !== key));
+  }, []);
+
+  // Keyboard shortcuts make the quick tools usable without hunting for buttons.
+  useEffect(() => {
+    if (!showQuickTools) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      const key = event.key.toLowerCase();
+      if (key === "i") { isolateSelected(); }
+      else if (key === "d") { dimAroundSelected(); }
+      else if (key === "h") { hideSelected(); }
+      else if (key === "u") { restoreLastHidden(); }
+      else if (key === "c") { setShowClippingPlane(value => !value); }
+      else if (key === "r") { resetQuickTools(); }
+      else return;
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showQuickTools, isolateSelected, dimAroundSelected, hideSelected, restoreLastHidden, resetQuickTools]);
+
   const moveLesson = useCallback((direction: 1 | -1) => {
     setLessonIndex(prev => { const next = (prev + direction + lessonSequence.length) % lessonSequence.length; focusOrganByKey(lessonSequence[next]); return next; });
   }, [focusOrganByKey, lessonSequence]);
