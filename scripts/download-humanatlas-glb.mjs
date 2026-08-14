@@ -108,6 +108,30 @@ const MODELS = [
     file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/NIH_M_Lymph_Node.glb",
     subpath: "Yao_lymph_node", slug: "vh-m-lymph-node", creator: "Kristin Browne", uberon: "UBERON:0002509",
   },
+  {
+    label: "Left Eye", sex: "Male", file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.4/3d-vh-m-eye-l.glb",
+    subpath: "VH_M_eye_L", slug: "vh-m-eye-left", creator: "Kristin Browne", uberon: "UBERON:0004548",
+  },
+  {
+    label: "Right Eye", sex: "Male", file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.4/3d-vh-m-eye-r.glb",
+    subpath: "VH_M_eye_R", slug: "vh-m-eye-right", creator: "Kristin Browne", uberon: "UBERON:0004549",
+  },
+  {
+    label: "Left Knee", sex: "Male", file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Knee_L.glb",
+    subpath: "VH_M_knee_L", slug: "vh-m-knee-left", creator: "Kristin Browne", uberon: "FMA:24978",
+  },
+  {
+    label: "Right Knee", sex: "Male", file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.2/VH_M_Knee_R.glb",
+    subpath: "VH_M_knee_R", slug: "vh-m-knee-right", creator: "Kristin Browne", uberon: "FMA:24977",
+  },
+  {
+    label: "Left Palatine Tonsil", sex: "Male", file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.4/3d-vh-m-palatine-tonsil-l.glb",
+    subpath: "VH_M_palatine_tonsil_L", slug: "vh-m-palatine-tonsil-left", creator: "Kristin Browne", uberon: "FMA:54974",
+  },
+  {
+    label: "Right Palatine Tonsil", sex: "Male", file: "https://ccf-ontology.hubmapconsortium.org/objects/v1.4/3d-vh-m-palatine-tonsil-r.glb",
+    subpath: "VH_M_palatine_tonsil_R", slug: "vh-m-palatine-tonsil-right", creator: "Kristin Browne", uberon: "FMA:54973",
+  },
 ];
 
 function downloadFile(url) {

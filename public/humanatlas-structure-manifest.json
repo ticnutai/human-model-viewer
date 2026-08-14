@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-14T02:06:05.192Z",
+  "generatedAt": "2026-08-14T11:38:46.654Z",
   "source": "Human Reference Atlas (HuBMAP)",
   "sourceUrl": "https://humanatlas.io/3d-reference-library",
   "models": [
@@ -443,6 +443,80 @@
       ]
     },
     {
+      "id": "vh-f-eye-left",
+      "modelUrl": "/models/humanatlas/vh-f-eye-left/model.glb",
+      "label": "Left Eye",
+      "sex": "Female",
+      "uberonId": "UBERON:0004548",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://humanatlas.io/3d-reference-library",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 6873420,
+      "meshCount": 23,
+      "meshNames": [
+        "VH_F_fovea_L",
+        "VH_F_macula_lutea_L",
+        "VH_F_optic_disc_L",
+        "VH_F_palpebral_conjunctiva_of_left_upper_eyelid",
+        "VH_F_palpebral_conjunctiva_of_left_lower_eyelid",
+        "VH_F_vitreous_humor_L",
+        "VH_F_cornea_L",
+        "VH_F_bulbar_conjunctiva_L",
+        "VH_F_iris_L",
+        "VH_F_trabecular_meshwork_L",
+        "VH_F_ciliary_muscle_L",
+        "VH_F_aqueous_humor_L",
+        "VH_F_schlemms_canal_L",
+        "VH_F_lens_L",
+        "VH_F_corneo_scleral_junction_L",
+        "VH_F_ora_serrata_of_retina_L",
+        "VH_F_suspensory_ligament_of_lens_L",
+        "VH_F_ciliary_processes_L",
+        "VH_F_pupil_L",
+        "VH_F_optic_choroid_L",
+        "VH_F_sclera_L",
+        "Mesh_21",
+        "Mesh_22"
+      ]
+    },
+    {
+      "id": "vh-f-eye-right",
+      "modelUrl": "/models/humanatlas/vh-f-eye-right/model.glb",
+      "label": "Right Eye",
+      "sex": "Female",
+      "uberonId": "UBERON:0004549",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://humanatlas.io/3d-reference-library",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 6819928,
+      "meshCount": 23,
+      "meshNames": [
+        "VH_F_fovea_R",
+        "VH_F_macula_lutea_R",
+        "VH_F_optic_disc_R",
+        "VH_F_palpebral_conjunctiva_of_right_upper_eyelid",
+        "VH_F_palpebral_conjunctiva_of_right_lower_eyelid",
+        "VH_F_sclera_R",
+        "VH_F_optic_choroid_R",
+        "VH_F_pupil_R",
+        "VH_F_ciliary_processes_R",
+        "VH_F_suspensory_ligament_of_lens_R",
+        "VH_F_ora_serrata_of_retina_R",
+        "VH_F_corneo_scleral_junction_R",
+        "VH_F_lens_R",
+        "VH_F_schlemms_canal_R",
+        "VH_F_aqueous_humor_R",
+        "VH_F_ciliary_muscle_R",
+        "VH_F_trabecular_meshwork_R",
+        "VH_F_iris_R",
+        "VH_F_bulbar_conjunctiva_R",
+        "VH_F_cornea_R",
+        "VH_F_vitreous_humor_R",
+        "Mesh_21",
+        "Mesh_22"
+      ]
+    },
+    {
       "id": "vh-f-fallopian-tube-left",
       "modelUrl": "/models/humanatlas/vh-f-fallopian-tube-left/model.glb",
       "label": "Left Fallopian Tube",
@@ -561,6 +635,74 @@
         "VH_F_renal_pyramid_R_h",
         "VH_F_renal_pyramid_R_i",
         "VH_F_renal_pyramid_R_j"
+      ]
+    },
+    {
+      "id": "vh-f-knee-left",
+      "modelUrl": "/models/humanatlas/vh-f-knee-left/model.glb",
+      "label": "Left Knee",
+      "sex": "Female",
+      "uberonId": "FMA:24978",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://humanatlas.io/3d-reference-library",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 347952,
+      "meshCount": 20,
+      "meshNames": [
+        "VH_F_meniscus_L",
+        "VH_F_femur_L",
+        "VH_F_intercondylar_fossa_L",
+        "VH_F_anterior_cruciate_enthesis_L",
+        "VH_F_posterior_cruciate_enthesis_L",
+        "VH_F_lateral_perichondular_surface_L",
+        "VH_F_lateral_epicondylar_enthesis_L",
+        "VH_F_medial_epicondylar_enthesis_L",
+        "VH_F_trochlear_groove_L",
+        "VH_F_medial_perichondular_surface_L",
+        "VH_F_articular_cartilage_of_knee_L",
+        "VH_F_medial_condyle_of_left_femur_inf",
+        "VH_F_lateral_condyle_of_femur_inf_L",
+        "VH_F_lateral_condyle_of_femur_frontal_L",
+        "VH_F_distal_most_point_of_medial_condyle_L",
+        "VH_F_lateral_condyle_of_femur_sup_L",
+        "VH_F_medial_condyle_of_left_femur_sup",
+        "VH_F_patella_L",
+        "VH_F_tibia_L",
+        "VH_F_fibula_L"
+      ]
+    },
+    {
+      "id": "vh-f-knee-right",
+      "modelUrl": "/models/humanatlas/vh-f-knee-right/model.glb",
+      "label": "Right Knee",
+      "sex": "Female",
+      "uberonId": "FMA:24977",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://humanatlas.io/3d-reference-library",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 347996,
+      "meshCount": 20,
+      "meshNames": [
+        "VH_F_meniscus_R",
+        "VH_F_femur_R",
+        "VH_F_trochlear_groove_R",
+        "VH_F_medial_perichondular_surface_R",
+        "VH_F_articular_cartilage_of_knee_R",
+        "VH_F_medial_condyle_of_right_femur_sup",
+        "VH_F_lateral_condyle_of_femur_sup_R",
+        "VH_F_medial_condyle_of_right_femur_inf",
+        "VH_F_lateral_condyle_of_femur_inf_R",
+        "VH_F_lateral_condyle_of_femur_frontal_R",
+        "VH_F_distal_most_point_of_medial_condyle_R",
+        "VH_F_intercondylar_fossa_R",
+        "VH_F_posterior_cruciate_enthesis_R",
+        "VH_F_anterior_cruciate_enthesis_R",
+        "VH_F_lateral_perichondular_surface_R",
+        "VH_F_lateral_epicondylar_enthesis_R",
+        "VH_F_medial_epicondylar_enthesis_R",
+        "VH_F_tibia_R",
+        "VH_F_fibula_R",
+        "VH_F_patella_R"
       ]
     },
     {
@@ -829,6 +971,36 @@
       "meshCount": 1,
       "meshNames": [
         "VH_F_right_ovary"
+      ]
+    },
+    {
+      "id": "vh-f-palatine-tonsil-left",
+      "modelUrl": "/models/humanatlas/vh-f-palatine-tonsil-left/model.glb",
+      "label": "Left Palatine Tonsil",
+      "sex": "Female",
+      "uberonId": "FMA:54974",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://humanatlas.io/3d-reference-library",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 930316,
+      "meshCount": 1,
+      "meshNames": [
+        "VH_F_palatine_tonsil_L"
+      ]
+    },
+    {
+      "id": "vh-f-palatine-tonsil-right",
+      "modelUrl": "/models/humanatlas/vh-f-palatine-tonsil-right/model.glb",
+      "label": "Right Palatine Tonsil",
+      "sex": "Female",
+      "uberonId": "FMA:54973",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://humanatlas.io/3d-reference-library",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 663232,
+      "meshCount": 1,
+      "meshNames": [
+        "VH_F_palatine_tonsil_R"
       ]
     },
     {
@@ -1573,6 +1745,80 @@
       ]
     },
     {
+      "id": "vh-m-eye-left",
+      "modelUrl": "/models/humanatlas/vh-m-eye-left/model.glb",
+      "label": "Left Eye",
+      "sex": "Male",
+      "uberonId": "UBERON:0004548",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 6873408,
+      "meshCount": 23,
+      "meshNames": [
+        "VH_M_fovea_L",
+        "VH_M_macula_lutea_L",
+        "VH_M_optic_disc_L",
+        "VH_M_palpebral_conjunctiva_of_upper_eyelid_L",
+        "VH_M_palpebral_conjunctiva_of_lower_eyelid_L",
+        "VH_M_vitreous_humor_L",
+        "VH_M_cornea_L",
+        "VH_M_bulbar_conjunctiva_L",
+        "VH_M_iris_L",
+        "VH_M_trabecular_meshwork_L",
+        "VH_M_ciliary_muscle_L",
+        "VH_M_aqueous_humor_L",
+        "VH_M_schlemms_canal_L",
+        "VH_M_lens_L",
+        "VH_M_corneo_scleral_junction_L",
+        "VH_M_ora_serrata_of_retina_L",
+        "VH_M_suspensory_ligament_of_lens_L",
+        "VH_M_ciliary_processes_L",
+        "VH_M_pupil_L",
+        "VH_M_optic_choroid_L",
+        "VH_M_sclera_L",
+        "Mesh_21",
+        "Mesh_22"
+      ]
+    },
+    {
+      "id": "vh-m-eye-right",
+      "modelUrl": "/models/humanatlas/vh-m-eye-right/model.glb",
+      "label": "Right Eye",
+      "sex": "Male",
+      "uberonId": "UBERON:0004549",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 6819844,
+      "meshCount": 23,
+      "meshNames": [
+        "VH_M_fovea_R",
+        "VH_M_macula_lutea_R",
+        "VH_M_optic_disc_R",
+        "VH_M_palpebral_conjunctiva_of_upper_eyelid_R",
+        "VH_M_palpebral_conjunctiva_of_lower_eyelid_R",
+        "VH_M_sclera_R",
+        "VH_M_optic_choroid_R",
+        "VH_M_pupil_R",
+        "VH_M_ciliary_processes_R",
+        "VH_M_suspensory_ligament_of_lens_R",
+        "VH_M_ora_serrata_of_retina_R",
+        "VH_M_corneo_scleral_junction_R",
+        "VH_M_lens_R",
+        "VH_M_schlemms_canal_R",
+        "VH_M_aqueous_humor_R",
+        "VH_M_ciliary_muscle_R",
+        "VH_M_trabecular_meshwork_R",
+        "VH_M_iris_R",
+        "VH_M_bulbar_conjunctiva_R",
+        "VH_M_cornea_R",
+        "VH_M_vitreous_humor_R",
+        "Mesh_21",
+        "Mesh_22"
+      ]
+    },
+    {
       "id": "vh-m-heart",
       "modelUrl": "/models/humanatlas/vh-m-heart/model.glb",
       "label": "Heart",
@@ -1672,6 +1918,74 @@
         "VH_M_renal_pyramid_j",
         "VH_M_renal_column_R",
         "VH_M_outer_cortex_of_kidney_R"
+      ]
+    },
+    {
+      "id": "vh-m-knee-left",
+      "modelUrl": "/models/humanatlas/vh-m-knee-left/model.glb",
+      "label": "Left Knee",
+      "sex": "Male",
+      "uberonId": "FMA:24978",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 439644,
+      "meshCount": 20,
+      "meshNames": [
+        "VH_M_meniscus_L",
+        "VH_M_fibula_L",
+        "VH_M_femur_L",
+        "VH_M_articular_cartilage_of_knee_L",
+        "VH_M_intercondylar_fossa_L",
+        "VH_M_anterior_cruciate_enthesis_L",
+        "VH_M_posterior_cruciate_enthesis_L",
+        "VH_M_lateral_condyle_of_femur_frontal_L",
+        "VH_M_lateral_condyle_of_femur_inf_L",
+        "VH_M_lateral_condyle_of_femur_sup_L",
+        "VH_M_lateral_epicondylar_enthesis_L",
+        "VH_M_lateral_perichondular_surface_L",
+        "VH_M_distal_most_point_of_medial_condyle_of_femur_L",
+        "VH_M_medial_condyle_of_left_femur_inf",
+        "VH_M_medial_condyle_of_left_femur_sup",
+        "VH_M_medial_epicondylar_enthesis_L",
+        "VH_M_medial_perichondular_surface_L",
+        "VH_M_patellar_surface_L",
+        "VH_M_tibia_L",
+        "VH_M_patella_L"
+      ]
+    },
+    {
+      "id": "vh-m-knee-right",
+      "modelUrl": "/models/humanatlas/vh-m-knee-right/model.glb",
+      "label": "Right Knee",
+      "sex": "Male",
+      "uberonId": "FMA:24977",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 439704,
+      "meshCount": 20,
+      "meshNames": [
+        "VH_M_tibia_R",
+        "VH_M_fibula_R",
+        "VH_M_patella_R",
+        "VH_M_femur_R",
+        "VH_M_articular_cartilage_of_knee_R",
+        "VH_M_intercondylar_fossa_R",
+        "VH_M_anterior_cruciate_enthesis_R",
+        "VH_M_posterior_cruciate_enthesis_R",
+        "VH_M_lateral_condyle_of_femur_frontal_R",
+        "VH_M_lateral_condyle_of_femur_inf_R",
+        "VH_M_lateral_condyle_of_femur_sup_R",
+        "VH_M_lateral_epicondylar_enthesis_R",
+        "VH_M_lateral_perichondular_surface_R",
+        "VH_M_distal_most_point_of_medial_condyle_of_femur_R",
+        "VH_M_medial_condyle_of_right_femur_inf",
+        "VH_M_medial_condyle_of_right_femur_sup",
+        "VH_M_medial_epicondylar_enthesis_R",
+        "VH_M_medial_perichondular_surface_R",
+        "VH_M_patellar_surface_R",
+        "VH_M_meniscus_R"
       ]
     },
     {
@@ -1868,6 +2182,36 @@
         "VH_M_cartilage_of_the_main_bronchus_L",
         "VH_M_right_main_bronchus",
         "VH_M_cartilage_of_the_main_bronchus_R"
+      ]
+    },
+    {
+      "id": "vh-m-palatine-tonsil-left",
+      "modelUrl": "/models/humanatlas/vh-m-palatine-tonsil-left/model.glb",
+      "label": "Left Palatine Tonsil",
+      "sex": "Male",
+      "uberonId": "FMA:54974",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 930308,
+      "meshCount": 1,
+      "meshNames": [
+        "VH_M_palatine_tonsil_L"
+      ]
+    },
+    {
+      "id": "vh-m-palatine-tonsil-right",
+      "modelUrl": "/models/humanatlas/vh-m-palatine-tonsil-right/model.glb",
+      "label": "Right Palatine Tonsil",
+      "sex": "Male",
+      "uberonId": "FMA:54973",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 663220,
+      "meshCount": 1,
+      "meshNames": [
+        "VH_M_palatine_tonsil_R"
       ]
     },
     {
@@ -2141,10 +2485,10 @@
     }
   ],
   "totals": {
-    "models": 53,
-    "male": 23,
-    "female": 30,
-    "structures": 1394,
-    "bytes": 156932800
+    "models": 65,
+    "male": 29,
+    "female": 36,
+    "structures": 1570,
+    "bytes": 189081772
   }
 }

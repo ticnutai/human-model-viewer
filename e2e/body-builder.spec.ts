@@ -6,7 +6,7 @@ test.describe("Body builder and GLB library", () => {
     await page.goto("/legacy?panel=models&tool=models");
     await expect(page.locator(".legacy-library-title")).toContainText("סטודיו GLB", { timeout: 20_000 });
     const hraCard = page.getByRole("region", { name: "מודל גוף HRA מתקדם" });
-    await expect(hraCard).toContainText("53 שכבות GLB ו־1,394 מבנים");
+    await expect(hraCard).toContainText("65 שכבות GLB ו־1,570 מבנים");
     await expect(hraCard.getByRole("button", { name: "פתח גוף זכרי" })).toBeVisible();
     await expect(hraCard.getByRole("button", { name: "פתח גוף נקבי" })).toBeVisible();
     await expect(page.getByText(/גרור קבצים|העלאת קבצים/).first()).toBeHidden();
@@ -20,17 +20,17 @@ test.describe("Body builder and GLB library", () => {
     await expect(page.locator("canvas")).toBeVisible({ timeout: 20_000 });
   });
 
-  test("offers a progressively loaded 23-layer HRA body organized by systems", async ({ page }) => {
-    await expect(page.locator(".body-layer")).toHaveCount(23);
-    await expect(page.getByText("13/23")).toBeVisible();
+  test("offers a progressively loaded 29-layer HRA body organized by systems", async ({ page }) => {
+    await expect(page.locator(".body-layer")).toHaveCount(29);
+    await expect(page.getByText("13/29")).toBeVisible();
     await page.getByRole("button", { name: "הסתר הלב", exact: true }).click();
     await expect(page.getByRole("button", { name: "הצג הלב", exact: true })).toBeVisible();
-    await expect(page.getByText("12/23")).toBeVisible();
+    await expect(page.getByText("12/29")).toBeVisible();
     await page.getByRole("button", { name: /לב וכלי דם/ }).click();
     await expect(page.locator(".body-layer")).toHaveCount(2);
     await expect(page.getByText("מערכת כלי הדם")).toBeVisible();
     await page.getByRole("button", { name: "הצג מערכת כלי הדם", exact: true }).click();
-    await expect(page.getByText("13/23")).toBeVisible();
+    await expect(page.getByText("13/29")).toBeVisible();
   });
 
   test("floating tools control the selected body layer and anatomical section", async ({ page }) => {
@@ -89,14 +89,14 @@ test.describe("Body builder and GLB library", () => {
     const failedModels: string[] = [];
     page.on("requestfailed", (request) => request.url().includes("/models/humanatlas/") && failedModels.push(request.url()));
     await page.getByRole("button", { name: "גוף מלא", exact: true }).click();
-    await expect(page.getByText("23/23")).toBeVisible();
+    await expect(page.getByText("29/29")).toBeVisible();
     await expect(page.locator(".body-loader")).toBeHidden({ timeout: 90_000 });
     expect(failedModels).toEqual([]);
   });
 
   test("switches to a female HRA body with reproductive anatomy in Hebrew", async ({ page }) => {
     await page.getByRole("button", { name: "גוף נקבי" }).click();
-    await expect(page.getByText("18/30")).toBeVisible();
+    await expect(page.getByText("18/36")).toBeVisible();
     await expect(page.getByText("מקור אנטומי מאומת · גוף נקבי")).toBeVisible();
     await page.getByRole("button", { name: /רבייה/ }).click();
     await expect(page.locator(".body-layer")).toHaveCount(8);
@@ -119,21 +119,34 @@ test.describe("Body builder and GLB library", () => {
     await expect(page.locator(".body-loader")).toBeHidden({ timeout: 60_000 });
   });
 
+  test("shows the new official eye layer with detailed Hebrew information", async ({ page }) => {
+    await page.getByRole("button", { name: "גוף נקבי" }).click();
+    await page.locator(".body-system-tabs button").filter({ hasText: "עצבים" }).click();
+    const eye = page.locator(".body-layer").filter({ hasText: "עין שמאל" }).first();
+    await expect(eye).toBeVisible();
+    await eye.locator(".body-layer-main").click();
+    const information = page.getByRole("region", { name: "מידע בעברית על עין שמאל" });
+    await expect(information).toContainText("רשתית");
+    await expect(information).toContainText("23 מבנים במודל");
+    await page.getByRole("button", { name: "הצג עין שמאל", exact: true }).click();
+    await expect(page.locator(".body-loader")).toBeHidden({ timeout: 60_000 });
+  });
+
   test("opens the female body directly from the main atlas", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("link", { name: /הצג גוף נקבי/ }).click();
     await expect(page).toHaveURL(/\/body-builder\?sex=female/);
     await expect(page.getByRole("button", { name: "גוף נקבי" })).toHaveClass(/is-active/);
-    await expect(page.getByText("18/30")).toBeVisible();
+    await expect(page.getByText("18/36")).toBeVisible();
   });
 
-  test("loads all 30 female HRA layers without a broken model", async ({ page }) => {
+  test("loads all 36 female HRA layers without a broken model", async ({ page }) => {
     test.setTimeout(120_000);
     const failures: string[] = [];
     page.on("requestfailed", (request) => request.url().includes("/models/humanatlas/vh-f-") && failures.push(request.url()));
     await page.getByRole("button", { name: "גוף נקבי" }).click();
     await page.getByRole("button", { name: "גוף מלא", exact: true }).click();
-    await expect(page.getByText("30/30")).toBeVisible();
+    await expect(page.getByText("36/36")).toBeVisible();
     await expect(page.locator(".body-loader")).toBeHidden({ timeout: 90_000 });
     await expect(page.getByRole("region", { name: "גוף מורכב תלת־ממדי" })).toHaveAttribute("data-failed-layers", "0");
     expect(failures).toEqual([]);

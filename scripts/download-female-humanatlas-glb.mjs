@@ -4,13 +4,16 @@ import { join } from "node:path";
 
 const API = "https://ccf-api.hubmapconsortium.org/v1/reference-organs";
 const ROOT = join(process.cwd(), "public", "models", "humanatlas");
-const MAX_BYTES = 15 * 1024 * 1024;
+// Raw source files may be larger; the delivery gate validates the optimized
+// checked-in GLB and rejects anything above 15 MB.
+const MAX_BYTES = 30 * 1024 * 1024;
 const LABELS = new Set([
   "Brain", "Heart", "Lung", "Left Kidney", "Right Kidney", "Liver", "Pancreas", "Spleen",
   "Small Intestine", "Large Intestine", "Urinary Bladder", "Spinal Cord", "Trachea", "Blood Vasculature",
   "Pelvis", "Skin", "Uterus", "Left Ovary", "Right Ovary", "Left Fallopian Tube", "Right Fallopian Tube",
   "Thymus", "Main Bronchus", "Left Ureter", "Right Ureter", "Lymph Node", "Larynx",
   "Left Mammary Gland", "Right Mammary Gland", "Placenta",
+  "Left Eye", "Right Eye", "Left Knee", "Right Knee", "Left Palatine Tonsil", "Right Palatine Tonsil",
 ]);
 const SLUGS = {
   "Brain":"allen-brain", "Heart":"heart", "Lung":"lung", "Left Kidney":"kidney-left", "Right Kidney":"kidney-right",
@@ -21,6 +24,8 @@ const SLUGS = {
   "Right Fallopian Tube":"fallopian-tube-right", "Thymus":"thymus", "Main Bronchus":"main-bronchus",
   "Left Ureter":"ureter-left", "Right Ureter":"ureter-right", "Lymph Node":"lymph-node", "Larynx":"larynx",
   "Left Mammary Gland":"mammary-gland-left", "Right Mammary Gland":"mammary-gland-right", "Placenta":"placenta",
+  "Left Eye":"eye-left", "Right Eye":"eye-right", "Left Knee":"knee-left", "Right Knee":"knee-right",
+  "Left Palatine Tonsil":"palatine-tonsil-left", "Right Palatine Tonsil":"palatine-tonsil-right",
 };
 
 const response = await fetch(API);

@@ -13,7 +13,7 @@ describe("HRA structure discovery manifest", () => {
   const layers = [...BODY_REFERENCE_LAYERS, ...FEMALE_BODY_REFERENCE_LAYERS];
 
   it("indexes every local professional model and all named structures", () => {
-    expect(manifest.totals).toMatchObject({ models: 53, male: 23, female: 30, structures: 1394 });
+    expect(manifest.totals).toMatchObject({ models: 65, male: 29, female: 36, structures: 1570 });
     expect(manifest.models).toHaveLength(layers.length);
     expect(manifest.models.every(model => model.meshCount === model.meshNames.length && model.meshCount > 0)).toBe(true);
   });

@@ -48,6 +48,12 @@ export const HUMAN_ATLAS_CATALOG: HumanAtlasOrgan[] = [
   { id:"skin",nameHe:"מעטפת העור",nameEn:"Skin",modelUrl:"/models/humanatlas/vh-m-skin/model.glb",color:"#c9947b",sex:"Male",structures:1,uberonId:"UBERON:0002097",system:"מערכת הכסות",systemId:"integumentary",defaultVisible:false },
   { id:"thymus",nameHe:"בלוטת התימוס",nameEn:"Thymus",modelUrl:"/models/humanatlas/vh-m-thymus/model.glb",color:"#d9a5b8",sex:"Male",structures:2,uberonId:"UBERON:0002370",system:"מערכת החיסון והלימפה",systemId:"immune",defaultVisible:false },
   { id:"lymph-node",nameHe:"קשר לימפה",nameEn:"Lymph node",modelUrl:"/models/humanatlas/vh-m-lymph-node/model.glb",color:"#b58ad2",sex:"Male",structures:7,uberonId:"UBERON:0002509",system:"מערכת החיסון והלימפה",systemId:"immune",defaultVisible:false },
+  { id:"eye-left",nameHe:"עין שמאל",nameEn:"Left eye",modelUrl:"/models/humanatlas/vh-m-eye-left/model.glb",color:"#79b9d8",sex:"Male",structures:23,uberonId:"UBERON:0004548",system:"מערכת העצבים והחושים",systemId:"nervous",defaultVisible:false },
+  { id:"eye-right",nameHe:"עין ימין",nameEn:"Right eye",modelUrl:"/models/humanatlas/vh-m-eye-right/model.glb",color:"#70abc9",sex:"Male",structures:23,uberonId:"UBERON:0004549",system:"מערכת העצבים והחושים",systemId:"nervous",defaultVisible:false },
+  { id:"knee-left",nameHe:"ברך שמאל",nameEn:"Left knee",modelUrl:"/models/humanatlas/vh-m-knee-left/model.glb",color:"#d8cfbd",sex:"Male",structures:20,uberonId:"FMA:24978",system:"מערכת השלד והמפרקים",systemId:"skeletal",defaultVisible:false },
+  { id:"knee-right",nameHe:"ברך ימין",nameEn:"Right knee",modelUrl:"/models/humanatlas/vh-m-knee-right/model.glb",color:"#cfc5b4",sex:"Male",structures:20,uberonId:"FMA:24977",system:"מערכת השלד והמפרקים",systemId:"skeletal",defaultVisible:false },
+  { id:"palatine-tonsil-left",nameHe:"שקד שמאל",nameEn:"Left palatine tonsil",modelUrl:"/models/humanatlas/vh-m-palatine-tonsil-left/model.glb",color:"#d89bad",sex:"Male",structures:1,uberonId:"FMA:54974",system:"מערכת החיסון והלימפה",systemId:"immune",defaultVisible:false },
+  { id:"palatine-tonsil-right",nameHe:"שקד ימין",nameEn:"Right palatine tonsil",modelUrl:"/models/humanatlas/vh-m-palatine-tonsil-right/model.glb",color:"#ce90a5",sex:"Male",structures:1,uberonId:"FMA:54973",system:"מערכת החיסון והלימפה",systemId:"immune",defaultVisible:false },
 ];
 
 export const FEATURED_ATLAS_ORGANS = HUMAN_ATLAS_CATALOG.filter((organ) => organ.featured);

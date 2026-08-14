@@ -934,6 +934,150 @@
         "research"
       ],
       "notes": "https://humanatlas.io/3d-reference-library — Female Right Mammary Gland (FMA:57987)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-eye-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Left Eye (UBERON:0004548)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-eye-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Right Eye (UBERON:0004549)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-knee-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Left Knee (fma24978)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-knee-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Right Knee (fma24977)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-palatine-tonsil-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Left Palatine Tonsil (fma54974)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-palatine-tonsil-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Right Palatine Tonsil (fma54973)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-eye-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Left Eye (UBERON:0004548)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-eye-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Right Eye (UBERON:0004549)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-knee-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Left Knee (FMA:24978)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-knee-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Right Knee (FMA:24977)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-palatine-tonsil-left/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Left Palatine Tonsil (FMA:54974)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-m-palatine-tonsil-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://apps.humanatlas.io/kg-explorer/?do=%2Fref-organ — Male Right Palatine Tonsil (FMA:54973)"
     }
   ]
 }

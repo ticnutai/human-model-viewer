@@ -120,8 +120,8 @@ test.describe("Mesh scan library persistence", () => {
     });
 
     await page.goto("/legacy?panel=models&tool=meshmap");
-    await expect(page.getByTestId("hra-data-audit")).toContainText("53");
-    await expect(page.getByTestId("hra-data-audit")).toContainText("1,394");
+    await expect(page.getByTestId("hra-data-audit")).toContainText("65");
+    await expect(page.getByTestId("hra-data-audit")).toContainText("1,570");
 
     const picker = page.getByRole("combobox").first();
     await picker.selectOption("hra:Female:heart");

@@ -64,4 +64,10 @@ export const FEMALE_BODY_REFERENCE_LAYERS: BodyReferenceLayer[] = [
   female("mammary-gland-left","בלוטת חלב שמאלית","mammary-gland-left","#d99ab0",8,"FMA:57991","מערכת הרבייה",false),
   female("mammary-gland-right","בלוטת חלב ימנית","mammary-gland-right","#d495ac",8,"FMA:57987","מערכת הרבייה",false),
   female("placenta","שליה","placenta","#b85f78",8,"UBERON:0001987","מערכת הרבייה",false),
+  female("eye-left","עין שמאל","eye-left","#79b9d8",23,"UBERON:0004548","מערכת העצבים והחושים",false),
+  female("eye-right","עין ימין","eye-right","#70abc9",23,"UBERON:0004549","מערכת העצבים והחושים",false),
+  female("knee-left","ברך שמאל","knee-left","#d8cfbd",20,"FMA:24978","מערכת השלד והמפרקים",false),
+  female("knee-right","ברך ימין","knee-right","#cfc5b4",20,"FMA:24977","מערכת השלד והמפרקים",false),
+  female("palatine-tonsil-left","שקד שמאל","palatine-tonsil-left","#d89bad",1,"FMA:54974","מערכת החיסון והלימפה",false),
+  female("palatine-tonsil-right","שקד ימין","palatine-tonsil-right","#ce90a5",1,"FMA:54973","מערכת החיסון והלימפה",false),
 ];
