@@ -1830,31 +1830,89 @@ const ModelViewer = () => {
           title="כלי אנטומיה מהירים"
         >🩻</button>
         {showQuickTools && (
-          <section aria-label="כלי אנטומיה מהירים" className="glass-panel w-[min(620px,calc(100vw-150px))] p-2.5 shadow-2xl">
-            <div className="mb-2 flex items-center justify-between gap-3 px-1">
+          <section aria-label="כלי אנטומיה מהירים" className="glass-panel w-[min(660px,calc(100vw-110px))] overflow-hidden p-0 shadow-2xl">
+            {/* Header: live context + state chips */}
+            <header className="flex items-center justify-between gap-3 border-b border-border/60 bg-background/40 px-3 py-2">
               <div className="min-w-0">
-                <div className="truncate text-xs font-extrabold text-foreground">כלים מהירים {selectedOrgan ? `· ${selectedOrgan.name}` : ""}</div>
-                <div className="text-[9px] text-muted-foreground">בחר חלק במודל או ברשימה, ואז הפעל פעולה</div>
-              </div>
-              {hiddenMeshes.size > 0 && <span className="shrink-0 rounded-full bg-primary/15 px-2 py-1 text-[9px] font-bold text-primary">{hiddenMeshes.size} מוסתרים</span>}
-            </div>
-            <div className="grid grid-cols-6 gap-1.5">
-              <button disabled={!selectedOrgan} onClick={isolateSelected} aria-pressed={focusSelected && focusOpacity < 0.1} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35 ${focusSelected && focusOpacity < 0.1 ? "active" : ""}`}><span className="text-base">🎯</span><span className="text-[9px] font-bold">בודד חלק</span></button>
-              <button disabled={!selectedOrgan} onClick={dimAroundSelected} aria-pressed={focusSelected && focusOpacity >= 0.1} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35 ${focusSelected && focusOpacity >= 0.1 ? "active" : ""}`}><span className="text-base">🌫️</span><span className="text-[9px] font-bold">עמעם סביב</span></button>
-              <button disabled={!selectedOrgan} onClick={hideSelected} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35"><span className="text-base">🙈</span><span className="text-[9px] font-bold">הסתר חלק</span></button>
-              <button disabled={hiddenMeshHistory.length === 0} onClick={restoreLastHidden} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35"><span className="text-base">↩️</span><span className="text-[9px] font-bold">החזר אחרון</span></button>
-              <button onClick={() => setShowClippingPlane(value => !value)} aria-pressed={showClippingPlane} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center ${showClippingPlane ? "active" : ""}`}><span className="text-base">✂️</span><span className="text-[9px] font-bold">חיתוך</span></button>
-              <button onClick={resetQuickTools} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center"><span className="text-base">⟲</span><span className="text-[9px] font-bold">הצג הכל</span></button>
-            </div>
-            {showClippingPlane && (
-              <div className="mt-2 grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-xl border border-primary/25 bg-background/55 p-2">
-                <div className="flex gap-1" aria-label="כיוון החיתוך">
-                  {([['x', 'צד'], ['y', 'גובה'], ['z', 'חזית']] as [ClipAxis, string][]).map(([axis, label]) => <button key={axis} onClick={() => setClipAxis(axis)} aria-pressed={clipAxis === axis} className={`rounded-lg border px-2 py-1 text-[9px] font-bold ${clipAxis === axis ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}>{label}</button>)}
+                <div className="flex items-center gap-1.5 text-xs font-extrabold text-foreground">
+                  <span>🩻</span><span className="truncate">כלים מהירים</span>
+                  {selectedOrgan && <span className="truncate rounded-md bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">{selectedOrgan.name}</span>}
                 </div>
-                <label className="flex items-center gap-2 text-[9px] text-muted-foreground"><span className="whitespace-nowrap">עומק</span><input aria-label="עומק חיתוך מהיר" className="w-full" type="range" min={-200} max={200} value={Math.round(clipPosition * 100)} onChange={event => setClipPosition(Number(event.target.value) / 100)} /></label>
-                <button onClick={() => setClipNegate(value => !value)} aria-pressed={clipNegate} className={`rounded-lg border px-2 py-1 text-[9px] font-bold ${clipNegate ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>↔ הפוך</button>
+                <div className="mt-0.5 text-[9px] text-muted-foreground">
+                  {selectedOrgan ? "הפעל פעולה על החלק הנבחר · קיצורי מקלדת: I D H U C R" : "בחר חלק במודל או ברשימה כדי להפעיל פעולות מיקוד"}
+                </div>
               </div>
-            )}
+              <div className="flex shrink-0 items-center gap-1">
+                {hiddenMeshes.size > 0 && <span className="rounded-full bg-primary/15 px-2 py-1 text-[9px] font-bold text-primary">{hiddenMeshes.size} מוסתרים</span>}
+                {focusSelected && <span className="rounded-full bg-accent/40 px-2 py-1 text-[9px] font-bold text-foreground">מיקוד</span>}
+                {showClippingPlane && <span className="rounded-full bg-accent/40 px-2 py-1 text-[9px] font-bold text-foreground">חיתוך</span>}
+                <button onClick={() => setShowQuickTools(false)} aria-label="סגור כלים מהירים" className="rounded-lg border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground">✕</button>
+              </div>
+            </header>
+
+            <div className="space-y-2 p-2.5">
+              {/* Focus actions */}
+              <div>
+                <div className="mb-1 px-1 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">מיקוד חלק</div>
+                <div className={`grid gap-1.5 ${isMobile ? "grid-cols-2" : "grid-cols-4"}`}>
+                  <button disabled={!selectedOrgan} title="בודד חלק (I)" onClick={isolateSelected} aria-pressed={focusSelected && focusOpacity < 0.1} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35 ${focusSelected && focusOpacity < 0.1 ? "active" : ""}`}><span className="text-base">🎯</span><span className="text-[9px] font-bold">בודד חלק</span></button>
+                  <button disabled={!selectedOrgan} title="עמעם סביב (D)" onClick={dimAroundSelected} aria-pressed={focusSelected && focusOpacity >= 0.1} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35 ${focusSelected && focusOpacity >= 0.1 ? "active" : ""}`}><span className="text-base">🌫️</span><span className="text-[9px] font-bold">עמעם סביב</span></button>
+                  <button disabled={!selectedOrgan} title="הסתר חלק (H)" onClick={hideSelected} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35"><span className="text-base">🙈</span><span className="text-[9px] font-bold">הסתר חלק</span></button>
+                  <button disabled={hiddenMeshHistory.length === 0} title="החזר אחרון (U)" onClick={restoreLastHidden} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35"><span className="text-base">↩️</span><span className="text-[9px] font-bold">החזר אחרון</span></button>
+                </div>
+              </div>
+
+              {/* Hidden parts: restore any single part, not only the last one */}
+              {hiddenMeshes.size > 0 && (
+                <div className="rounded-xl border border-border/70 bg-background/45 p-2">
+                  <div className="mb-1 flex items-center justify-between text-[9px] font-bold text-muted-foreground">
+                    <span>חלקים מוסתרים ({hiddenMeshes.size})</span>
+                    <button onClick={() => { setHiddenMeshes(new Set()); setHiddenMeshHistory([]); }} className="text-primary hover:underline">החזר הכל</button>
+                  </div>
+                  <div className="flex max-h-16 flex-wrap gap-1 overflow-y-auto">
+                    {[...hiddenMeshes].map(key => (
+                      <button key={key} onClick={() => restoreHiddenMesh(key)} title="לחץ להחזרה" className="max-w-[150px] truncate rounded-full border border-border bg-background/60 px-2 py-0.5 text-[9px] text-foreground hover:border-primary hover:text-primary">
+                        {key} ✕
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Live sliders: the two most used continuous controls */}
+              <div className={`grid gap-1.5 ${isMobile ? "grid-cols-1" : "grid-cols-2"}`}>
+                <label className="rounded-xl border border-border/70 bg-background/45 px-2.5 py-1.5 text-[9px] text-muted-foreground">
+                  <span className="mb-0.5 flex justify-between font-bold"><span>שקיפות כללית</span><strong className="text-foreground">{Math.round(xRayOpacity * 100)}%</strong></span>
+                  <input aria-label="שקיפות כללית בכלים מהירים" className="w-full" type="range" min={10} max={100} value={Math.round(xRayOpacity * 100)} onChange={event => setXRayOpacity(Number(event.target.value) / 100)} />
+                </label>
+                <label className="rounded-xl border border-border/70 bg-background/45 px-2.5 py-1.5 text-[9px] text-muted-foreground">
+                  <span className="mb-0.5 flex justify-between font-bold"><span>פירוק שכבות</span><strong className="text-foreground">{Math.round(explodeAmount * 100)}%</strong></span>
+                  <input aria-label="פירוק שכבות בכלים מהירים" className="w-full" type="range" min={0} max={150} value={Math.round(explodeAmount * 100)} onChange={event => setExplodeAmount(Number(event.target.value) / 100)} />
+                </label>
+              </div>
+
+              {/* Scene actions + presets */}
+              <div>
+                <div className="mb-1 px-1 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">תצוגה</div>
+                <div className={`grid gap-1.5 ${isMobile ? "grid-cols-3" : "grid-cols-5"}`}>
+                  <button onClick={() => setShowClippingPlane(value => !value)} title="חיתוך (C)" aria-pressed={showClippingPlane} className={`settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center ${showClippingPlane ? "active" : ""}`}><span className="text-base">✂️</span><span className="text-[9px] font-bold">חיתוך</span></button>
+                  <button onClick={() => setAutoRotate(value => !value)} aria-pressed={autoRotate} className={`settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center ${autoRotate ? "active" : ""}`}><span className="text-base">🔄</span><span className="text-[9px] font-bold">סיבוב</span></button>
+                  <button onClick={() => { setShowClippingPlane(false); setXRayOpacity(0.32); setExplodeAmount(0); }} className="settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center"><span className="text-base">🫥</span><span className="text-[9px] font-bold">רנטגן</span></button>
+                  <button onClick={() => { setShowClippingPlane(false); setXRayOpacity(0.6); setExplodeAmount(0.35); }} className="settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center"><span className="text-base">🧩</span><span className="text-[9px] font-bold">שכבות</span></button>
+                  <button onClick={resetQuickTools} title="הצג הכל (R)" className="settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center"><span className="text-base">⟲</span><span className="text-[9px] font-bold">הצג הכל</span></button>
+                </div>
+              </div>
+
+              {showClippingPlane && (
+                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-xl border border-primary/25 bg-background/55 p-2">
+                  <div className="flex gap-1" aria-label="כיוון החיתוך">
+                    {([['x', 'צד'], ['y', 'גובה'], ['z', 'חזית']] as [ClipAxis, string][]).map(([axis, label]) => <button key={axis} onClick={() => setClipAxis(axis)} aria-pressed={clipAxis === axis} className={`rounded-lg border px-2 py-1 text-[9px] font-bold ${clipAxis === axis ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}>{label}</button>)}
+                  </div>
+                  <label className="flex items-center gap-2 text-[9px] text-muted-foreground"><span className="whitespace-nowrap">עומק</span><input aria-label="עומק חיתוך מהיר" className="w-full" type="range" min={-200} max={200} value={Math.round(clipPosition * 100)} onChange={event => setClipPosition(Number(event.target.value) / 100)} /></label>
+                  <button onClick={() => setClipNegate(value => !value)} aria-pressed={clipNegate} className={`rounded-lg border px-2 py-1 text-[9px] font-bold ${clipNegate ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>↔ הפוך</button>
+                </div>
+              )}
+            </div>
           </section>
         )}
       </div>
