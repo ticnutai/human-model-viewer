@@ -20,7 +20,8 @@ export const DEFAULT_THEMES: AppTheme[] = [
   { id: "medical-blue", name: "כחול רפואי", background: "#07131f", surface: "#0d2030", elevated: "#153047", text: "#edf8ff", muted: "#82a4ba", accent: "#21a9e1", accentAlt: "#40d3b2", border: "#21445b", canvas: "#081722", builtin: true },
   { id: "emerald-lab", name: "מעבדת אזמרגד", background: "#071411", surface: "#0d211c", elevated: "#14342b", text: "#effbf6", muted: "#83aa9c", accent: "#3dd39f", accentAlt: "#e7b64f", border: "#245346", canvas: "#081814", builtin: true },
   { id: "violet-neural", name: "סגול עצבי", background: "#100b1c", surface: "#1a122b", elevated: "#281c40", text: "#f5efff", muted: "#a897bf", accent: "#a77bf3", accentAlt: "#ee6eab", border: "#453361", canvas: "#120d20", builtin: true },
-  { id: "clinical-light", name: "בהיר קליני", background: "#eef3f8", surface: "#ffffff", elevated: "#e2ebf3", text: "#172435", muted: "#60758b", accent: "#087eae", accentAlt: "#c73f57", border: "#b9c9d8", canvas: "#dfe8f0", builtin: true },
+  { id: "clinical-light", name: "בהיר קליני", background: "#eef3f8", surface: "#ffffff", elevated: "#e2ebf3", text: "#172435", muted: "#52677c", accent: "#076f9b", accentAlt: "#a92f47", border: "#a9bacb", canvas: "#dfe8f0", builtin: true },
+  { id: "cream-navy-gold", name: "קרם, נייבי וזהב", background: "#ebe8e1", surface: "#ffffff", elevated: "#d8d6d1", text: "#0b2345", muted: "#4c5a6b", accent: "#805d00", accentAlt: "#0b356d", border: "#9da8b4", canvas: "#dce3ea", builtin: true },
 ];
 
 const ACTIVE_KEY = "niflaot-active-theme-v1";
@@ -50,9 +51,32 @@ const hexToHsl = (hex: string) => {
   return `${Math.round(hue * 360)} ${Math.round(saturation * 100)}% ${Math.round(lightness * 100)}%`;
 };
 
-const contrast = (hex: string) => {
-  const [r, g, b] = hexToRgb(hex);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#111827" : "#ffffff";
+export const relativeLuminance = (hex: string) => {
+  const [r, g, b] = hexToRgb(hex).map((value) => {
+    const channel = value / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+export const contrastRatio = (foreground: string, background: string) => {
+  const first = relativeLuminance(foreground), second = relativeLuminance(background);
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+};
+
+const contrast = (background: string) => {
+  const dark = "#0b1728", light = "#ffffff";
+  return contrastRatio(dark, background) >= contrastRatio(light, background) ? dark : light;
+};
+
+export const getThemeContrastChecks = (theme: AppTheme) => {
+  const surfaces = [theme.background, theme.surface, theme.elevated];
+  const minimum = (color: string) => Math.min(...surfaces.map((surface) => contrastRatio(color, surface)));
+  return {
+    text: minimum(theme.text), muted: minimum(theme.muted),
+    accentOnBackground: contrastRatio(theme.accent, theme.background),
+    accentForeground: contrastRatio(contrast(theme.accent), theme.accent),
+  };
 };
 
 export function applyThemeToDocument(theme: AppTheme) {
@@ -61,6 +85,7 @@ export function applyThemeToDocument(theme: AppTheme) {
     "--app-bg": theme.background, "--app-surface": theme.surface, "--app-elevated": theme.elevated,
     "--app-text": theme.text, "--app-muted": theme.muted, "--app-accent": theme.accent,
     "--app-accent-alt": theme.accentAlt, "--app-border": theme.border, "--app-canvas": theme.canvas,
+    "--app-on-accent": contrast(theme.accent), "--app-on-accent-alt": contrast(theme.accentAlt),
     "--background": hexToHsl(theme.background), "--foreground": hexToHsl(theme.text),
     "--card": hexToHsl(theme.surface), "--card-foreground": hexToHsl(theme.text),
     "--popover": hexToHsl(theme.surface), "--popover-foreground": hexToHsl(theme.text),
@@ -78,7 +103,9 @@ export function applyThemeToDocument(theme: AppTheme) {
   };
   Object.entries(vars).forEach(([key, value]) => root.style.setProperty(key, value));
   root.dataset.appTheme = theme.id;
-  root.style.colorScheme = theme.id === "clinical-light" ? "light" : "dark";
+  const colorScheme = relativeLuminance(theme.background) > 0.45 ? "light" : "dark";
+  root.dataset.appColorScheme = colorScheme;
+  root.style.colorScheme = colorScheme;
 }
 
 type ThemeContextValue = {

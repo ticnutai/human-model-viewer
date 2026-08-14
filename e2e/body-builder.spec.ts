@@ -60,12 +60,15 @@ test.describe("Body builder and GLB library", () => {
     await page.evaluate(() => localStorage.removeItem("niflaot-body-builder-camera-v1"));
     await page.reload();
     await expect(page.getByRole("button", { name: "מצב הזזה" })).toHaveClass(/is-active/);
+    await expect(page.locator(".body-loader")).toBeHidden({ timeout: 60_000 });
+    await page.getByRole("button", { name: "סגור כלים אנטומיים" }).click();
     const canvas = page.locator("canvas");
     const box = await canvas.boundingBox();
     expect(box).not.toBeNull();
     if (!box) return;
-    const startX = box.x + box.width * .5;
-    const startY = box.y + box.height * .55;
+    // Start away from organ meshes so OrbitControls receives the full pan gesture.
+    const startX = box.x + box.width * .72;
+    const startY = box.y + box.height * .65;
     await page.mouse.move(startX, startY);
     await page.mouse.down();
     await page.mouse.move(startX + 130, startY + 90, { steps: 8 });
@@ -119,7 +122,26 @@ test.describe("Body builder and GLB library", () => {
     await page.getByRole("button", { name: "גוף מלא", exact: true }).click();
     await expect(page.getByText("28/28")).toBeVisible();
     await expect(page.locator(".body-loader")).toBeHidden({ timeout: 90_000 });
+    await expect(page.getByRole("region", { name: "גוף מורכב תלת־ממדי" })).toHaveAttribute("data-failed-layers", "0");
     expect(failures).toEqual([]);
+  });
+
+  test("keeps the female body usable when one GLB layer is temporarily unavailable", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.route("**/models/humanatlas/vh-f-heart/model.glb", async (route) => {
+      await route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>missing model</title>" });
+    });
+    await page.goto("/body-builder?sex=female");
+    const stage = page.getByRole("region", { name: "גוף מורכב תלת־ממדי" });
+    await expect(page.getByRole("heading", { name: "הגוף נבנה שכבה אחר שכבה" })).toBeVisible();
+    await expect(page.locator("canvas")).toBeVisible();
+    await expect(stage).not.toHaveAttribute("data-failed-layers", "0", { timeout: 60_000 });
+    const alert = page.getByRole("alert");
+    await expect(alert).toContainText("הלב");
+    await page.unroute("**/models/humanatlas/vh-f-heart/model.glb");
+    await alert.getByRole("button", { name: "נסה שוב" }).click();
+    await expect(stage).toHaveAttribute("data-failed-layers", "0", { timeout: 60_000 });
+    await expect(page.locator("canvas")).toBeVisible();
   });
 
   test("imports, persists, positions, and removes a local GLB organ", async ({ page }) => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, CopyPlus, MousePointer2, Palette, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
-import { applyThemeToDocument, DEFAULT_THEMES, type AppTheme, useAppTheme } from "@/contexts/AppThemeContext";
+import { applyThemeToDocument, DEFAULT_THEMES, getThemeContrastChecks, type AppTheme, useAppTheme } from "@/contexts/AppThemeContext";
 import { useDesignMode } from "@/components/design-mode/DesignModeProvider";
 
 const fields: { key: keyof AppTheme; label: string }[] = [
@@ -18,6 +18,8 @@ export default function ThemeStudio() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<AppTheme | null>(null);
   const [previous, setPrevious] = useState<AppTheme | null>(null);
+  const contrastChecks = draft ? getThemeContrastChecks(draft) : null;
+  const contrastIsSafe = !!contrastChecks && contrastChecks.text >= 4.5 && contrastChecks.muted >= 4.5 && contrastChecks.accentForeground >= 4.5;
 
   const beginEdit = (theme: AppTheme, duplicate = false) => {
     setPrevious(activeTheme);
@@ -63,6 +65,10 @@ export default function ThemeStudio() {
           <div className="theme-editor-heading"><div><strong>{themes.some((item) => item.id === draft.id) ? "עריכת ערכה" : "יצירת ערכה"}</strong><small>כל שינוי מוצג מיד כתצוגה מקדימה</small></div><button onClick={() => { setDraft(newTheme()); applyThemeToDocument(DEFAULT_THEMES[0]); }}><RotateCcw /> איפוס</button></div>
           <label className="theme-name">שם הערכה<input value={draft.name} onChange={(event) => update("name", event.target.value)} /></label>
           <div className="theme-color-grid">{fields.map((field) => <label key={field.key}>{field.label}<span><input type="color" value={String(draft[field.key])} onChange={(event) => update(field.key, event.target.value)} /><code>{String(draft[field.key])}</code></span></label>)}</div>
+          <div className={contrastIsSafe ? "theme-contrast is-safe" : "theme-contrast is-warning"} role="status">
+            <strong>{contrastIsSafe ? "✓ ניגודיות נגישה" : "⚠ נדרשת ניגודיות חזקה יותר"}</strong>
+            <span>טקסט {contrastChecks?.text.toFixed(1)}:1 · טקסט משני {contrastChecks?.muted.toFixed(1)}:1 · כפתורים {contrastChecks?.accentForeground.toFixed(1)}:1</span>
+          </div>
           <div className="theme-editor-actions"><button className="secondary" onClick={cancelEdit}><X /> ביטול</button><button className="primary" disabled={!draft.name.trim()} onClick={() => { saveTheme({ ...draft, name: draft.name.trim() }); setDraft(null); setPrevious(null); }}><Save /> שמירה והפעלה</button></div>
         </div>}
       </section>

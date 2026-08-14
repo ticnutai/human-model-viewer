@@ -35,9 +35,9 @@ export default function MedicalMediaLab() {
     <header className="media-lab-header">
       <div className="media-lab-brand"><span><Microscope /></span><div><strong>מעבדת הגוף החי</strong><small>חתכים אמיתיים · MRI · מסע מאיבר לתא</small></div></div>
       <nav aria-label="מצבי מעבדה">
-        <button className={cn(mode === "sections" && "is-active")} onClick={() => setMode("sections")}><ScanLine /> חתכים והדמיה</button>
-        <button className={cn(mode === "videos" && "is-active")} onClick={() => { setMode("videos"); setPlaying(false); }}><Film /> סרטונים אמיתיים</button>
-        <button className={cn(mode === "scale" && "is-active")} onClick={() => { setMode("scale"); setPlaying(false); }}><Microscope /> מאיבר לתא</button>
+        <button style={{ color: mode === "sections" ? "var(--app-accent)" : "var(--app-muted)" }} className={cn(mode === "sections" && "is-active")} onClick={() => setMode("sections")}><ScanLine /> חתכים והדמיה</button>
+        <button style={{ color: mode === "videos" ? "var(--app-accent)" : "var(--app-muted)" }} className={cn(mode === "videos" && "is-active")} onClick={() => { setMode("videos"); setPlaying(false); }}><Film /> סרטונים אמיתיים</button>
+        <button style={{ color: mode === "scale" ? "var(--app-accent)" : "var(--app-muted)" }} className={cn(mode === "scale" && "is-active")} onClick={() => { setMode("scale"); setPlaying(false); }}><Microscope /> מאיבר לתא</button>
       </nav>
       <Link to="/"><ArrowLeft /> חזרה לאטלס</Link>
     </header>
@@ -46,7 +46,7 @@ export default function MedicalMediaLab() {
       <aside className="medical-region-list">
         <div className="medical-panel-title"><Layers3/><span><strong>אזורי הגוף</strong><small>בחרו גובה אנטומי</small></span></div>
         {VISIBLE_HUMAN_REGIONS.map((item, index) => <button key={item.id} className={cn(index === regionIndex && "is-active")} onClick={() => { setRegionIndex(index); setPlaying(false); }}>
-          <span>{String(index + 1).padStart(2,"0")}</span><div><strong>{item.name}</strong><small>{item.subtitle}</small></div>
+          <span style={{ color: index === regionIndex ? "var(--app-accent)" : "var(--app-muted)" }}>{String(index + 1).padStart(2,"0")}</span><div><strong style={{ color: index === regionIndex ? "var(--app-accent)" : "var(--app-text)" }}>{item.name}</strong><small style={{ color: "var(--app-muted)" }}>{item.subtitle}</small></div>
         </button>)}
         <div className="medical-source"><ShieldCheck/><div><strong>מקור ממשלתי פתוח</strong><small>הספרייה הלאומית לרפואה בארה״ב</small></div></div>
       </aside>
@@ -67,8 +67,8 @@ export default function MedicalMediaLab() {
 
       <aside className="medical-mode-panel">
         <div className="medical-panel-title"><Brain/><span><strong>סוג ההדמיה</strong><small>השוו בין צילום אנטומי ל־MRI</small></span></div>
-        {(Object.keys(MODALITY_LABELS) as ImagingModality[]).map((id) => <button key={id} className={cn(modality === id && "is-active")} onClick={() => setModality(id)}><i/><div><strong>{MODALITY_LABELS[id].name}</strong><small>{MODALITY_LABELS[id].explanation}</small></div></button>)}
-        <div className="medical-ethics"><Sparkles/><p><strong>מתנה למדע</strong>החתכים הופקו מאדם שתרם את גופו למחקר. התצוגה מוצגת בכבוד ולמטרות לימוד בלבד.</p></div>
+        {(Object.keys(MODALITY_LABELS) as ImagingModality[]).map((id) => <button key={id} className={cn(modality === id && "is-active")} onClick={() => setModality(id)}><i/><div><strong style={{ color: modality === id ? "var(--app-accent)" : "var(--app-text)" }}>{MODALITY_LABELS[id].name}</strong><small style={{ color: "var(--app-muted)" }}>{MODALITY_LABELS[id].explanation}</small></div></button>)}
+        <div className="medical-ethics"><Sparkles/><p><strong style={{ color: "var(--app-accent-alt)" }}>מתנה למדע</strong>החתכים הופקו מאדם שתרם את גופו למחקר. התצוגה מוצגת בכבוד ולמטרות לימוד בלבד.</p></div>
         <a href="https://www.nlm.nih.gov/research/visible/visible_human.html" target="_blank" rel="noreferrer">למקור הרשמי <ExternalLink/></a>
       </aside>
     </main> : mode === "videos" ? <main className="medical-video-lab">

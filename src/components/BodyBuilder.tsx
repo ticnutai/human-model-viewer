@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Component, Suspense, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from "react";
 import { Canvas, ThreeEvent } from "@react-three/fiber";
 import { Html, OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -14,6 +14,7 @@ import ClippingPlane, { type ClipAxis } from "@/components/anatomy/ClippingPlane
 
 type BodyLayer = { id: string; name: string; url: string; color: string; visible: boolean; systemId: string; system: string; structures: number; local?: LocalOrgan };
 type CameraView = { position: [number, number, number]; target: [number, number, number] };
+type LayerErrorBoundaryProps = { layerId: string; layerName: string; onError: (id: string, name: string) => void; children: ReactNode };
 const BODY_VIEW_KEY = "niflaot-body-builder-camera-v1";
 const BODY_LAYERS_KEY = "niflaot-body-builder-hidden-v3";
 const DEFAULT_BODY_VIEW: CameraView = { position: [0, -.12, 5.3], target: [0, -.12, 0] };
@@ -23,6 +24,13 @@ const BODY_SYSTEMS = [
   { id:"immune", label:"חיסון" }, { id:"skeletal", label:"שלד" }, { id:"reproductive", label:"רבייה" },
   { id:"integumentary", label:"מעטפת" },
 ] as const;
+
+class LayerErrorBoundary extends Component<LayerErrorBoundaryProps, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(_error: Error, _info: ErrorInfo) { this.props.onError(this.props.layerId, this.props.layerName); }
+  render() { return this.state.failed ? null : this.props.children; }
+}
 
 function readInitialSex(): "Male" | "Female" {
   const requested = new URLSearchParams(window.location.search).get("sex")?.toLowerCase();
@@ -132,12 +140,14 @@ export default function BodyBuilder() {
   const [clipAxis, setClipAxis] = useState<ClipAxis>("y");
   const [clipPosition, setClipPosition] = useState(0);
   const [clipNegate, setClipNegate] = useState(false);
+  const [failedLayers, setFailedLayers] = useState<Record<string, string>>({});
+  const [modelRetryKey, setModelRetryKey] = useState(0);
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const cameraDragRef = useRef(false);
 
   useEffect(() => { void listLocalOrgans().then(setLocalOrgans); }, []);
   useEffect(() => { localStorage.setItem(`${BODY_LAYERS_KEY}-${sex.toLowerCase()}`, JSON.stringify(hidden)); }, [hidden, sex]);
-  useEffect(() => { localStorage.setItem("niflaot-body-sex", sex); setSelected(null); setActiveSystem("all"); }, [sex]);
+  useEffect(() => { localStorage.setItem("niflaot-body-sex", sex); setSelected(null); setActiveSystem("all"); setFailedLayers({}); }, [sex]);
   const referenceLayers = sex === "Female" ? FEMALE_BODY_REFERENCE_LAYERS : BODY_REFERENCE_LAYERS;
   const layers: BodyLayer[] = useMemo(() => [
     ...referenceLayers.map((asset) => ({ id: asset.id, name: asset.name, url: asset.modelUrl, color: asset.color, visible: !hidden.includes(asset.id), systemId:asset.systemId, system:asset.system, structures:asset.structures })),
@@ -205,6 +215,14 @@ export default function BodyBuilder() {
   const resetAnatomyTools = () => {
     setSelectionView("normal"); setClipEnabled(false); setClipAxis("y"); setClipPosition(0); setClipNegate(false);
   };
+  const retryFailedLayers = () => {
+    Object.keys(failedLayers).forEach((id) => {
+      const layer = layers.find((item) => item.id === id);
+      if (layer?.url) useGLTF.clear(layer.url);
+    });
+    setFailedLayers({});
+    setModelRetryKey((value) => value + 1);
+  };
 
   return <div className="body-builder" dir="rtl">
     <header className="body-builder-header">
@@ -229,15 +247,16 @@ export default function BodyBuilder() {
         </div>)}</div>
         <button className="body-add" onClick={() => setImportOpen(true)}><Upload /> ייבוא איבר GLB חדש</button>
       </aside>
-      <section className="body-stage" aria-label="גוף מורכב תלת־ממדי" data-camera-restored={localStorage.getItem(BODY_VIEW_KEY) ? "true" : "false"} data-selection-view={selectionView} data-clipping={clipEnabled ? "true" : "false"}>
+      <section className="body-stage" aria-label="גוף מורכב תלת־ממדי" data-camera-restored={localStorage.getItem(BODY_VIEW_KEY) ? "true" : "false"} data-selection-view={selectionView} data-clipping={clipEnabled ? "true" : "false"} data-failed-layers={Object.keys(failedLayers).length}>
         <div className="body-stage-title"><span>מצב הרכבה</span><h1>הגוף נבנה שכבה אחר שכבה</h1><p>{interactionMode === "move" ? "גרור כדי להזיז את הגוף • גלגלת לקירוב והרחבה" : "גרור כדי לסובב • גלגלת לקירוב והרחבה"}</p></div>
-        <Canvas key={cameraKey} dpr={[1,1.5]} camera={{ position:cameraView.position, fov:38, near:.01, far:20 }} gl={{ antialias:true,powerPreference:"high-performance" }} onPointerDown={() => { cameraDragRef.current = true; }} onPointerMissed={() => setSelected(null)}>
+        {Object.keys(failedLayers).length > 0 && <div className="body-layer-error" role="alert"><span><strong>חלק מהשכבות לא נטענו</strong><small>{Object.values(failedLayers).join(" · ")}</small></span><button onClick={retryFailedLayers}>נסה שוב</button></div>}
+        <Canvas key={`${cameraKey}-${modelRetryKey}`} dpr={[1,1.5]} camera={{ position:cameraView.position, fov:38, near:.01, far:20 }} gl={{ antialias:true,powerPreference:"high-performance" }} onPointerDown={() => { cameraDragRef.current = true; }} onPointerMissed={() => setSelected(null)}>
           <color attach="background" args={[activeTheme.canvas]} />
           <ambientLight intensity={1.4}/><hemisphereLight intensity={1.2} color="#dcecff" groundColor="#080c15"/><directionalLight position={[-2,3,3]} intensity={3}/><pointLight position={[2,.8,2]} intensity={4} color="#83a7ff"/>
           {guide && <BodyGuide />}
           <Suspense fallback={<Loader />}><group position={[0,-.45,0]} scale={2.25}>{layers.filter((layer) => layer.visible && (selectionView !== "isolate" || !selected || layer.id === selected)).map((layer) => {
             const layerOpacity = selectionView === "dim" && selected && layer.id !== selected ? Math.min(opacity, .14) : opacity;
-            return layer.local ? <ImportedOrgan key={layer.id} layer={layer} opacity={layerOpacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/> : <ReferenceOrgan key={layer.id} layer={layer} opacity={layerOpacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/>;
+            return <LayerErrorBoundary key={`${layer.id}-${modelRetryKey}`} layerId={layer.id} layerName={layer.name} onError={(id, name) => setFailedLayers((items) => items[id] ? items : { ...items, [id]: name })}>{layer.local ? <ImportedOrgan layer={layer} opacity={layerOpacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/> : <ReferenceOrgan layer={layer} opacity={layerOpacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/>}</LayerErrorBoundary>;
           })}</group></Suspense>
           <ClippingPlane enabled={clipEnabled} axis={clipAxis} position={clipPosition} negate={clipNegate} />
           <OrbitControls ref={controlsRef as any} makeDefault target={cameraView.target} enableDamping minDistance={.8} maxDistance={7} screenSpacePanning

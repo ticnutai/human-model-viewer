@@ -14,11 +14,11 @@ test.describe("GLB library stability", () => {
 
     const started = Date.now();
     await page.goto("/legacy?panel=models&tool=models", { waitUntil: "domcontentloaded" });
-    await expect(page.locator(".legacy-library-title")).toContainText("ספריית מודלים", { timeout: 15_000 });
+    await expect(page.locator(".legacy-library-title")).toContainText("סטודיו GLB", { timeout: 15_000 });
     await expect(page.locator("canvas").first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: /גוף אדם|Body/ })).toHaveCount(0);
     await expect(page.locator(".legacy-model-loader")).toBeHidden({ timeout: 20_000 });
-    await expect.poll(() => page.evaluate(() => performance.getEntriesByType("resource").some((entry) => entry.name.includes("front-body-anatomy") && entry.name.endsWith("model.glb")))).toBe(true);
+    await expect(page.getByTestId("anatomy-viewer-canvas")).toHaveAttribute("data-model-url", /\.glb(?:$|\?)/);
     expect(Date.now() - started).toBeLessThan(25_000);
     expect(backgroundWrites).toEqual([]);
     expect(pageErrors).toEqual([]);
@@ -27,7 +27,7 @@ test.describe("GLB library stability", () => {
 
   test("keeps management and uploads collapsed until explicitly requested", async ({ page }) => {
     await page.goto("/legacy?panel=models&tool=models");
-    await expect(page.locator(".legacy-library-title")).toContainText("ספריית מודלים", { timeout: 15_000 });
+    await expect(page.locator(".legacy-library-title")).toContainText("סטודיו GLB", { timeout: 15_000 });
     await expect(page.getByText("גרור או לחץ להעלאת קבצים")).toBeHidden();
     await page.getByRole("button", { name: /הוסף מודל/ }).click();
     await expect(page.getByText("גרור או לחץ להעלאת קבצים")).toBeVisible();

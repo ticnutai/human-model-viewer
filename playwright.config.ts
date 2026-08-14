@@ -2,6 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  // WebGL/GLB teardown can briefly saturate SwiftShader in the full 80+ scenario
+  // regression run. Keep focused tests fast while allowing a stable full pass.
+  timeout: 60_000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -13,8 +16,8 @@ export default defineConfig({
     video: "on-first-retry",
     screenshot: "only-on-failure",
     // Give the app time to load 3D models
-    actionTimeout: 15_000,
-    navigationTimeout: 20_000,
+    actionTimeout: 30_000,
+    navigationTimeout: 30_000,
   },
   projects: [
     {

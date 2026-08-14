@@ -206,7 +206,7 @@ export default function ModelCard({
           {/* Badges */}
           <div className="absolute top-2 right-2 text-[8px] px-1.5 py-0.5 rounded-md font-bold" style={{
             background: isCloud ? "hsl(210 70% 50% / 0.85)" : "hsl(43 78% 47% / 0.85)",
-            color: "white", backdropFilter: "blur(4px)",
+            color: isCloud ? "white" : "hsl(220 40% 13%)", backdropFilter: "blur(4px)",
           }}>
             {isCloud ? "☁️" : "📂"}
           </div>
@@ -376,7 +376,7 @@ export default function ModelCard({
           )}
           <div className="absolute top-1.5 right-1.5 text-[8px] px-1.5 py-0.5 rounded-md font-bold" style={{
             background: isCloud ? "hsl(210 70% 50% / 0.9)" : "hsl(43 78% 47% / 0.9)",
-            color: "white",
+            color: isCloud ? "white" : "hsl(220 40% 13%)",
           }}>
             {isCloud ? "☁️" : "📂"}
           </div>

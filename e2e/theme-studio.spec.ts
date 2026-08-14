@@ -32,6 +32,16 @@ test.describe("Global theme studio", () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.appTheme)).toBe("medical-blue");
   });
 
+  test("offers the cream, navy and gold preset with accessible global tokens", async ({ page }) => {
+    await openThemeStudio(page);
+    await page.getByRole("button", { name: "בחירת ערכה קרם, נייבי וזהב" }).click();
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.appTheme)).toBe("cream-navy-gold");
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.appColorScheme)).toBe("light");
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--app-bg").trim())).toBe("#ebe8e1");
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--app-text").trim())).toBe("#0b2345");
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--app-accent").trim())).toBe("#805d00");
+  });
+
   test("creates and persists a custom theme", async ({ page }) => {
     await openThemeStudio(page);
     await page.getByRole("button", { name: /יצירת ערכה חדשה/ }).click();
@@ -55,5 +65,14 @@ test.describe("Global theme studio", () => {
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--app-accent").trim())).toBe("#ff00aa");
     await page.getByRole("button", { name: /ביטול/ }).click();
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--app-accent").trim())).toBe("#3dd39f");
+  });
+
+  test("shows a live WCAG contrast status while editing", async ({ page }) => {
+    await openThemeStudio(page);
+    const creamCard = page.locator(".theme-grid article").filter({ hasText: "קרם, נייבי וזהב" });
+    await creamCard.getByRole("button", { name: /עריכה/ }).click();
+    await expect(page.getByRole("status")).toContainText("ניגודיות נגישה");
+    await page.getByLabel("טקסט משני").fill("#ffffff");
+    await expect(page.getByRole("status")).toContainText("נדרשת ניגודיות");
   });
 });
