@@ -51,6 +51,8 @@ test.describe("Body builder and GLB library", () => {
     await expect(stage).toHaveAttribute("data-clipping", "true");
     await tools.getByLabel("עומק חיתוך בבונה הגוף").fill("35");
     await tools.getByRole("button", { name: "חזית" }).click();
+    await tools.getByRole("button", { name: "3 צירים" }).click();
+    await expect(tools.getByRole("button", { name: "3 צירים" })).toHaveClass(/is-active/);
     await tools.getByRole("button", { name: "הצג רגיל" }).click();
     await expect(stage).toHaveAttribute("data-selection-view", "normal");
     await expect(stage).toHaveAttribute("data-clipping", "false");
@@ -105,6 +107,23 @@ test.describe("Body builder and GLB library", () => {
     await expect(page.getByText("שחלה שמאלית", { exact:true })).toBeVisible();
     await expect(page.getByText("חצוצרה ימנית", { exact:true })).toBeVisible();
     await expect(page.getByText(/HRA · נקבה · קואורדינטות מקור/).first()).toBeVisible();
+  });
+
+  test("shows multiscale knowledge and persists notes and saved scenes", async ({ page }) => {
+    await page.locator(".body-layer").filter({ hasText: "הלב" }).first().locator(".body-layer-main").click();
+    const knowledge=page.getByRole("region", { name: "מידע בעברית על הלב" });
+    await expect(knowledge).toContainText("HRA v2.5");
+    await knowledge.getByRole("button", { name: /עץ ידע/ }).click();
+    await expect(knowledge).toContainText("תא שריר לב");
+    await knowledge.getByRole("button", { name: /תאים/ }).click();
+    await expect(knowledge).toContainText("קרדיומיוציט");
+    await knowledge.getByPlaceholder("הוסף הערה לנקודה שנבחרה…").fill("הערת לימוד אישית");
+    await knowledge.getByRole("button", { name: "שמור", exact:true }).click();
+    await page.getByRole("button", { name: /שמור תצוגה/ }).click();
+    await page.reload();
+    await page.locator(".body-layer").filter({ hasText: "הלב" }).first().locator(".body-layer-main").click();
+    await expect(page.getByText("הערת לימוד אישית")).toBeVisible();
+    await expect(page.getByRole("button", { name: "תצוגה 1", exact:true })).toBeVisible();
   });
 
   test("loads the optimized female lungs and presents educational Hebrew information", async ({ page }) => {

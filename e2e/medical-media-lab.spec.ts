@@ -52,4 +52,12 @@ test.describe("מעבדת הגוף החי בעברית", () => {
     await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.duration), { timeout:10_000 }).toBeGreaterThan(60);
     expect(failures).toEqual([]);
   });
+
+  test("פותחת תחנת נפח רפואי מקומית עם רינדור GPU", async ({ page }) => {
+    await page.getByRole("button", { name: /נפח רפואי/ }).click();
+    await expect(page.getByRole("heading", { name: "חקירת נפח רפואי" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByLabel("תצוגת נפח רפואי תלת־ממדית")).toBeVisible();
+    await expect(page.getByText("עיבוד מקומי בלבד")).toBeVisible();
+    await expect(page.locator(".volume-canvas canvas")).toBeVisible({ timeout: 20_000 });
+  });
 });

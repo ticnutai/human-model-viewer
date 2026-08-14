@@ -85,7 +85,7 @@ test("clicking an atlas organ isolates its real mesh instead of only selecting t
   await expect(page.getByRole("status")).toContainText("מציג כעת: מסתמי הלב");
 });
 
-test("floating anatomy tools isolate, dim, hide, restore and cut the selected organ", async ({ page }) => {
+test("unified studio drawer isolates, dims, hides, restores and cuts the selected organ", async ({ page }) => {
   test.setTimeout(90_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -94,23 +94,37 @@ test("floating anatomy tools isolate, dim, hide, restore and cut the selected or
   await expect(heart).toBeVisible({ timeout: 60_000 });
   await heart.click();
 
-  const tools = page.getByRole("region", { name: "כלי אנטומיה מהירים" });
+  const tools = page.getByRole("region", { name: "כלי עבודה לאיבר הנבחר" });
   const viewer = page.getByTestId("anatomy-viewer-canvas");
   await expect(tools).toBeVisible();
-  await tools.getByRole("button", { name: "בודד חלק" }).click();
-  await expect(tools.getByRole("button", { name: "בודד חלק" })).toHaveAttribute("aria-pressed", "true");
-  await tools.getByRole("button", { name: "עמעם סביב" }).click();
-  await expect(tools.getByRole("button", { name: "עמעם סביב" })).toHaveAttribute("aria-pressed", "true");
-  await tools.getByRole("button", { name: "הסתר חלק" }).click();
+  await tools.getByRole("button", { name: "בודד" }).click();
+  await expect(tools.getByRole("button", { name: "בודד" })).toHaveAttribute("aria-pressed", "true");
+  await tools.getByRole("button", { name: "עמעם" }).click();
+  await expect(tools.getByRole("button", { name: "עמעם" })).toHaveAttribute("aria-pressed", "true");
+  await tools.getByRole("button", { name: "הסתר" }).click();
   await expect(viewer).toHaveAttribute("data-hidden-mesh-count", "1");
-  await tools.getByRole("button", { name: "החזר אחרון" }).click();
+  await tools.getByRole("button", { name: "↩️ החזר", exact:true }).click();
   await expect(viewer).toHaveAttribute("data-hidden-mesh-count", "0");
   await tools.getByRole("button", { name: "חיתוך" }).click();
-  await expect(tools.getByLabel("עומק חיתוך מהיר")).toBeVisible();
+  await expect(tools.getByLabel("עומק חיתוך במגירת הסטודיו")).toBeVisible();
   await tools.getByRole("button", { name: "חזית" }).click();
-  await tools.getByLabel("עומק חיתוך מהיר").fill("45");
-  await tools.getByRole("button", { name: "הצג הכל" }).click();
-  await expect(tools.getByLabel("עומק חיתוך מהיר")).toBeHidden();
+  await tools.getByLabel("עומק חיתוך במגירת הסטודיו").fill("45");
+  await tools.getByRole("button", { name: "איפוס" }).click();
+  await expect(tools.getByLabel("עומק חיתוך במגירת הסטודיו")).toBeHidden();
   await expect(viewer).toHaveAttribute("data-focus-selected", "false");
   expect(errors).toEqual([]);
+});
+
+test("studio drawer closes once, stays on the RTL side, and persists pin or auto-hide", async ({ page }) => {
+  await page.goto("/legacy?panel=organs");
+  const drawer=page.locator(".sidebar-panel");
+  await expect(drawer).toBeVisible({ timeout:60_000 });
+  await expect(drawer).toHaveCSS("right","0px");
+  await page.getByRole("button", { name:"עבור להסתרה אוטומטית" }).click();
+  await expect(drawer).toHaveAttribute("data-pinned","false");
+  await page.reload();
+  await expect(drawer).toHaveAttribute("data-pinned","false");
+  await page.getByRole("button", { name:"סגור מגירת סטודיו" }).click();
+  await expect(drawer).toBeHidden();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });

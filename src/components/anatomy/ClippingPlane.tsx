@@ -31,6 +31,8 @@ interface ClippingPlaneProps {
   showHelper?: boolean;
   /** Negate the plane direction */
   negate?: boolean;
+  /** Optional orthogonal planes for a true multi-planar dissection. */
+  planes?: Array<{ axis: ClipAxis; position: number; negate?: boolean }>;
 }
 
 export default function ClippingPlane({
@@ -39,18 +41,24 @@ export default function ClippingPlane({
   position = 0,
   showHelper = true,
   negate = false,
+  planes,
 }: ClippingPlaneProps) {
   const { gl, scene } = useThree();
   const helperRef = useRef<THREE.Mesh>(null);
 
   // Create a stable plane object
   const plane = useMemo(() => new THREE.Plane(), []);
+  const activePlanes = useMemo(() => (planes?.length ? planes : [{ axis, position, negate }]).map((item) => {
+    const normal = AXIS_NORMAL[item.axis].clone();
+    if (item.negate) normal.negate();
+    return new THREE.Plane(normal, -item.position);
+  }), [axis, negate, planes, position]);
 
   // Apply / remove clipping
   useEffect(() => {
     if (enabled) {
       gl.localClippingEnabled = true;
-      gl.clippingPlanes = [plane];
+      gl.clippingPlanes = activePlanes;
       // Ensure all materials in scene respect clipping
       scene.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
@@ -59,7 +67,7 @@ export default function ClippingPlane({
             : [(child as THREE.Mesh).material as THREE.Material];
           mats.forEach((m) => {
             m.clipShadows = true;
-            m.clippingPlanes = [plane];
+            m.clippingPlanes = activePlanes;
           });
         }
       });
@@ -82,7 +90,7 @@ export default function ClippingPlane({
       gl.clippingPlanes = [];
       gl.localClippingEnabled = false;
     };
-  }, [enabled, gl, plane, scene]);
+  }, [activePlanes, enabled, gl, plane, scene]);
 
   // Update plane each frame
   useFrame(() => {

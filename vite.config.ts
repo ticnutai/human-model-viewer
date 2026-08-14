@@ -13,6 +13,9 @@ const manualChunks = (id: string) => {
   }
 
   if (normalizedId.includes("node_modules")) {
+    if (normalizedId.includes("/node_modules/@kitware/vtk.js/") || normalizedId.includes("/node_modules/nifti-reader-js/")) {
+      return "medical-volume-engine";
+    }
     if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-is|use-sync-external-store|object-assign)[\\/]/.test(normalizedId)) {
       return "vendor-react";
     }

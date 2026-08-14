@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { Activity, ArrowLeft, ArrowRight, Brain, Captions, CirclePause, CirclePlay, ExternalLink, Film, Layers3, Microscope, ScanLine, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, ArrowLeft, ArrowRight, Brain, Captions, CirclePause, CirclePlay, Cuboid, ExternalLink, Film, Layers3, Microscope, ScanLine, ShieldCheck, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MODALITY_LABELS, SCALE_JOURNEYS, VISIBLE_HUMAN_REGIONS, type ImagingModality } from "@/data/medicalMedia";
 import { cn } from "@/lib/utils";
 
-type LabMode = "sections" | "videos" | "scale";
+type LabMode = "sections" | "videos" | "scale" | "volume";
+const MedicalVolumeWorkbench = lazy(() => import("@/components/MedicalVolumeWorkbench"));
 const MEDICAL_VIDEOS = [
   {id:"intestine",title:"מסע בתוך המעי",description:"מעבר תלת־ממדי דרך המעי המבוסס על נתוני האדם הנראה. הסרט המקורי הופק בידי מרפאת מאיו.",src:"/media/visible-human/visible-human-intestine.mp4",captions:"/media/visible-human/intestine-he.vtt",poster:"/media/visible-human/abdomen.jpg",duration:"46 שניות",source:"מרפאת מאיו · NLM"},
   {id:"thorax",title:"ניווט בחתכי בית החזה",description:"הדגמה של מעבר בין חתכי בית החזה, כולל הלב, הריאות ועמוד השדרה.",src:"/media/visible-human/visible-human-thorax-browser.mp4",captions:"/media/visible-human/thorax-he.vtt",poster:"/media/visible-human/thorax.jpg",duration:"דקה ו־9 שניות",source:"אוניברסיטת מישיגן · NLM"},
@@ -38,11 +39,12 @@ export default function MedicalMediaLab() {
         <button style={{ color: mode === "sections" ? "var(--app-accent)" : "var(--app-muted)" }} className={cn(mode === "sections" && "is-active")} onClick={() => setMode("sections")}><ScanLine /> חתכים והדמיה</button>
         <button style={{ color: mode === "videos" ? "var(--app-accent)" : "var(--app-muted)" }} className={cn(mode === "videos" && "is-active")} onClick={() => { setMode("videos"); setPlaying(false); }}><Film /> סרטונים אמיתיים</button>
         <button style={{ color: mode === "scale" ? "var(--app-accent)" : "var(--app-muted)" }} className={cn(mode === "scale" && "is-active")} onClick={() => { setMode("scale"); setPlaying(false); }}><Microscope /> מאיבר לתא</button>
+        <button style={{ color: mode === "volume" ? "var(--app-accent)" : "var(--app-muted)" }} className={cn(mode === "volume" && "is-active")} onClick={() => { setMode("volume"); setPlaying(false); }}><Cuboid /> נפח רפואי</button>
       </nav>
       <Link to="/"><ArrowLeft /> חזרה לאטלס</Link>
     </header>
 
-    {mode === "sections" ? <main className="medical-imaging-layout">
+    {mode === "volume" ? <Suspense fallback={<div className="volume-loading">טוען מנוע נפח רפואי…</div>}><MedicalVolumeWorkbench/></Suspense> : mode === "sections" ? <main className="medical-imaging-layout">
       <aside className="medical-region-list">
         <div className="medical-panel-title"><Layers3/><span><strong>אזורי הגוף</strong><small>בחרו גובה אנטומי</small></span></div>
         {VISIBLE_HUMAN_REGIONS.map((item, index) => <button key={item.id} className={cn(index === regionIndex && "is-active")} onClick={() => { setRegionIndex(index); setPlaying(false); }}>

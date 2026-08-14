@@ -13,7 +13,6 @@ import { useMeshMappings, useCloudLayers } from "@/hooks/useMeshMappings";
 
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
 type SidebarTab = "organs" | "models" | "gallery" | "info" | "analysis" | "sources";
-import OrganDialog from "./OrganDialog";
 import ModelManager from "./ModelManager/index";
 import AnalysisPanel from "./ModelManager/AnalysisPanel";
 import ModelGallery from "./ModelGallery";
@@ -550,6 +549,7 @@ const ModelViewer = () => {
   const [showViewPopup, setShowViewPopup] = useState(false);
   const [showHintTooltip, setShowHintTooltip] = useState(false);
   const [showOrganSidebar, setShowOrganSidebar] = useState(startupPanel === "models");
+  const [sidebarPinned, setSidebarPinned] = useState(() => localStorage.getItem("niflaot-studio-sidebar-pinned") !== "false");
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>(
     startupPanel && ["organs", "models", "gallery", "info", "analysis", "sources"].includes(startupPanel)
       ? startupPanel as SidebarTab
@@ -565,6 +565,7 @@ const ModelViewer = () => {
     }
     if (new URLSearchParams(location.search).get("effects") === "1") setShowEffectsPanel(true);
   }, [location.search]);
+  useEffect(() => { localStorage.setItem("niflaot-studio-sidebar-pinned", String(sidebarPinned)); }, [sidebarPinned]);
   const [exploredOrgans, setExploredOrgans] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem("anatomy-explored") || "[]")); } catch { return new Set(); }
   });
@@ -902,6 +903,8 @@ const ModelViewer = () => {
     const selectedKey = sourceMapping?.mesh_key || key;
 
     setSelectedOrgan({ ...organ, meshName: selectedKey });
+    setSidebarTab("info");
+    setShowOrganSidebar(true);
     setFocusSelected(true);
     setXRayOpacity(1);
     setExplodeAmount(0.04);
@@ -1009,9 +1012,10 @@ const ModelViewer = () => {
       localStorage.setItem("anatomy-explored", JSON.stringify(Array.from(next)));
       return next;
     });
-    // Auto-open info tab
-    if (showOrganSidebar) setSidebarTab("info");
-  }, [showOrganSidebar]);
+    // One unified workspace: selection always opens the same information drawer.
+    setSidebarTab("info");
+    setShowOrganSidebar(true);
+  }, []);
 
   const handleFavoriteToggle = useCallback((meshName: string) => {
     setFavorites(prev => {
@@ -1285,20 +1289,25 @@ const ModelViewer = () => {
         title={showLayerPanel ? "סגור שכבות" : "שכבות"}
       >🧩</button>}
 
-      {/* ═══ ORGAN SIDEBAR — White/Navy/Gold ═══ */}
+      {/* ═══ UNIFIED STUDIO DRAWER — the only information/actions surface ═══ */}
       {showOrganSidebar && (
         <aside className="sidebar-panel legacy-library-panel absolute top-0 bottom-0 z-[15] flex flex-col shadow-2xl"
+          data-pinned={sidebarPinned ? "true" : "false"}
+          onMouseLeave={() => { if (!sidebarPinned && !isMobile) setShowOrganSidebar(false); }}
           style={{
-            [isRTL ? "left" : "right"]: 0, width: sidebarWidth,
+            [isRTL ? "right" : "left"]: 0, width: sidebarWidth,
             background: "var(--app-surface)",
-            borderLeft: isRTL ? "none" : "1.5px solid hsl(43 60% 55% / 0.4)",
-            borderRight: isRTL ? "1.5px solid hsl(43 60% 55% / 0.4)" : "none",
+            borderLeft: isRTL ? "1.5px solid hsl(43 60% 55% / 0.4)" : "none",
+            borderRight: isRTL ? "none" : "1.5px solid hsl(43 60% 55% / 0.4)",
           }}>
           {/* Header */}
           <div className="shrink-0 px-4 pt-4 pb-3" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-extrabold legacy-library-title">🧬 סטודיו GLB · {sidebarTitle}</span>
-              <button onClick={() => setShowOrganSidebar(false)} className="text-lg transition-colors bg-transparent border-none cursor-pointer p-1 rounded-lg hover:bg-gray-100" style={{ color: "hsl(220 15% 60%)" }}>✕</button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setSidebarPinned(value => !value)} aria-label={sidebarPinned ? "עבור להסתרה אוטומטית" : "הצמד מגירה"} aria-pressed={sidebarPinned} className={`rounded-lg border px-2 py-1 text-[10px] font-bold ${sidebarPinned ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>{sidebarPinned ? "📌 מוצמד" : "👻 אוטו־הייד"}</button>
+                <button aria-label="סגור מגירת סטודיו" onClick={() => setShowOrganSidebar(false)} className="text-lg transition-colors bg-transparent border-none cursor-pointer p-1 rounded-lg hover:bg-gray-100" style={{ color: "hsl(220 15% 60%)" }}>✕</button>
+              </div>
             </div>
             <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>
               <span>📊 {exploredOrgans.size}/{Object.keys(enrichedOrganDetails).length} נחקרו</span>
@@ -1394,36 +1403,50 @@ const ModelViewer = () => {
               <div className="flex flex-col gap-3">
                 <div className="text-center">
                   <span className="text-5xl block mb-3">{selectedOrgan.icon}</span>
-                  <h3 className="text-lg font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>{selectedOrgan.name}</h3>
-                  {selectedOrgan.latinName && <div className="text-xs italic mt-0.5" style={{ color: "hsl(220 15% 55%)" }}>{selectedOrgan.latinName}</div>}
-                  <div className="text-xs mt-1 font-bold" style={{ color: "hsl(43 78% 42%)" }}>{selectedOrgan.system}</div>
+                  <h3 className="text-lg font-extrabold" style={{ color: "var(--app-text)" }}>{selectedOrgan.name}</h3>
+                  {selectedOrgan.latinName && <div className="text-xs italic mt-0.5" style={{ color: "var(--app-muted)" }}>{selectedOrgan.latinName}</div>}
+                  <div className="text-xs mt-1 font-bold" style={{ color: "var(--app-accent)" }}>{selectedOrgan.system}</div>
                 </div>
                 <div className="h-px" style={{ background: "hsl(43 60% 55% / 0.25)" }} />
-                <p className="text-xs leading-relaxed" style={{ color: "hsl(220 30% 25%)" }}>{selectedOrgan.summary}</p>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--app-text)" }}>{selectedOrgan.summary}</p>
+                <section aria-label="כלי עבודה לאיבר הנבחר" className="legacy-unified-tools">
+                  <header><span>🩻</span><div><strong>כלי עבודה</strong><small>הפעולות חלות על {selectedOrgan.name}</small></div>{hiddenMeshes.size > 0 && <em>{hiddenMeshes.size} מוסתרים</em>}</header>
+                  <div className="legacy-unified-actions">
+                    <button onClick={isolateSelected} aria-pressed={focusSelected && focusOpacity < .1}><span>🎯</span>בודד</button>
+                    <button onClick={dimAroundSelected} aria-pressed={focusSelected && focusOpacity >= .1}><span>🌫️</span>עמעם</button>
+                    <button onClick={hideSelected}><span>🙈</span>הסתר</button>
+                    <button disabled={!hiddenMeshHistory.length} onClick={restoreLastHidden}><span>↩️</span>החזר</button>
+                    <button onClick={() => setShowClippingPlane(value => !value)} aria-pressed={showClippingPlane}><span>✂️</span>חיתוך</button>
+                    <button onClick={resetQuickTools}><span>⟲</span>איפוס</button>
+                  </div>
+                  <div className="legacy-unified-sliders"><label><span>שקיפות <strong>{Math.round(xRayOpacity*100)}%</strong></span><input aria-label="שקיפות כללית במגירת הסטודיו" type="range" min="10" max="100" value={Math.round(xRayOpacity*100)} onChange={(event)=>setXRayOpacity(Number(event.target.value)/100)}/></label><label><span>פירוק <strong>{Math.round(explodeAmount*100)}%</strong></span><input aria-label="פירוק שכבות במגירת הסטודיו" type="range" min="0" max="150" value={Math.round(explodeAmount*100)} onChange={(event)=>setExplodeAmount(Number(event.target.value)/100)}/></label></div>
+                  {showClippingPlane && <div className="legacy-unified-clip"><div>{([['x','צד'],['y','גובה'],['z','חזית']] as [ClipAxis,string][]).map(([axis,label])=><button key={axis} aria-pressed={clipAxis===axis} onClick={()=>setClipAxis(axis)}>{label}</button>)}</div><input aria-label="עומק חיתוך במגירת הסטודיו" type="range" min="-200" max="200" value={Math.round(clipPosition*100)} onChange={(event)=>setClipPosition(Number(event.target.value)/100)}/><button aria-pressed={clipNegate} onClick={()=>setClipNegate(value=>!value)}>↔ הפוך</button></div>}
+                  {hiddenMeshes.size > 0 && <div className="legacy-unified-hidden"><button onClick={()=>{setHiddenMeshes(new Set());setHiddenMeshHistory([]);}}>החזר את כל החלקים</button>{[...hiddenMeshes].slice(0,8).map((key)=><button key={key} onClick={()=>restoreHiddenMesh(key)}>{key} ✕</button>)}</div>}
+                </section>
                 <div className="grid grid-cols-2 gap-2">
                   {selectedOrgan.weight && (
                     <div className="rounded-xl p-3 text-center" style={{ background: "hsl(43 78% 47% / 0.08)", border: "1px solid hsl(43 60% 55% / 0.25)" }}>
-                      <div className="text-[10px]" style={{ color: "hsl(220 15% 55%)" }}>⚖️ משקל</div>
-                      <div className="text-xs font-bold mt-0.5" style={{ color: "hsl(220 40% 13%)" }}>{selectedOrgan.weight}</div>
+                      <div className="text-[10px]" style={{ color: "var(--app-muted)" }}>⚖️ משקל</div>
+                      <div className="text-xs font-bold mt-0.5" style={{ color: "var(--app-text)" }}>{selectedOrgan.weight}</div>
                     </div>
                   )}
                   {selectedOrgan.size && (
                     <div className="rounded-xl p-3 text-center" style={{ background: "hsl(43 78% 47% / 0.08)", border: "1px solid hsl(43 60% 55% / 0.25)" }}>
-                      <div className="text-[10px]" style={{ color: "hsl(220 15% 55%)" }}>📏 גודל</div>
-                      <div className="text-xs font-bold mt-0.5" style={{ color: "hsl(220 40% 13%)" }}>{selectedOrgan.size}</div>
+                      <div className="text-[10px]" style={{ color: "var(--app-muted)" }}>📏 גודל</div>
+                      <div className="text-xs font-bold mt-0.5" style={{ color: "var(--app-text)" }}>{selectedOrgan.size}</div>
                     </div>
                   )}
                 </div>
                 {selectedOrgan.facts.length > 0 && (
                   <div className="flex flex-col gap-1.5">
-                    <div className="text-xs font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>📋 עובדות</div>
+                    <div className="text-xs font-extrabold" style={{ color: "var(--app-text)" }}>📋 עובדות</div>
                     {selectedOrgan.facts.map((f, i) => (
-                      <div key={i} className="text-[11px] rounded-xl px-3 py-2.5" style={{ background: "hsl(220 20% 97%)", color: "hsl(220 30% 25%)", border: "1px solid hsl(43 60% 55% / 0.15)" }}>• {f}</div>
+                      <div key={i} className="text-[11px] rounded-xl px-3 py-2.5" style={{ background: "var(--app-elevated)", color: "var(--app-text)", border: "1px solid var(--app-border)" }}>• {f}</div>
                     ))}
                   </div>
                 )}
                 {selectedOrgan.funFact && (
-                  <div className="text-[11px] rounded-xl p-3" style={{ background: "hsl(43 78% 47% / 0.1)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 60% 55% / 0.3)" }}>💡 {selectedOrgan.funFact}</div>
+                  <div className="text-[11px] rounded-xl p-3" style={{ background: "color-mix(in srgb,var(--app-accent) 10%,var(--app-surface))", color: "var(--app-text)", border: "1px solid var(--app-border)" }}>💡 {selectedOrgan.funFact}</div>
                 )}
               </div>
             )}
@@ -1844,13 +1867,8 @@ const ModelViewer = () => {
       {/* ═══ DEV PANEL ═══ */}
       {showDevPanel && <DevPanel theme={t} onClose={() => setShowDevPanel(false)} />}
 
-      {/* ═══ ORGAN DIALOG ═══ */}
-      {selectedOrgan && !showOrganSidebar && (
-        <OrganDialog organ={selectedOrgan} onClose={() => setSelectedOrgan(null)} theme={t} />
-      )}
-
-      {/* Contextual anatomy tools: the common actions stay one click away. */}
-      <div className="absolute z-[14] flex items-end gap-2" style={{ right: isMobile ? 12 : 72, bottom: isMobile ? 70 : 88, direction: "rtl" }}>
+      {/* Legacy dialog and floating palette were consolidated into the studio drawer above. */}
+      {false && <div className="absolute z-[14] flex items-end gap-2" style={{ right: isMobile ? 12 : 72, bottom: isMobile ? 70 : 88, direction: "rtl" }}>
         <button
           aria-label={showQuickTools ? "סגור כלים מהירים" : "פתח כלים מהירים"}
           aria-expanded={showQuickTools}
@@ -1945,7 +1963,7 @@ const ModelViewer = () => {
             </div>
           </section>
         )}
-      </div>
+      </div>}
 
       {/* ═══ 3D CANVAS ═══ */}
       <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-focus-selected={focusSelected ? "true" : "false"} data-hidden-mesh-count={hiddenMeshes.size} data-model-url={modelUrl}>
