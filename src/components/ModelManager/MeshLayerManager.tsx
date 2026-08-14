@@ -6,6 +6,7 @@ import { anatomySystemId, mergeMeshPartNames, normalizeMeshPartNames } from "./m
 import { parseGlbFromUrl } from "./FastGlbParser";
 import { getOrganInfoForMesh } from "./utils";
 import { BODY_REFERENCE_LAYERS, FEMALE_BODY_REFERENCE_LAYERS, type BodyReferenceLayer } from "@/data/bodyReferenceLayers";
+import { MeshoptDecoder } from "three-stdlib";
 
 type MeshMapping = {
   mesh_key: string;
@@ -196,6 +197,7 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
       const THREE = await import("three");
       const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
       const loader = new GLTFLoader();
+      loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
       const gltf = await new Promise<any>((resolve, reject) => {
         loader.load(selectedModel.file_url!, resolve, undefined, reject);
       });

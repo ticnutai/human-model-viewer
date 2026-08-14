@@ -4,6 +4,7 @@ import { Html, OrbitControls } from "@react-three/drei";
 import { Suspense, useRef, useCallback, useState, useEffect, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three-stdlib";
 import * as THREE from "three";
 import { getBestOrganDetail, getFallbackDetail, getOrganHintFromUrl, detectOrganByColor, ORGAN_DETAILS, getLocalizedOrganName, getLocalizedOrganSystem, searchOrgansByDisease } from "./OrganData";
 import type { OrganDetail } from "./OrganData";
@@ -216,6 +217,7 @@ function SearchableModelPicker({ lang, cloudModels, modelUrl, bodyModelUrl, onSe
   );
 }
 const configureGLTFLoader = (loader: GLTFLoader) => {
+  loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
   loader.register(() => ({ name: "KHR_materials_pbrSpecularGlossiness" } as never));
 };
 
@@ -245,17 +247,25 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
     return candidates;
   }, []);
 
+  const mappedDetailIndex = useMemo(() => {
+    const index = new Map<string, OrganDetail>();
+    for (const [key, detail] of mappedDetails) {
+      index.set(key, detail);
+      index.set(canonicalMeshKey(key).toLocaleLowerCase("en"), detail);
+    }
+    return index;
+  }, [mappedDetails]);
+
   const getMappedDetail = useCallback((candidates: string[]) => {
     for (const candidate of candidates) {
-      const exact = mappedDetails.get(candidate);
+      const exact = mappedDetailIndex.get(candidate);
       if (exact) return exact;
       const stable = canonicalMeshKey(candidate).toLocaleLowerCase("en");
-      for (const [key, detail] of mappedDetails) {
-        if (canonicalMeshKey(key).toLocaleLowerCase("en") === stable) return detail;
-      }
+      const canonical = mappedDetailIndex.get(stable);
+      if (canonical) return canonical;
     }
     return null;
-  }, [mappedDetails]);
+  }, [mappedDetailIndex]);
 
   useEffect(() => {
     if (!onScan) return;
@@ -290,10 +300,26 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
     sceneClone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        originalMaterials.current.set(mesh.uuid, Array.isArray(mesh.material) ? mesh.material.map(m => m.clone()) : mesh.material.clone());
+        const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const originals = sourceMaterials.map(material => material.clone());
+        const working = originals.map(material => material.clone());
+        originalMaterials.current.set(mesh.uuid, Array.isArray(mesh.material) ? originals : originals[0]);
+        mesh.material = Array.isArray(mesh.material) ? working : working[0];
         originalPositions.current.set(mesh.uuid, mesh.position.clone());
       }
     });
+    return () => {
+      sceneClone.traverse((child) => {
+        if (!(child as THREE.Mesh).isMesh) return;
+        const mesh = child as THREE.Mesh;
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        materials.forEach(material => material.dispose());
+        const originals = originalMaterials.current.get(mesh.uuid);
+        (Array.isArray(originals) ? originals : originals ? [originals] : []).forEach(material => material.dispose());
+      });
+      originalMaterials.current.clear();
+      originalPositions.current.clear();
+    };
   }, [sceneClone]);
 
   useEffect(() => {
@@ -303,8 +329,9 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
         const orig = originalMaterials.current.get(mesh.uuid);
         const origPos = originalPositions.current.get(mesh.uuid);
         if (!orig) return;
-        mesh.material = Array.isArray(orig) ? orig.map(m => (m as THREE.Material).clone()) : (orig as THREE.Material).clone();
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const originalList = Array.isArray(orig) ? orig : [orig];
+        materials.forEach((material, index) => material.copy(originalList[index] || originalList[0]));
         const mappedSelection = selectedMesh ? getMappedDetail(getDetectionCandidates(mesh)) : null;
         const isSelected = Boolean(selectedMesh) && (mesh.name === selectedMesh || mappedSelection?.meshName === selectedMesh);
         const isGhosted = focusSelected && Boolean(selectedMesh) && !isSelected;
@@ -313,13 +340,15 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
         mesh.visible = !isHidden;
         materials.forEach((mat) => {
           const typed = mat as THREE.MeshStandardMaterial;
+          const previousTransparent = typed.transparent;
           if ("transparent" in typed) typed.transparent = isGhosted || xRayOpacity < 0.99 || isSelected;
           if ("opacity" in typed) typed.opacity = isGhosted ? focusOpacity : isSelected ? Math.max(0.92, xRayOpacity) : xRayOpacity;
           if ("depthWrite" in typed) typed.depthWrite = !isGhosted;
           if (typed.isMeshStandardMaterial) {
-            if (isSelected) typed.emissive = new THREE.Color(accent);
+            if (isSelected) typed.emissive.set(accent);
             typed.emissiveIntensity = isSelected ? 0.45 : isGhosted ? 0.02 : typed.emissiveIntensity;
           }
+          if (previousTransparent !== typed.transparent) typed.needsUpdate = true;
         });
         if (origPos) {
           const direction = origPos.clone().sub(normalizedTransform.center);
@@ -388,7 +417,7 @@ class ModelErrorBoundary extends Component<{ children: ReactNode; onError?: (msg
 }
 
 function CameraController({ targetPosition, targetLookAt }: { targetPosition: [number, number, number] | null; targetLookAt?: [number, number, number] | null }) {
-  const { camera } = useThree();
+  const { camera, invalidate } = useThree();
   const animRef = useRef<number | null>(null);
   if (targetPosition) {
     if (animRef.current) cancelAnimationFrame(animRef.current);
@@ -396,7 +425,7 @@ function CameraController({ targetPosition, targetLookAt }: { targetPosition: [n
     const end = new THREE.Vector3(...targetPosition);
     const lookTarget = targetLookAt ? new THREE.Vector3(...targetLookAt) : new THREE.Vector3(0, 0, 0);
     let t = 0;
-    const animate = () => { t += 0.04; if (t >= 1) { camera.position.copy(end); camera.lookAt(lookTarget); return; } camera.position.lerpVectors(start, end, t); camera.lookAt(lookTarget); animRef.current = requestAnimationFrame(animate); };
+    const animate = () => { t += 0.04; if (t >= 1) { camera.position.copy(end); camera.lookAt(lookTarget); invalidate(); return; } camera.position.lerpVectors(start, end, t); camera.lookAt(lookTarget); invalidate(); animRef.current = requestAnimationFrame(animate); };
     animate();
   }
   return null;
@@ -506,7 +535,7 @@ const ModelViewer = () => {
   const [selectedOrgan, setSelectedOrgan] = useState<OrganDetail | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDevPanel, setShowDevPanel] = useState(false);
-  const [autoRotate, setAutoRotate] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(false);
   // The old procedural figure was intentionally retired. The studio now always
   // starts with a licensed, real human GLB and never exposes the synthetic figure.
   const [useInteractive, setUseInteractive] = useState(false);
@@ -573,7 +602,7 @@ const ModelViewer = () => {
   const [hiddenMeshes, setHiddenMeshes] = useState<Set<string>>(new Set());
   const [hiddenMeshHistory, setHiddenMeshHistory] = useState<string[]>([]);
   const [showQuickTools, setShowQuickTools] = useState(true);
-  const [showSelectionOutline, setShowSelectionOutline] = useState(savedEffectsPrefs.showSelectionOutline !== false);
+  const [showSelectionOutline, setShowSelectionOutline] = useState(Boolean(savedEffectsPrefs.showSelectionOutline));
   const [showPerfMonitor, setShowPerfMonitor] = useState(Boolean(savedEffectsPrefs.showPerfMonitor));
   const [showEffectsPanel, setShowEffectsPanel] = useState(false);
   const [animationSpeed, setAnimationSpeed] = useState(1);
@@ -973,6 +1002,7 @@ const ModelViewer = () => {
   }, [userPrefs.sketchfabApiToken]);
 
   const handleOrganSelect = useCallback((detail: OrganDetail) => {
+    setAutoRotate(false);
     setSelectedOrgan(detail);
     setExploredOrgans(prev => {
       const next = new Set(prev); next.add(detail.meshName || "");
@@ -1692,7 +1722,7 @@ const ModelViewer = () => {
 
         {/* Effects */}
         <div className="relative">
-          <button aria-label="סטודיו תצוגה וחתך" onClick={() => setShowEffectsPanel(e => !e)} className={`tb-btn ${showEffectsPanel || showClippingPlane ? "active" : ""}`} style={{ width: btnSz, height: btnSz }} title="סטודיו תצוגה וחתך">
+          <button aria-label="סטודיו תצוגה וחתך" onClick={() => setShowEffectsPanel(e => { const next = !e; if (next) setShowQuickTools(false); return next; })} className={`tb-btn ${showEffectsPanel || showClippingPlane ? "active" : ""}`} style={{ width: btnSz, height: btnSz }} title="סטודיו תצוגה וחתך">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
@@ -1920,6 +1950,9 @@ const ModelViewer = () => {
       {/* ═══ 3D CANVAS ═══ */}
       <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-focus-selected={focusSelected ? "true" : "false"} data-hidden-mesh-count={hiddenMeshes.size} data-model-url={modelUrl}>
         <Canvas key={canvasKey} camera={{ position: [0, 1, 4], fov: 50 }}
+          dpr={[1, 1.5]}
+          frameloop={autoRotate || showBloodFlow || systemAnimations || cameraTourActive || showXRayShader || (showSelectionOutline && Boolean(selectedOrgan)) ? "always" : "demand"}
+          performance={{ min: 0.5 }}
           gl={{ antialias: true, powerPreference: "high-performance" }}
           onCreated={({ gl }) => { gl.domElement.addEventListener("webglcontextlost", (e) => { e.preventDefault(); setTimeout(() => setCanvasKey(k => k + 1), 1000); }, false); }}
         >

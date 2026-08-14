@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-13T22:43:25.868Z",
+  "generatedAt": "2026-08-14T02:06:05.192Z",
   "source": "Human Reference Atlas (HuBMAP)",
   "sourceUrl": "https://humanatlas.io/3d-reference-library",
   "models": [
@@ -649,6 +649,76 @@
       ]
     },
     {
+      "id": "vh-f-lung",
+      "modelUrl": "/models/humanatlas/vh-f-lung/model.glb",
+      "label": "Lung",
+      "sex": "Female",
+      "uberonId": "UBERON:0001004",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://humanatlas.io/3d-reference-library",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 5984952,
+      "meshCount": 56,
+      "meshNames": [
+        "VH_F_hilum_L",
+        "VH_F_hilum_upper_L",
+        "VH_F_lingula_superior_bronchopulmonary_segment",
+        "VH_F_left_anterior_bronchopulmonary_segment",
+        "VH_F_left_apical_bronchopulmonary_segment",
+        "VH_F_left_posterior_bronchopulmonary_segment",
+        "VH_F_lingula_inferior_bronchopulmonary_segment",
+        "VH_F_left_superior_bronchopulmonary_segment",
+        "VH_F_left_posterior_basal_bronchopulmonary_segment",
+        "VH_F_left_anterior_basal_bronchopulmonary_segment",
+        "VH_F_left_lateral_basal_bronchopulmonary_segment",
+        "VH_F_left_medial_basal_bronchopulmonary_segment",
+        "VH_F_hilum_lower_L",
+        "VH_F_hilum_R",
+        "VH_F_right_medial_basal_bronchopulmonary_segment",
+        "VH_F_right_posterior_basal_bronchopulmonary_segment",
+        "VH_F_right_anterior_basal_bronchopulmonary_segment",
+        "VH_F_right_lateral_basal_bronchopulmonary_segment",
+        "VH_F_right_superior_bronchopulmonary_segment",
+        "VH_F_hilum_lower_R",
+        "VH_F_right_medial_bronchopulmonary_segment",
+        "VH_F_right_lateral_bronchopulmonary_segmennt",
+        "VH_F_hilum_middle_R",
+        "VH_F_right_anterior_bronchopulmonary_segm",
+        "VH_F_right_apical_bronchopulmonary_segment",
+        "VH_F_right_posterior_bronchopulmonary_segment",
+        "VH_F_hilum_upper_R",
+        "VH_F_cartilage_of_lobar_bronchus_L",
+        "VH_F_cartilage_of_tertiary_bronchus_L",
+        "VH_F_left_superior_lobar_bronchus",
+        "VH_F_left_inferior_lobar_bronchus",
+        "VH_F_left_anterior_basal_bronchus",
+        "VH_F_left_lingula_superior_bronchus",
+        "VH_F_left_apical_bronchus",
+        "VH_F_left_posterior_basal_bronchus",
+        "VH_F_left_medial_basal_bronchus",
+        "VH_F_left_superior_bronchus",
+        "VH_F_left_anterior_bronchus",
+        "VH_F_left_posterior_bronchus",
+        "VH_F_left_lateral_basal_bronchus",
+        "VH_F_left_lingula_inferior_bronchi",
+        "VH_F_cartilage_of_lobar_bronchus_R",
+        "VH_F_cartilage_of_tertiary_bronchus_R",
+        "VH_F_right_middle_lobar_bronchus",
+        "VH_F_right_superior_lobar_bronchus",
+        "VH_F_right_inferior_lobar_bronchus",
+        "VH_F_right_anterior_bronchus",
+        "VH_F_right_lateral_basal_bronchus",
+        "VH_F_right_lateral_bronchus",
+        "VH_F_right_medial_bronchus",
+        "VH_F_right_medial_basal_bronchus",
+        "VH_F_right_posterior_basal_bronchus",
+        "VH_F_right_posterior_bronchus",
+        "VH_F_right_superior_bronchus",
+        "VH_F_right_apical_bronchus",
+        "VH_F_right_anterior_basal_bronchus"
+      ]
+    },
+    {
       "id": "vh-f-lymph-node",
       "modelUrl": "/models/humanatlas/vh-f-lymph-node/model.glb",
       "label": "Lymph Node",
@@ -707,6 +777,28 @@
         "VH_F_main_lactiferous_ducts_L",
         "VH_F_main_lactiferous_sinuses_L",
         "VH_F_suspensory_ligaments_L"
+      ]
+    },
+    {
+      "id": "vh-f-mammary-gland-right",
+      "modelUrl": "/models/humanatlas/vh-f-mammary-gland-right/model.glb",
+      "label": "Right Mammary Gland",
+      "sex": "Female",
+      "uberonId": "FMA:57987",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "sourceUrl": "https://humanatlas.io/3d-reference-library",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "bytes": 5481352,
+      "meshCount": 8,
+      "meshNames": [
+        "VH_F_fat_R",
+        "VH_F_areolar_tubercles_R",
+        "VH_F_nipple_R",
+        "VH_F_areola_R",
+        "VH_F_main_lactiferous_sinuses_R",
+        "VH_F_main_lactiferous_ducts_R",
+        "VH_F_mammary_lobes_R",
+        "VH_F_suspensory_ligaments_R"
       ]
     },
     {
@@ -2049,10 +2141,10 @@
     }
   ],
   "totals": {
-    "models": 51,
+    "models": 53,
     "male": 23,
-    "female": 28,
-    "structures": 1330,
-    "bytes": 145466496
+    "female": 30,
+    "structures": 1394,
+    "bytes": 156932800
   }
 }

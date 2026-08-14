@@ -53,7 +53,7 @@ export default function AnatomySourcesPanel({ theme = {} }: { theme?: Theme }) {
   }, []);
 
   const modelCount = manifest?.totals?.models ?? manifest?.models?.length ?? 51;
-  const structureCount = manifest?.totals?.structures ?? 1330;
+  const structureCount = manifest?.totals?.structures ?? 1394;
   const openIntegratedSource = (key: string) => {
     if (key === "human_reference_atlas") navigate("/body-builder");
     if (key === "sketchfab") navigate("/legacy?panel=models&tool=models&source=sketchfab");

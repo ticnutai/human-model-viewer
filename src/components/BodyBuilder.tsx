@@ -2,6 +2,7 @@ import { Component, Suspense, useEffect, useMemo, useRef, useState, type ErrorIn
 import { Canvas, ThreeEvent } from "@react-three/fiber";
 import { Html, OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three-stdlib";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three/examples/jsm/controls/OrbitControls.js";
 import { ArrowRight, Box, Eye, EyeOff, FolderOpen, Focus, Layers3, Menu, Move, Plus, Rotate3D, RotateCcw, Save, Scissors, ShieldCheck, Sparkles, Trash2, Undo2, Upload, X } from "lucide-react";
@@ -24,6 +25,21 @@ const BODY_SYSTEMS = [
   { id:"immune", label:"חיסון" }, { id:"skeletal", label:"שלד" }, { id:"reproductive", label:"רבייה" },
   { id:"integumentary", label:"מעטפת" },
 ] as const;
+
+const BODY_LAYER_INFO_HE: Record<string, { summary: string; facts: string[] }> = {
+  lung: {
+    summary: "הריאות הן זוג איברים ספוגיים שבהם חמצן עובר מן האוויר אל הדם ופחמן דו־חמצני נפלט מן הדם אל האוויר.",
+    facts: ["הריאה הימנית מחולקת בדרך כלל לשלוש אונות והשמאלית לשתי אונות", "הסימפונות מסתעפים עד לנאדיות זעירות שבהן מתרחש חילוף הגזים", "הסרעפת היא שריר הנשימה המרכזי"],
+  },
+  "mammary-gland-right": {
+    summary: "בלוטת החלב הימנית כוללת אונות, צינוריות ורקמת חיבור ושומן; המבנה משתנה לאורך החיים ובהשפעת הורמונים.",
+    facts: ["האונות מחוברות למערכת צינוריות המובילה אל הפטמה", "אספקת הדם והניקוז הלימפתי הם חלק חשוב מן האנטומיה האזורית", "המודל מיועד ללימוד מבני ואינו כלי אבחוני"],
+  },
+};
+
+const configureLocalGLTFLoader = (loader: GLTFLoader) => {
+  loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
+};
 
 class LayerErrorBoundary extends Component<LayerErrorBoundaryProps, { failed: boolean }> {
   state = { failed: false };
@@ -69,16 +85,29 @@ function ReferenceOrgan({ layer, opacity, selected, onSelect }: { layer: BodyLay
       if (!(object as THREE.Mesh).isMesh) return;
       const mesh = object as THREE.Mesh;
       const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      const materials = sources.map((source) => {
-        const material = source.clone() as THREE.MeshStandardMaterial;
-        material.transparent = opacity < .99; material.opacity = opacity; material.depthWrite = opacity > .45;
-        if (material.isMeshStandardMaterial) { material.roughness = .62; material.metalness = 0; material.emissive = new THREE.Color(selected ? layer.color : "#000"); material.emissiveIntensity = selected ? .24 : 0; }
-        return material;
-      });
+      const materials = sources.map((source) => source.clone());
       mesh.material = Array.isArray(mesh.material) ? materials : materials[0];
     });
     return clone;
-  }, [gltf.scene, layer.color, opacity, selected]);
+  }, [gltf.scene]);
+  useEffect(() => {
+    scene.traverse((object) => {
+      if (!(object as THREE.Mesh).isMesh) return;
+      const mesh = object as THREE.Mesh;
+      (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((source) => {
+        const material = source as THREE.MeshStandardMaterial;
+        material.transparent = opacity < .99; material.opacity = opacity; material.depthWrite = opacity > .45;
+        if (material.isMeshStandardMaterial) { material.roughness = .62; material.metalness = 0; material.emissive.set(selected ? layer.color : "#000"); material.emissiveIntensity = selected ? .24 : 0; }
+      });
+    });
+  }, [layer.color, opacity, scene, selected]);
+  useEffect(() => () => {
+    scene.traverse((object) => {
+      if (!(object as THREE.Mesh).isMesh) return;
+      const material = (object as THREE.Mesh).material;
+      (Array.isArray(material) ? material : [material]).forEach((item) => item.dispose());
+    });
+  }, [scene]);
   return <primitive object={scene} onClick={(event: ThreeEvent<MouseEvent>) => { event.stopPropagation(); onSelect(); }} />;
 }
 
@@ -87,7 +116,18 @@ function ImportedOrgan({ layer, opacity, selected, onSelect }: { layer: BodyLaye
   useEffect(() => {
     if (!layer.local) return;
     const url = URL.createObjectURL(layer.local.blob);
-    new GLTFLoader().load(url, (gltf) => { setScene(gltf.scene); URL.revokeObjectURL(url); }, undefined, () => URL.revokeObjectURL(url));
+    const loader = new GLTFLoader();
+    configureLocalGLTFLoader(loader);
+    loader.load(url, (gltf) => {
+      gltf.scene.traverse((object) => {
+        if (!(object as THREE.Mesh).isMesh) return;
+        const mesh = object as THREE.Mesh;
+        const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const materials = sources.map((source) => source.clone());
+        mesh.material = Array.isArray(mesh.material) ? materials : materials[0];
+      });
+      setScene(gltf.scene); URL.revokeObjectURL(url);
+    }, undefined, () => URL.revokeObjectURL(url));
     return () => URL.revokeObjectURL(url);
   }, [layer.local]);
   useEffect(() => {
@@ -95,15 +135,20 @@ function ImportedOrgan({ layer, opacity, selected, onSelect }: { layer: BodyLaye
     scene.traverse((object) => {
       if (!(object as THREE.Mesh).isMesh) return;
       const mesh = object as THREE.Mesh;
-      const materials = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((source) => {
-        const material = source.clone() as THREE.MeshStandardMaterial;
+      (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((source) => {
+        const material = source as THREE.MeshStandardMaterial;
         material.transparent = opacity < .99; material.opacity = opacity; material.depthWrite = opacity > .45;
-        if (material.isMeshStandardMaterial) { material.emissive = new THREE.Color(selected ? layer.color : "#000"); material.emissiveIntensity = selected ? .24 : 0; }
-        return material;
+        if (material.isMeshStandardMaterial) { material.emissive.set(selected ? layer.color : "#000"); material.emissiveIntensity = selected ? .24 : 0; }
       });
-      mesh.material = Array.isArray(mesh.material) ? materials : materials[0];
     });
   }, [layer.color, opacity, scene, selected]);
+  useEffect(() => () => {
+    scene?.traverse((object) => {
+      if (!(object as THREE.Mesh).isMesh) return;
+      const material = (object as THREE.Mesh).material;
+      (Array.isArray(material) ? material : [material]).forEach((item) => item.dispose());
+    });
+  }, [scene]);
   if (!scene || !layer.local) return null;
   const { position, scale } = layer.local;
   return <primitive object={scene} position={position} scale={scale} onClick={(event: ThreeEvent<MouseEvent>) => { event.stopPropagation(); onSelect(); }} />;
@@ -156,6 +201,8 @@ export default function BodyBuilder() {
   const filteredLayers = useMemo(() => activeSystem === "all" ? layers : layers.filter((layer) => layer.systemId === activeSystem), [activeSystem, layers]);
   const visibleCount = layers.filter((item) => item.visible).length;
   const visibleStructures = layers.filter((item) => item.visible).reduce((total, item) => total + item.structures, 0);
+  const selectedLayer = selected ? layers.find((item) => item.id === selected) : undefined;
+  const selectedLayerInfo = selectedLayer ? BODY_LAYER_INFO_HE[selectedLayer.id] : undefined;
 
   const selectSex = (nextSex: "Male" | "Female") => {
     if (nextSex === sex) return;
@@ -240,6 +287,11 @@ export default function BodyBuilder() {
         <div className="body-presets" aria-label="תצורות גוף"><button onClick={()=>applyPreset("core")}><Sparkles/> ליבה</button><button onClick={()=>applyPreset("complete")}>גוף מלא</button><button onClick={()=>applyPreset("shell")}>מעטפת</button></div>
         <div className="body-system-tabs" aria-label="סינון לפי מערכת">{BODY_SYSTEMS.map((system)=><button key={system.id} className={cn(activeSystem===system.id&&"is-active")} onClick={()=>setActiveSystem(system.id)}>{system.label}<small>{system.id==="all"?layers.length:layers.filter((layer)=>layer.systemId===system.id).length}</small></button>)}</div>
         <div className="body-batch-actions"><span>{activeSystem === "all" ? "כל המערכות" : BODY_SYSTEMS.find((system)=>system.id===activeSystem)?.label}</span><button onClick={()=>setFilteredVisibility(true)}>הצג הכול</button><button onClick={()=>setFilteredVisibility(false)}>הסתר</button></div>
+        {selectedLayer && <section className="body-layer-info" aria-label={`מידע בעברית על ${selectedLayer.name}`}>
+          <strong>{selectedLayer.name}</strong><small>{selectedLayer.system} · {selectedLayer.structures} מבנים במודל</small>
+          <p>{selectedLayerInfo?.summary || `${selectedLayer.name} מוצג במיקום האנטומי המקורי מתוך Human Reference Atlas. ניתן לבודד, לעמעם, להסתיר או לחתוך את השכבה באמצעות הכלים המהירים.`}</p>
+          {selectedLayerInfo && <ul>{selectedLayerInfo.facts.map((fact) => <li key={fact}>{fact}</li>)}</ul>}
+        </section>}
         <div className="body-layer-list">{filteredLayers.map((layer) => <div className={cn("body-layer", selected === layer.id && "is-selected")} key={layer.id}>
           <button className="body-layer-main" onClick={() => setSelected(layer.id)}><i style={{ background: layer.color }} /><span><strong>{layer.name}</strong><small>{layer.local ? "מודל GLB אישי" : `HRA · ${sex === "Female" ? "נקבה" : "זכר"} · קואורדינטות מקור`}</small></span></button>
           <button onClick={() => toggleLayer(layer.id)} aria-label={`${layer.visible ? "הסתר" : "הצג"} ${layer.name}`}>{layer.visible ? <Eye /> : <EyeOff />}</button>
@@ -250,7 +302,7 @@ export default function BodyBuilder() {
       <section className="body-stage" aria-label="גוף מורכב תלת־ממדי" data-camera-restored={localStorage.getItem(BODY_VIEW_KEY) ? "true" : "false"} data-selection-view={selectionView} data-clipping={clipEnabled ? "true" : "false"} data-failed-layers={Object.keys(failedLayers).length}>
         <div className="body-stage-title"><span>מצב הרכבה</span><h1>הגוף נבנה שכבה אחר שכבה</h1><p>{interactionMode === "move" ? "גרור כדי להזיז את הגוף • גלגלת לקירוב והרחבה" : "גרור כדי לסובב • גלגלת לקירוב והרחבה"}</p></div>
         {Object.keys(failedLayers).length > 0 && <div className="body-layer-error" role="alert"><span><strong>חלק מהשכבות לא נטענו</strong><small>{Object.values(failedLayers).join(" · ")}</small></span><button onClick={retryFailedLayers}>נסה שוב</button></div>}
-        <Canvas key={`${cameraKey}-${modelRetryKey}`} dpr={[1,1.5]} camera={{ position:cameraView.position, fov:38, near:.01, far:20 }} gl={{ antialias:true,powerPreference:"high-performance" }} onPointerDown={() => { cameraDragRef.current = true; }} onPointerMissed={() => setSelected(null)}>
+        <Canvas key={`${cameraKey}-${modelRetryKey}`} dpr={[1,1.5]} frameloop="demand" performance={{ min:.5 }} camera={{ position:cameraView.position, fov:38, near:.01, far:20 }} gl={{ antialias:true,powerPreference:"high-performance" }} onPointerDown={() => { cameraDragRef.current = true; }} onPointerMissed={() => setSelected(null)}>
           <color attach="background" args={[activeTheme.canvas]} />
           <ambientLight intensity={1.4}/><hemisphereLight intensity={1.2} color="#dcecff" groundColor="#080c15"/><directionalLight position={[-2,3,3]} intensity={3}/><pointLight position={[2,.8,2]} intensity={4} color="#83a7ff"/>
           {guide && <BodyGuide />}

@@ -16,7 +16,7 @@ test.describe("בדיקת QA מהירה של המערכת", () => {
     await page.goto("/body-builder?sex=female");
     const stage = page.getByRole("region", { name: "גוף מורכב תלת־ממדי" });
     await expect(page.getByText("מקור אנטומי מאומת · גוף נקבי")).toBeVisible();
-    await expect(page.getByText("17/28")).toBeVisible();
+    await expect(page.getByText("18/30")).toBeVisible();
     await expect(page.locator(".body-loader")).toBeHidden({ timeout: 60_000 });
     await expect(stage).toHaveAttribute("data-failed-layers", "0");
     await expect(page.locator("canvas")).toBeVisible();

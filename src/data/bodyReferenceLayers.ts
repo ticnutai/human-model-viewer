@@ -38,6 +38,7 @@ export const FEMALE_BODY_REFERENCE_LAYERS: BodyReferenceLayer[] = [
   female("brain","המוח","allen-brain","#a88bff",283,"UBERON:0000955","מערכת העצבים"),
   female("spinal-cord","חוט השדרה","spinal-cord","#efc98d",29,"UBERON:0002240","מערכת העצבים"),
   female("trachea","קנה הנשימה","trachea","#79cddd",3,"UBERON:0003126","מערכת הנשימה"),
+  female("lung","הריאות","lung","#efb6bd",56,"UBERON:0001004","מערכת הנשימה"),
   female("liver","הכבד","liver","#d28a55",26,"UBERON:0002107","מערכת העיכול וחילוף החומרים"),
   female("spleen","הטחול","spleen","#9a5c79",5,"UBERON:0002106","מערכת החיסון והלימפה"),
   female("pancreas","הלבלב","pancreas","#e2b564",5,"UBERON:0001264","מערכת העיכול"),
@@ -61,5 +62,6 @@ export const FEMALE_BODY_REFERENCE_LAYERS: BodyReferenceLayer[] = [
   female("fallopian-tube-left","חצוצרה שמאלית","fallopian-tube-left","#e29ab4",4,"UBERON:0001303","מערכת הרבייה"),
   female("fallopian-tube-right","חצוצרה ימנית","fallopian-tube-right","#dc8eaa",4,"UBERON:0001302","מערכת הרבייה"),
   female("mammary-gland-left","בלוטת חלב שמאלית","mammary-gland-left","#d99ab0",8,"FMA:57991","מערכת הרבייה",false),
+  female("mammary-gland-right","בלוטת חלב ימנית","mammary-gland-right","#d495ac",8,"FMA:57987","מערכת הרבייה",false),
   female("placenta","שליה","placenta","#b85f78",8,"UBERON:0001987","מערכת הרבייה",false),
 ];

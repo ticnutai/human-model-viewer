@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "lastUpdated": "2026-08-13",
+  "lastUpdated": "2026-08-14",
   "assets": [
     {
       "path": "public/models/human_organs_1.glb",
@@ -910,6 +910,30 @@
         "research"
       ],
       "notes": "https://humanatlas.io/3d-reference-library — Female Uterus (UBERON:0000995)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-lung/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Lung (UBERON:0001004)"
+    },
+    {
+      "path": "public/models/humanatlas/vh-f-mammary-gland-right/model.glb",
+      "source": "Human Reference Atlas — CCF (Common Coordinate Framework)",
+      "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "attribution": "Human Reference Atlas, Kristin Browne, HuBMAP Consortium",
+      "allowedUse": [
+        "personal-education",
+        "web-education",
+        "research"
+      ],
+      "notes": "https://humanatlas.io/3d-reference-library — Female Right Mammary Gland (FMA:57987)"
     }
   ]
 }

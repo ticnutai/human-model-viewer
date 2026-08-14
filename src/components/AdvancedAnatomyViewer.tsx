@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getOrganInfoForMesh, MESH_HEBREW } from "./ModelManager/utils";
 import { stableMeshKey } from "./ModelManager/meshParts";
 import {
-  Canvas, useLoader, useThree, useFrame, ThreeEvent,
+  Canvas, useLoader, useThree, ThreeEvent,
 } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +21,7 @@ import {
   Component, type ReactNode, type ErrorInfo,
 } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three-stdlib";
 import * as THREE from "three";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,10 @@ import SystemAnimations from "./anatomy/SystemAnimations";
 import { loadCloudLibrary } from "@/lib/cloudModelRepository";
 import type { ModelRecord } from "@/components/ModelManager/types";
 import { HUMAN_ATLAS_BY_ID } from "@/data/humanAtlasCatalog";
+
+const configureGLTFLoader = (loader: GLTFLoader) => {
+  loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
+};
 
 // ─── Model definitions ───────────────────────────────────────────────────────
 
@@ -666,7 +671,7 @@ function ModelScene({
   onSelectMesh: (key: string) => void; onMeshesLoaded: (names: string[]) => void;
   accent: string;
 }) {
-  const gltf = useLoader(GLTFLoader, url);
+  const gltf = useLoader(GLTFLoader, url, configureGLTFLoader);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const origPositions = useRef<Map<string, THREE.Vector3>>(new Map());
@@ -693,14 +698,29 @@ function ModelScene({
       if (!(child as THREE.Mesh).isMesh) return;
       const mesh = child as THREE.Mesh;
       origPositions.current.set(mesh.uuid, mesh.position.clone());
-      origMaterials.current.set(mesh.uuid,
-        Array.isArray(mesh.material) ? mesh.material.map(m => m.clone()) : (mesh.material as THREE.Material).clone());
+      const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material as THREE.Material];
+      const originals = sourceMaterials.map(material => material.clone());
+      const working = originals.map(material => material.clone());
+      origMaterials.current.set(mesh.uuid, Array.isArray(mesh.material) ? originals : originals[0]);
+      mesh.material = Array.isArray(mesh.material) ? working : working[0];
       const wBox = new THREE.Box3().setFromObject(mesh);
       origCenters.current.set(mesh.uuid, wBox.getCenter(new THREE.Vector3()));
       const key = getMeshKey(mesh.name);
       if (key && !names.includes(key)) names.push(key);
     });
     if (!reportedRef.current) { reportedRef.current = true; onMeshesLoaded(names); }
+    return () => {
+      sceneClone.traverse(child => {
+        if (!(child as THREE.Mesh).isMesh) return;
+        const mesh = child as THREE.Mesh;
+        (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach(material => material.dispose());
+        const originals = origMaterials.current.get(mesh.uuid);
+        (Array.isArray(originals) ? originals : originals ? [originals] : []).forEach(material => material.dispose());
+      });
+      origMaterials.current.clear();
+      origPositions.current.clear();
+      origCenters.current.clear();
+    };
   }, [sceneClone, onMeshesLoaded]);
 
   useEffect(() => {
@@ -711,7 +731,7 @@ function ModelScene({
     return () => { mixerRef.current?.stopAllAction(); };
   }, [gltf.animations, sceneClone]);
 
-  useFrame(() => {
+  useEffect(() => {
     const mixer = mixerRef.current;
     if (mixer && gltf.animations?.length && animTime !== null) {
       mixer.setTime(animTime * gltf.animations[0].duration);
@@ -729,7 +749,7 @@ function ModelScene({
         mesh.position.copy(origPos);
       }
     });
-  });
+  }, [animTime, explodeAmount, gltf.animations, normScale, sceneCenter, sceneClone]);
 
   useEffect(() => {
     sceneClone.traverse(child => {
@@ -738,18 +758,19 @@ function ModelScene({
       const key = getMeshKey(mesh.name);
       const origMat = origMaterials.current.get(mesh.uuid);
       if (!origMat) return;
-      const fresh = Array.isArray(origMat) ? origMat.map(m => m.clone()) : (origMat as THREE.Material).clone();
-      mesh.material = fresh;
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      const originals = Array.isArray(origMat) ? origMat : [origMat];
+      materials.forEach((material, index) => material.copy(originals[index] || originals[0]));
       const isHidden = hiddenMeshes.has(key);
       const isSelected = key === selectedMesh;
       const isXRay = xRayMeshes.has(key);
       mesh.visible = !isHidden;
-      const mats = Array.isArray(fresh) ? fresh : [fresh];
-      for (const mat of mats) {
+      for (const mat of materials) {
         const m = mat as THREE.MeshStandardMaterial;
+        const previousTransparent = m.transparent;
         if (isSelected) {
           m.transparent = false; m.opacity = 1;
-          if (m.isMeshStandardMaterial) { m.emissive = new THREE.Color(accent); m.emissiveIntensity = 0.55; }
+          if (m.isMeshStandardMaterial) { m.emissive.set(accent); m.emissiveIntensity = 0.55; }
           m.depthWrite = true;
         } else if (isXRay) {
           m.transparent = true; m.opacity = 0.18; m.depthWrite = false;
@@ -759,7 +780,7 @@ function ModelScene({
           if (m.isMeshStandardMaterial) m.emissiveIntensity = 0;
           m.depthWrite = true;
         }
-        m.needsUpdate = true;
+        if (previousTransparent !== m.transparent) m.needsUpdate = true;
       }
     });
   }, [sceneClone, hiddenMeshes, xRayMeshes, selectedMesh, accent]);

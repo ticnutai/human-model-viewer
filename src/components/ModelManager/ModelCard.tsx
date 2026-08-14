@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { memo, useState, useMemo } from "react";
 import { normalizeMeshPartNames } from "./meshParts";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Pencil, Trash2, Play, Pause, Camera, FlaskConical, ClipboardList, Loader2, Pin, Star } from "lucide-react";
@@ -31,7 +31,7 @@ interface ModelCardProps {
   onTogglePin?: () => void;
 }
 
-export default function ModelCard({
+function ModelCard({
   model, isActive, categories, onSelect, onDelete, onHideLocal,
   onSaveEdit, onSaveInlineName, onSaveDisplayName, onEditLocalName, onReanalyze,
   onGenerateThumbnail, reanalyzingId, generatingThumbId, viewMode = "list",
@@ -566,3 +566,18 @@ export default function ModelCard({
     </div>
   );
 }
+
+// Selection mode lives in the parent manager. Without memoization every click
+// re-ran the expensive anatomy/name analysis for all visible cards, even though
+// none of their visual data changed.
+export default memo(ModelCard, (previous, next) =>
+  previous.model === next.model
+  && previous.isActive === next.isActive
+  && previous.categories === next.categories
+  && previous.reanalyzingId === next.reanalyzingId
+  && previous.generatingThumbId === next.generatingThumbId
+  && previous.viewMode === next.viewMode
+  && previous.isBackgroundProcessing === next.isBackgroundProcessing
+  && previous.isFavorite === next.isFavorite
+  && previous.isPinned === next.isPinned
+);

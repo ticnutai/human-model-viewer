@@ -18,10 +18,12 @@ describe("canonical HRA organ catalog", () => {
   });
 
   it("provides a Hebrew female reference body without mixing coordinate systems", () => {
-    expect(FEMALE_BODY_REFERENCE_LAYERS).toHaveLength(28);
+    expect(FEMALE_BODY_REFERENCE_LAYERS).toHaveLength(30);
     expect(FEMALE_BODY_REFERENCE_LAYERS.every((layer) => layer.sex === "Female")).toBe(true);
     expect(FEMALE_BODY_REFERENCE_LAYERS.find((layer) => layer.id === "uterus")?.name).toBe("הרחם");
-    expect(FEMALE_BODY_REFERENCE_LAYERS.filter((layer) => layer.defaultVisible)).toHaveLength(17);
+    expect(FEMALE_BODY_REFERENCE_LAYERS.filter((layer) => layer.defaultVisible)).toHaveLength(18);
+    expect(FEMALE_BODY_REFERENCE_LAYERS.find((layer) => layer.id === "lung")?.structures).toBe(56);
+    expect(FEMALE_BODY_REFERENCE_LAYERS.find((layer) => layer.id === "mammary-gland-right")?.name).toBe("בלוטת חלב ימנית");
   });
 
   it("projects the five learning organs from the same records", () => {

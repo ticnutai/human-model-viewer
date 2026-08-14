@@ -32,7 +32,34 @@ test.describe("GLB library stability", () => {
     await page.getByRole("button", { name: /הוסף מודל/ }).click();
     await expect(page.getByText("גרור או לחץ להעלאת קבצים")).toBeVisible();
     await expect(page.getByRole("button", { name: /בחירה מרובה/ })).toBeHidden();
-    await page.getByRole("button", { name: /כלי ניהול/ }).click();
-    await expect(page.getByRole("button", { name: /בחירה מרובה/ })).toBeVisible();
+    await page.locator(".model-manager").getByRole("button", { name: /כלי ניהול/ }).click();
+    await expect(page.locator(".model-manager").getByRole("button", { name: /בחירה מרובה/ })).toBeVisible();
+  });
+
+  test("keeps a large GLB catalog responsive while selecting many organs", async ({ page }) => {
+    await page.goto("/legacy?panel=models&tool=models");
+    const manager = page.locator(".model-manager");
+    await expect(manager).toHaveAttribute("data-rendered-models", /\d+/, { timeout: 20_000 });
+    await expect(page.locator(".legacy-model-loader")).toBeHidden({ timeout: 30_000 });
+    const rendered = Number(await manager.getAttribute("data-rendered-models"));
+    const total = Number(await manager.getAttribute("data-total-models"));
+    expect(rendered).toBeLessThanOrEqual(48);
+    expect(total).toBeGreaterThan(rendered);
+
+    await manager.getByRole("button", { name: /כלי ניהול/ }).click();
+    await manager.getByRole("button", { name: /בחירה מרובה/ }).click();
+    const selectors = manager.getByRole("button", { name: /^בחר / });
+    await expect(selectors.first()).toBeVisible();
+    const selectionCount = Math.min(await selectors.count(), 12);
+    const started = performance.now();
+    // DOM click measures the React update itself without Playwright's deliberate
+    // actionability delay on every click.
+    for (let index = 0; index < selectionCount; index += 1) await selectors.first().evaluate((button: HTMLButtonElement) => button.click());
+    const elapsed = performance.now() - started;
+    console.log(`GLB catalog benchmark: ${total} total, ${rendered} rendered, ${selectionCount} selections in ${Math.round(elapsed)}ms`);
+    await expect(manager).toHaveAttribute("data-selected-models", String(selectionCount));
+    // Keep the regression bound realistic under CI SwiftShader and a saturated
+    // workstation: each individual selection must remain comfortably below 1s.
+    expect(elapsed).toBeLessThan(10_000);
   });
 });

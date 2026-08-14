@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   const [generatingThumbId, setGeneratingThumbId] = useState<string | null>(null);
   const [batchGenerating, setBatchGenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [visibleModelCount, setVisibleModelCount] = useState(48);
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   const [autoNaming, setAutoNaming] = useState(false);
   const [managerTab, setManagerTab] = useState<"models" | "meshmap" | "allmappings">("models");
@@ -792,34 +794,32 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   };
   const countForMediaType = (mt: string | null) => models.filter(m => !activeCategory || m.category_id === activeCategory).filter(m => !mt || (m.media_type || "glb") === mt).length;
 
-  const filteredModels = models.filter(m => !activeCategory || m.category_id === activeCategory).filter(m => !activeMediaType || (m.media_type || "glb") === activeMediaType);
-
-  const cloudListModels: ListModel[] = filteredModels.map(model => {
-    const relevance = buildRelevance(model.display_name);
-    return {
-      id: model.id, displayName: model.display_name, fileSize: model.file_size,
-      createdAt: model.created_at,
-      url: model.file_url || `${SUPABASE_URL}/storage/v1/object/public/models/${model.file_name}`,
-      source: "cloud", categoryId: model.category_id,
-      ...relevance, downloads: 0, likes: 0, views: 0, recommendedScore: relevance.relevanceScore,
-      record: model, mediaType: model.media_type || "glb",
-    };
-  });
-
-  const visibleLocalModels = localModels.filter(m => !hiddenLocalIds.includes(m.id)).map(m => localNameOverrides[m.id] ? { ...m, displayName: localNameOverrides[m.id] } : m);
-  const combinedBase: ListModel[] = [...cloudListModels, ...(activeCategory || activeMediaType ? [] : visibleLocalModels)];
-  
-  // Apply search filter
-  const searchFiltered = searchQuery.trim()
-    ? combinedBase.filter(m => {
-        const q = searchQuery.toLowerCase();
-        return m.displayName.toLowerCase().includes(q) ||
-          (m.record?.hebrew_name || "").toLowerCase().includes(q) ||
-          (m.record?.notes || "").toLowerCase().includes(q);
-      })
-    : combinedBase;
-
-  const combinedModels = [...searchFiltered].filter(m => !filterMash || modelHasMash(m)).sort((a, b) => {
+  const combinedModels = useMemo(() => {
+    const filteredModels = models
+      .filter(m => !activeCategory || m.category_id === activeCategory)
+      .filter(m => !activeMediaType || (m.media_type || "glb") === activeMediaType);
+    const cloudListModels: ListModel[] = filteredModels.map(model => {
+      const relevance = buildRelevance(model.display_name);
+      return {
+        id: model.id, displayName: model.display_name, fileSize: model.file_size,
+        createdAt: model.created_at,
+        url: model.file_url || `${SUPABASE_URL}/storage/v1/object/public/models/${model.file_name}`,
+        source: "cloud", categoryId: model.category_id,
+        ...relevance, downloads: 0, likes: 0, views: 0, recommendedScore: relevance.relevanceScore,
+        record: model, mediaType: model.media_type || "glb",
+      };
+    });
+    const visibleLocalModels = localModels
+      .filter(m => !hiddenLocalIds.includes(m.id))
+      .map(m => localNameOverrides[m.id] ? { ...m, displayName: localNameOverrides[m.id] } : m);
+    const combinedBase: ListModel[] = [...cloudListModels, ...(activeCategory || activeMediaType ? [] : visibleLocalModels)];
+    const q = deferredSearchQuery.trim().toLowerCase();
+    const searchFiltered = q
+      ? combinedBase.filter(m => m.displayName.toLowerCase().includes(q)
+        || (m.record?.hebrew_name || "").toLowerCase().includes(q)
+        || (m.record?.notes || "").toLowerCase().includes(q))
+      : combinedBase;
+    return searchFiltered.filter(m => !filterMash || modelHasMash(m)).sort((a, b) => {
     if (Number(pinnedModels.has(b.id)) !== Number(pinnedModels.has(a.id))) return Number(pinnedModels.has(b.id)) - Number(pinnedModels.has(a.id));
     if (sortMode === "name") return a.displayName.localeCompare(b.displayName, "he");
     if (sortMode === "downloads") return (b.downloads - a.downloads) || (b.likes - a.likes);
@@ -830,7 +830,17 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
       return b.relevanceScore - a.relevanceScore;
     }
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+    });
+  }, [models, activeCategory, activeMediaType, localModels, hiddenLocalIds, localNameOverrides, deferredSearchQuery, filterMash, pinnedModels, sortMode]);
+  const displayedModels = useMemo(() => {
+    // Multi-selection operates on cloud records. Bring those 47 records into the
+    // virtualized first page instead of making the user render all local cards first.
+    // User-managed cloud records belong at the front of the paged catalog so
+    // favorites, pins and multi-selection never disappear behind local assets.
+    const ordered = [...combinedModels.filter((model) => model.source === "cloud"), ...combinedModels.filter((model) => model.source !== "cloud")];
+    return ordered.slice(0, selectMode ? Math.min(visibleModelCount, 16) : visibleModelCount);
+  }, [combinedModels, selectMode, visibleModelCount]);
+  useEffect(() => { setVisibleModelCount(48); }, [activeCategory, activeMediaType, deferredSearchQuery, filterMash, sortMode]);
 
   const modelsWithoutThumb = models.filter(m => !m.thumbnail_url && m.file_url && (m.media_type || "glb") === "glb").length;
   const duplicateGroups = useMemo(() => {
@@ -854,7 +864,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
   };
 
   return (
-    <div className="model-manager flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }}>
+    <div className="model-manager flex flex-col h-full overflow-hidden" style={{ direction: "rtl" }} data-rendered-models={displayedModels.length} data-total-models={combinedModels.length} data-selected-models={selectedIds.size}>
       {managerTab === "allmappings" ? (
         <div className="flex-1 overflow-hidden">
           <MeshMappingManager />
@@ -940,11 +950,11 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5"><h3 className="text-sm font-black text-foreground">גוף HRA מתקדם ומשוכלל</h3><span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold text-emerald-600">פעיל</span></div>
-            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">המודל המדעי החדש: זכר ונקבה, 51 שכבות GLB ו־1,330 מבנים. נטען איבר־איבר כדי להישאר מהיר ויציב.</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">המודל המדעי החדש: זכר ונקבה, 53 שכבות GLB ו־1,394 מבנים. נטען איבר־איבר כדי להישאר מהיר ויציב.</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <button onClick={() => navigate("/body-builder?sex=male")} className="rounded-lg bg-primary px-3 py-1.5 text-[10px] font-black text-primary-foreground">פתח גוף זכרי</button>
               <button onClick={() => navigate("/body-builder?sex=female")} className="rounded-lg border border-primary/40 bg-background/70 px-3 py-1.5 text-[10px] font-black text-foreground">פתח גוף נקבי</button>
-              <button onClick={() => navigate("/legacy?panel=models&tool=meshmap")} className="rounded-lg border border-border bg-background/60 px-3 py-1.5 text-[10px] font-bold text-muted-foreground">מיפוי 1,330 המבנים</button>
+              <button onClick={() => navigate("/legacy?panel=models&tool=meshmap")} className="rounded-lg border border-border bg-background/60 px-3 py-1.5 text-[10px] font-bold text-muted-foreground">מיפוי 1,394 המבנים</button>
             </div>
           </div>
         </div>
@@ -966,7 +976,7 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
         onSelectType={setActiveMediaType}
         filterMash={filterMash}
         onToggleMash={() => setFilterMash(f => !f)}
-        mashCount={combinedBase.filter(modelHasMash).length}
+        mashCount={combinedModels.filter(modelHasMash).length}
         sortMode={sortMode}
         onSortChange={setSortMode}
         countForMediaType={countForMediaType}
@@ -1121,6 +1131,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
 
         {/* Model list */}
         <div className="px-2 pt-2 pb-2">
+          {combinedModels.length > 0 && (
+            <div className="mb-2 flex items-center justify-between rounded-lg border border-border bg-background/65 px-2.5 py-1.5 text-[9px] text-muted-foreground" role="status" aria-label="מצב טעינת ספריית המודלים">
+              <span>מוצגים {displayedModels.length} מתוך {combinedModels.length} מודלים</span>
+              <span>⚡ תצוגה מדורגת לביצועים מהירים</span>
+            </div>
+          )}
           <div className={viewMode === "grid"
             ? "grid grid-cols-2 gap-2"
             : "flex flex-col gap-2"
@@ -1131,11 +1147,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
                 {searchQuery ? "לא נמצאו תוצאות" : "אין מודלים בקטגוריה זו"}
               </div>
             )}
-            {combinedModels.map(model => (
+            {displayedModels.map(model => (
               <div key={model.id} className="relative">
                 {selectMode && model.source === "cloud" && (
                   <button
                     onClick={() => toggleSelect(model.id)}
+                    aria-label={`${selectedIds.has(model.id) ? "בטל בחירה" : "בחר"} ${model.record?.hebrew_name || model.displayName}`}
                     className="absolute top-1 right-1 z-10 w-5 h-5 rounded flex items-center justify-center cursor-pointer border-none text-xs"
                     style={{
                       background: selectedIds.has(model.id) ? "hsl(220 50% 50%)" : "hsl(0 0% 100% / 0.9)",
@@ -1172,6 +1189,15 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               </div>
             ))}
           </div>
+          {!selectMode && displayedModels.length < combinedModels.length && (
+            <button
+              type="button"
+              onClick={() => setVisibleModelCount(count => Math.min(count + 48, combinedModels.length))}
+              className="mt-3 w-full rounded-xl border border-primary/35 bg-primary/10 px-3 py-2.5 text-[11px] font-black text-primary transition-colors hover:bg-primary/15"
+            >
+              טען עוד {Math.min(48, combinedModels.length - displayedModels.length)} מודלים
+            </button>
+          )}
         </div>
       </div>
       </>
