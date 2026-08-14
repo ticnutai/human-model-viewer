@@ -240,7 +240,7 @@ export default function BodyBuilder() {
             return layer.local ? <ImportedOrgan key={layer.id} layer={layer} opacity={layerOpacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/> : <ReferenceOrgan key={layer.id} layer={layer} opacity={layerOpacity} selected={selected===layer.id} onSelect={() => setSelected(layer.id)}/>;
           })}</group></Suspense>
           <ClippingPlane enabled={clipEnabled} axis={clipAxis} position={clipPosition} negate={clipNegate} />
-          <OrbitControls ref={controlsRef} makeDefault target={cameraView.target} enableDamping minDistance={.8} maxDistance={7} screenSpacePanning
+          <OrbitControls ref={controlsRef as any} makeDefault target={cameraView.target} enableDamping minDistance={.8} maxDistance={7} screenSpacePanning
             mouseButtons={{ LEFT: interactionMode === "move" ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: interactionMode === "move" ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN }}
             onEnd={saveCameraView}/>
         </Canvas>
