@@ -39,6 +39,8 @@ import type { ModelRecord } from "@/components/ModelManager/types";
 import { loadCloudModels } from "@/lib/cloudModelRepository";
 import { useAppTheme } from "@/contexts/AppThemeContext";
 import { canonicalMeshKey, canonicalModelUrl } from "@/lib/anatomyModelIdentity";
+import { meshMatchesAnatomyKey, resolveAnatomyStructureTarget, sameAnatomyModel } from "@/lib/anatomyStructureTarget";
+import type { AnatomyStructureAsset } from "@/lib/anatomyStructureTarget";
 import { BODY_DIVISIONS, BODY_REGIONS, STRUCTURE_CATEGORIES, classifyBodyRegion, classifyStructureCategory, getBodyRegion, isSurfaceOrRegionalStructure } from "@/data/bodyRegionHierarchy";
 import type { AnatomyStructureCategoryId, BodyRegionId } from "@/data/bodyRegionHierarchy";
 
@@ -62,6 +64,10 @@ const DETAILED_BODY_MODEL = cloudUrl("sketchfab_6cc9217317804dc89622b7b0e499bc89
 const DEFAULT_MODEL = DETAILED_BODY_MODEL || LOCAL_DEFAULT_MODEL;
 const SKETCHFAB_TOKEN_STORAGE_KEY = "sketchfab-api-token";
 const EFFECTS_PREFS_KEY = "anatomy-effects-prefs-v1";
+const VERIFIED_STRUCTURE_FALLBACKS: AnatomyStructureAsset[] = [
+  { id: "vh-m-knee-left", modelUrl: "/models/humanatlas/vh-m-knee-left/model.glb", meshNames: ["VH_M_femur_L", "VH_M_tibia_L", "VH_M_fibula_L", "VH_M_patella_L"] },
+  { id: "vh-m-knee-right", modelUrl: "/models/humanatlas/vh-m-knee-right/model.glb", meshNames: ["VH_M_femur_R", "VH_M_tibia_R", "VH_M_fibula_R", "VH_M_patella_R"] },
+];
 
 const readAsciiPrefix = async (url: string, length = 96) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -225,7 +231,7 @@ const configureGLTFLoader = (loader: GLTFLoader) => {
 };
 
 // ── 3D Model component ──
-function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, mappedDetails, onScan }: { url: string; onSelect: (detail: OrganDetail, point?: CanvasSelectionPoint) => void; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; focusOpacity: number; hiddenMeshes: Set<string>; mappedDetails: Map<string, OrganDetail>; onScan?: (organs: ScannedOrgan[]) => void }) {
+function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, mappedDetails, onScan, onSelectionResolved }: { url: string; onSelect: (detail: OrganDetail, point?: CanvasSelectionPoint) => void; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; focusOpacity: number; hiddenMeshes: Set<string>; mappedDetails: Map<string, OrganDetail>; onScan?: (organs: ScannedOrgan[]) => void; onSelectionResolved?: (resolved: boolean) => void }) {
   const { lang } = useLanguage();
   const gltf = useLoader(GLTFLoader, url, configureGLTFLoader);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
@@ -326,9 +332,20 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
   }, [sceneClone]);
 
   useEffect(() => {
-    sceneClone.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
+    const meshes: THREE.Mesh[] = [];
+    sceneClone.traverse(child => { if ((child as THREE.Mesh).isMesh) meshes.push(child as THREE.Mesh); });
+    const selectedMeshes = new Set<THREE.Mesh>();
+    if (selectedMesh) {
+      const selectedStable = canonicalMeshKey(selectedMesh).toLocaleLowerCase("en");
+      meshes.forEach(mesh => {
+        const mappedSelection = getMappedDetail(getDetectionCandidates(mesh));
+        const mappedStable = mappedSelection?.meshName ? canonicalMeshKey(mappedSelection.meshName).toLocaleLowerCase("en") : "";
+        if (canonicalMeshKey(mesh.name).toLocaleLowerCase("en") === selectedStable || mappedStable === selectedStable || meshMatchesAnatomyKey(mesh.name, selectedMesh)) selectedMeshes.add(mesh);
+      });
+    }
+    const hasSelectionMatch = selectedMeshes.size > 0;
+    onSelectionResolved?.(hasSelectionMatch);
+    meshes.forEach(mesh => {
         const orig = originalMaterials.current.get(mesh.uuid);
         const origPos = originalPositions.current.get(mesh.uuid);
         if (!orig) return;
@@ -336,8 +353,8 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
         const originalList = Array.isArray(orig) ? orig : [orig];
         materials.forEach((material, index) => material.copy(originalList[index] || originalList[0]));
         const mappedSelection = selectedMesh ? getMappedDetail(getDetectionCandidates(mesh)) : null;
-        const isSelected = Boolean(selectedMesh) && (mesh.name === selectedMesh || mappedSelection?.meshName === selectedMesh);
-        const isGhosted = focusSelected && Boolean(selectedMesh) && !isSelected;
+        const isSelected = selectedMeshes.has(mesh);
+        const isGhosted = focusSelected && hasSelectionMatch && !isSelected;
         const meshKeys = [mesh.name, mappedSelection?.meshName].filter(Boolean).map(name => canonicalMeshKey(String(name)).toLocaleLowerCase("en"));
         const isHidden = meshKeys.some(name => hiddenMeshes.has(name));
         mesh.visible = !isHidden;
@@ -361,9 +378,8 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
           direction.normalize().multiplyScalar(explodeAmount * 0.4);
           mesh.position.copy(origPos).add(direction);
         }
-      }
     });
-  }, [selectedMesh, sceneClone, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, normalizedTransform.center, getDetectionCandidates, getMappedDetail]);
+  }, [selectedMesh, sceneClone, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, normalizedTransform.center, getDetectionCandidates, getMappedDetail, onSelectionResolved]);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -588,6 +604,16 @@ const ModelViewer = () => {
   useEffect(() => { localStorage.setItem("niflaot-studio-sidebar-width", String(desktopSidebarWidth)); }, [desktopSidebarWidth]);
   useEffect(() => { localStorage.setItem("niflaot-selection-presentation", selectionPresentation); }, [selectionPresentation]);
   useEffect(() => {
+    let cancelled = false;
+    fetch("/humanatlas-structure-manifest.json", { cache: "no-store" })
+      .then(response => response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))
+      .then((manifest: { models?: AnatomyStructureAsset[] }) => {
+        if (!cancelled && Array.isArray(manifest.models) && manifest.models.length) setAtlasStructureAssets(manifest.models);
+      })
+      .catch(() => { /* Verified skeletal fallbacks remain available offline. */ });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
     if (!selectionPopupPosition) return;
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setSelectionPopupPosition(null); };
     window.addEventListener("keydown", closeOnEscape);
@@ -601,6 +627,9 @@ const ModelViewer = () => {
   });
   const [xRayOpacity, setXRayOpacity] = useState(1.0);
   const [glbScanResult, setGlbScanResult] = useState<ScannedOrgan[] | null>(null);
+  const [atlasStructureAssets, setAtlasStructureAssets] = useState<AnatomyStructureAsset[]>(VERIFIED_STRUCTURE_FALLBACKS);
+  const [selectionResolved, setSelectionResolved] = useState(false);
+  const [selectionNotice, setSelectionNotice] = useState("");
   const [showGlbReport, setShowGlbReport] = useState(false);
   const [glbReportMode, setGlbReportMode] = useState<"organs" | "structures">("organs");
   const [glbReportQuery, setGlbReportQuery] = useState("");
@@ -980,9 +1009,15 @@ const ModelViewer = () => {
     const sameKey = (mapping: typeof cloudMeshData[number]) =>
       canonicalMeshKey(mapping.mesh_key).toLocaleLowerCase("en") === canonicalMeshKey(key).toLocaleLowerCase("en")
       || canonicalMeshKey(String(mapping.facts?.originalMeshName || "")).toLocaleLowerCase("en") === canonicalMeshKey(key).toLocaleLowerCase("en");
-    const currentMapping = safeMappings.find(mapping => canonicalModelUrl(mapping.model_url) === canonicalModelUrl(modelUrl) && sameKey(mapping));
-    const sourceMapping = currentMapping || safeMappings.find(mapping => sameKey(mapping) && /\.glb(?:$|\?)/i.test(mapping.model_url));
-    const selectedKey = sourceMapping?.mesh_key || key;
+    const currentMeshNames = glbScanResult?.map(item => item.meshName).filter(Boolean) || [];
+    const currentMapping = safeMappings.find(mapping => sameAnatomyModel(mapping.model_url, modelUrl) && sameKey(mapping));
+    const mappedCurrentName = String(currentMapping?.facts?.originalMeshName || currentMapping?.mesh_key || "");
+    const verifiedCurrentMapping = mappedCurrentName && currentMeshNames.find(meshName => canonicalMeshKey(meshName).toLocaleLowerCase("en") === canonicalMeshKey(mappedCurrentName).toLocaleLowerCase("en"));
+    const verifiedTarget = resolveAnatomyStructureTarget(key, modelUrl, currentMeshNames, atlasStructureAssets);
+    const target = verifiedCurrentMapping
+      ? { modelUrl, meshName: verifiedCurrentMapping, source: "current-model" as const }
+      : verifiedTarget;
+    const selectedKey = target?.meshName || key;
 
     const region = classifyBodyRegion(key, organ);
     setSelectedOrgan({ ...organ, meshName: selectedKey });
@@ -992,16 +1027,21 @@ const ModelViewer = () => {
     setRegionStructureLimit(40);
     setSidebarTab("info");
     setShowOrganSidebar(true);
-    setFocusSelected(true);
+    setSelectionResolved(false);
+    setFocusSelected(Boolean(target));
     setXRayOpacity(1);
-    setExplodeAmount(0.04);
-    setShowSelectionOutline(true);
+    setExplodeAmount(target ? 0.04 : 0);
+    setShowSelectionOutline(Boolean(target));
+    setSelectionNotice(target?.source === "verified-atlas" ? `עברנו למודל HRA מאומת כדי לסמן את ${organ.name} האמיתי.` : target ? "המבנה נמצא וסומן במודל הנוכחי." : `לא נמצא Mesh מאומת עבור ${organ.name}; המצלמה והגוף לא שונו.`);
 
-    if (sourceMapping && canonicalModelUrl(sourceMapping.model_url) !== canonicalModelUrl(modelUrl)) {
-      void handleSelectModel(sourceMapping.model_url);
+    if (target && !sameAnatomyModel(target.modelUrl, modelUrl)) {
+      void handleSelectModel(target.modelUrl);
     }
-    if (organ.cameraPos) handleViewChange(organ.cameraPos, organ.lookAt);
-  }, [cloudMeshData, enrichedOrganDetails, handleSelectModel, handleViewChange, modelUrl]);
+  }, [atlasStructureAssets, cloudMeshData, enrichedOrganDetails, glbScanResult, handleSelectModel, modelUrl]);
+
+  const handleSelectionResolved = useCallback((resolved: boolean) => {
+    setSelectionResolved(resolved);
+  }, []);
 
   const isolateSelected = useCallback(() => {
     if (!selectedOrgan) return;
@@ -1093,6 +1133,7 @@ const ModelViewer = () => {
 
   const handleOrganSelect = useCallback((detail: OrganDetail, point?: CanvasSelectionPoint) => {
     setAutoRotate(false);
+    setSelectionNotice("");
     const region = classifyBodyRegion(detail.meshName, detail);
     setSelectedOrgan(detail);
     setSelectedBodyRegion(region);
@@ -2147,7 +2188,7 @@ const ModelViewer = () => {
       </div>}
 
       {/* ═══ 3D CANVAS ═══ */}
-      <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-focus-selected={focusSelected ? "true" : "false"} data-hidden-mesh-count={hiddenMeshes.size} data-model-url={modelUrl}>
+      <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-selection-resolved={selectionResolved ? "true" : "false"} data-focus-selected={focusSelected ? "true" : "false"} data-hidden-mesh-count={hiddenMeshes.size} data-model-url={modelUrl}>
         <Canvas key={canvasKey} camera={{ position: [0, 1, 4], fov: 50 }} onPointerMissed={() => setSelectionPopupPosition(null)}
           dpr={[1, 1.5]}
           frameloop={autoRotate || showBloodFlow || systemAnimations || cameraTourActive || showXRayShader || (showSelectionOutline && Boolean(selectedOrgan)) ? "always" : "demand"}
@@ -2162,7 +2203,7 @@ const ModelViewer = () => {
           <pointLight position={[0, 3, 0]} intensity={0.5} color={t.accent} />
           <Suspense fallback={<Html center><div className="legacy-model-loader"><span />טוען מודל אנושי תלת־ממדי…</div></Html>}>
             <ModelErrorBoundary key={modelUrl} onError={msg => { setModelLoadWarning(msg); if (modelUrl !== LOCAL_DEFAULT_MODEL) setModelUrl(LOCAL_DEFAULT_MODEL); }}>
-              <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} focusOpacity={focusOpacity} hiddenMeshes={hiddenMeshes} mappedDetails={currentMappedDetails} onScan={handleGlbScan} />
+              <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} focusOpacity={focusOpacity} hiddenMeshes={hiddenMeshes} mappedDetails={currentMappedDetails} onScan={handleGlbScan} onSelectionResolved={handleSelectionResolved} />
             </ModelErrorBoundary>
           </Suspense>
           <ClippingPlane enabled={showClippingPlane} axis={clipAxis} position={clipPosition} negate={clipNegate} />
@@ -2177,8 +2218,9 @@ const ModelViewer = () => {
           <OrbitControls enableDamping dampingFactor={0.05} minDistance={0.6} maxDistance={60} autoRotate={autoRotate} autoRotateSpeed={0.5} />
         </Canvas>
         {selectedOrgan && focusSelected && <div className="absolute top-16 left-1/2 z-[7] -translate-x-1/2 rounded-full border border-primary/35 bg-background/85 px-4 py-2 text-xs font-bold text-foreground shadow-lg backdrop-blur" role="status">
-          🎯 מציג כעת: {selectedOrgan.name} · שאר המבנים מעומעמים
+          {selectionResolved ? `🎯 מסומן במודל: ${selectedOrgan.name} · שאר המבנים מעומעמים` : `⌛ מאתר את ${selectedOrgan.name} במודל המאומת…`}
         </div>}
+        {selectedOrgan && !focusSelected && selectionNotice && <div className="absolute top-16 left-1/2 z-[7] -translate-x-1/2 rounded-full border border-amber-500/40 bg-background/90 px-4 py-2 text-xs font-bold text-foreground shadow-lg backdrop-blur" role="status">⚠️ {selectionNotice}</div>}
       </div>
 
       {selectionPopupPosition && selectedOrgan && !isMobile && (

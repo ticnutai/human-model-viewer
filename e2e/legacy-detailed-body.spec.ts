@@ -77,7 +77,7 @@ test("skin and limb structures never inherit unrelated organ mappings", async ({
   await regionExplorer.getByRole("tab", { name: /עצמות/ }).click();
   await expect(regionExplorer.getByRole("tabpanel")).toContainText("מערכת השלד");
   await regionExplorer.getByRole("tabpanel").getByRole("button").first().click();
-  await expect(page.getByTestId("anatomy-viewer-canvas")).toHaveAttribute("data-focus-selected", "true");
+  await expect(page.getByTestId("anatomy-viewer-canvas")).toHaveAttribute("data-focus-selected", "false");
   await expect(sidebar).not.toContainText("המעי הדק");
   expect(errors).toEqual([]);
 });
@@ -106,7 +106,28 @@ test("clicking an atlas organ isolates its real mesh instead of only selecting t
   const viewer = page.getByTestId("anatomy-viewer-canvas");
   await expect(viewer).toHaveAttribute("data-focus-selected", "true");
   await expect(viewer).not.toHaveAttribute("data-selected-mesh", "");
-  await expect(page.getByRole("status")).toContainText("מציג כעת: מסתמי הלב");
+  await expect(page.getByRole("status")).toContainText("מסומן במודל: מסתמי הלב");
+});
+
+test("femur and tibia list choices resolve to real meshes before highlighting", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/legacy?panel=organs");
+  const hierarchy = page.getByTestId("body-region-hierarchy");
+  await page.getByPlaceholder("חיפוש איבר...").fill("עצם הירך");
+  const femur = hierarchy.locator(".organ-card").filter({ hasText: "עצם הירך" }).first();
+  await expect(femur).toBeVisible({ timeout: 60_000 });
+  await femur.click();
+
+  const viewer = page.getByTestId("anatomy-viewer-canvas");
+  await expect(viewer).toHaveAttribute("data-model-url", /\/models\/humanatlas\/vh-m-knee-left\/model\.glb/, { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-selected-mesh", "VH_M_femur_L");
+  await expect(viewer).toHaveAttribute("data-selection-resolved", "true", { timeout: 30_000 });
+
+  const regionExplorer = page.getByTestId("selected-region-navigation");
+  await regionExplorer.getByRole("button", { name: /עצם השוקה/ }).click();
+  await expect(viewer).toHaveAttribute("data-selected-mesh", "VH_M_tibia_L");
+  await expect(viewer).toHaveAttribute("data-selection-resolved", "true", { timeout: 30_000 });
+  await expect(page.getByRole("status")).toContainText("מסומן במודל: עצם השוקה");
 });
 
 test("unified studio drawer isolates, dims, hides, restores and cuts the selected organ", async ({ page }) => {
