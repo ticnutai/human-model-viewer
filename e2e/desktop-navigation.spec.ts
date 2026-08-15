@@ -11,8 +11,12 @@ test.describe("Unified desktop navigation", () => {
     const navigation = page.getByRole("complementary", { name: "ניווט ראשי" });
     await expect(navigation).toBeVisible();
     await expect(navigation).not.toHaveClass(/is-expanded/);
+    await expect(navigation.locator(".app-nav-chevron")).toHaveCount(0);
+    await expect(navigation.locator(".app-nav-brand svg")).toHaveCount(0);
+    await expect(navigation.locator(".app-nav-utilities")).toHaveCSS("opacity", "0");
     await navigation.hover();
     await expect(navigation).toHaveClass(/is-expanded/);
+    await expect(navigation.locator(".app-nav-utilities")).toHaveCSS("opacity", "1");
     for (const label of ["אטלס מקצועי", "בונה הגוף", "מעבדת הגוף החי", "סטודיו GLB"]) {
       await expect(navigation.getByRole("link", { name: new RegExp(label) })).toBeVisible();
     }
