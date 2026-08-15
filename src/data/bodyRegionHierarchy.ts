@@ -1,6 +1,7 @@
 import type { OrganDetail } from "@/components/OrganData";
 
 export type BodyDivisionId = "upper" | "lower";
+export type AnatomyStructureCategoryId = "organs" | "bones" | "muscles" | "vessels" | "nerves" | "skin" | "regions" | "other";
 export type BodyRegionId =
   | "head"
   | "neck"
@@ -23,6 +24,17 @@ export type BodyRegionDefinition = {
 export const BODY_DIVISIONS: Array<{ id: BodyDivisionId; labelHe: string; labelEn: string; icon: string }> = [
   { id: "upper", labelHe: "פלג גוף עליון", labelEn: "Upper body", icon: "🫁" },
   { id: "lower", labelHe: "פלג גוף תחתון", labelEn: "Lower body", icon: "🦵" },
+];
+
+export const STRUCTURE_CATEGORIES: Array<{ id: AnatomyStructureCategoryId; labelHe: string; labelEn: string; icon: string }> = [
+  { id: "organs", labelHe: "איברים", labelEn: "Organs", icon: "🫀" },
+  { id: "bones", labelHe: "עצמות", labelEn: "Bones", icon: "🦴" },
+  { id: "muscles", labelHe: "שרירים", labelEn: "Muscles", icon: "💪" },
+  { id: "vessels", labelHe: "כלי דם", labelEn: "Blood vessels", icon: "🩸" },
+  { id: "nerves", labelHe: "עצבים וחושים", labelEn: "Nerves and senses", icon: "🧠" },
+  { id: "skin", labelHe: "עור ומעטפת", labelEn: "Skin", icon: "🧍" },
+  { id: "regions", labelHe: "אזורי הגוף", labelEn: "Body regions", icon: "📍" },
+  { id: "other", labelHe: "מבנים נוספים", labelEn: "Other structures", icon: "🔬" },
 ];
 
 /**
@@ -65,4 +77,16 @@ export function getBodyRegion(id: BodyRegionId | null | undefined) {
 export function isSurfaceOrRegionalStructure(key: string, organ?: Partial<OrganDetail> | null) {
   const searchable = [key, organ?.meshName, organ?.latinName, organ?.system].filter(Boolean).join(" ");
   return /skin|body.?region|integument|אזורי הגוף|מעטפת והעור/i.test(searchable);
+}
+
+export function classifyStructureCategory(key: string, organ?: Partial<OrganDetail> | null): AnatomyStructureCategoryId {
+  const searchable = [key, organ?.meshName, organ?.name, organ?.latinName, organ?.system, organ?.detectedElementType].filter(Boolean).join(" ").toLocaleLowerCase("en");
+  if (/skin|integument|dermis|epiderm|מעטפת|עור/.test(searchable)) return "skin";
+  if (/body.?region|אזורי הגוף|אזור אנטומי/.test(searchable)) return "regions";
+  if (/muscle|muscular|bicep|tricep|deltoid|pectoralis|quadriceps|hamstring|gastrocnemius|gluteus|שריר/.test(searchable)) return "muscles";
+  if (/bone|skelet|skull|cranium|rib|vertebr|pelvis|femur|humerus|tibia|fibula|patella|scapula|clavicle|sternum|mandible|ulna|radius|cartilage|disc|עצם|עצמות|שלד|גולגולת|צלע|סחוס/.test(searchable)) return "bones";
+  if (/vessel|vascular|arter|vein|aorta|blood|כלי הדם|עורק|וריד|אבי העורקים/.test(searchable)) return "vessels";
+  if (/organ|heart|lung|liver|kidney|stomach|intestin|colon|spleen|pancreas|bladder|thyroid|trachea|esophagus|gallbladder|appendix|tonsil|thymus|ovary|uterus|testis|prostate|respiratory|digestive|urinary|endocrine|reproduct|איבר|לב|ריא|כבד|כלי[הו]|קיבה|מעי|טחול|לבלב|שלפוחית|נשימה|עיכול|שתן|אנדוקר|רבייה/.test(searchable)) return "organs";
+  if (/(?:^|[^a-z])(brain|nerve|neural|spinal.?cord|eye|ocular|ear|sensory)(?:$|[^a-z])|מוח|עצב|חוט השדרה|עין|אוזן/.test(searchable)) return "nerves";
+  return "other";
 }
