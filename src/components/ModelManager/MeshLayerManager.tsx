@@ -340,6 +340,32 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
   const buildAutomaticMapping = useCallback((meshKey: string, modelUrl: string, index: number): MeshMapping => {
     const atlasModel = atlasModels.find(model => model.file_url === modelUrl);
     const organ = getOrganInfoForMesh(meshKey);
+    if (atlasModel?.atlas_layer) {
+      const readable = readableStructureName(meshKey);
+      const displayName = organ ? `${organ.hebrewName} · ${readable}` : readable;
+      return {
+        mesh_key: meshKey,
+        model_url: modelUrl,
+        name: displayName,
+        summary: `מבנה מקור רשמי בתוך ${atlasModel.atlas_layer.name}: ${readable}`,
+        icon: organ?.icon || "🔬",
+        system: anatomySystemId(atlasModel.atlas_layer.system),
+        facts: {
+          originalMeshName: meshKey,
+          sourceStructureName: readable,
+          hebrewName: displayName,
+          candidateConcept: organ?.organKey,
+          parentOrgan: atlasModel.atlas_layer.name,
+          parentOrganOntologyId: atlasModel.atlas_layer.uberonId,
+          source: "Human Reference Atlas (HuBMAP)",
+          sourceUrl: atlasModel.atlas_manifest?.sourceUrl,
+          license: atlasModel.atlas_manifest?.license,
+          autoMapped: true,
+          identificationStatus: "source-named",
+          requiresOntologyCrosswalk: true,
+        },
+      };
+    }
     if (organ) {
       return {
         mesh_key: meshKey,
@@ -363,28 +389,6 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
             sourceUrl: atlasModel.atlas_manifest?.sourceUrl,
             license: atlasModel.atlas_manifest?.license,
           } : {}),
-        },
-      };
-    }
-    if (atlasModel?.atlas_layer) {
-      const readable = readableStructureName(meshKey);
-      return {
-        mesh_key: meshKey,
-        model_url: modelUrl,
-        name: readable,
-        summary: `מבנה אנטומי ב${atlasModel.atlas_layer.name}: ${readable}`,
-        icon: "🔬",
-        system: anatomySystemId(atlasModel.atlas_layer.system),
-        facts: {
-          originalMeshName: meshKey,
-          parentOrgan: atlasModel.atlas_layer.name,
-          parentOrganOntologyId: atlasModel.atlas_layer.uberonId,
-          source: "Human Reference Atlas (HuBMAP)",
-          sourceUrl: atlasModel.atlas_manifest?.sourceUrl,
-          license: atlasModel.atlas_manifest?.license,
-          autoMapped: true,
-          identificationStatus: "source-named",
-          requiresOntologyCrosswalk: true,
         },
       };
     }
@@ -447,6 +451,7 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
     if (bulkProgress) return;
     const candidates = glbModels.filter(model => model.file_url);
     const progress = { done: 0, total: candidates.length, saved: 0, skipped: 0, connected: 0 };
+    const pendingMappings: MeshMapping[] = [];
     setBulkProgress({ ...progress });
     setStatusMsg("מתחיל סריקה מהירה של כל הספרייה…");
 
@@ -455,8 +460,11 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
         // Very large files are deliberately excluded from the automatic pass.
         // They can still be scanned manually when the user chooses them.
         if ((model.file_size || 0) > 40 * 1024 * 1024) throw new Error("heavy-model");
-        const rawNames = model.source_kind === "humanatlas"
-          ? normalizeMeshPartNames(model.mesh_parts)
+        const indexedNames = normalizeMeshPartNames(model.mesh_parts);
+        // Reuse the saved inventory. Re-downloading and parsing every GLB made
+        // a repeat audit unnecessarily slow; only an unindexed model is opened.
+        const rawNames = indexedNames.length > 0
+          ? indexedNames
           : await Promise.race([
               parseGlbFromUrl(model.file_url!),
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error("scan-timeout")), 12_000)),
@@ -464,7 +472,7 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
         if (!rawNames.length || rawNames.length > 800) throw new Error("unsafe-mesh-count");
 
         const savedNames = mergeMeshPartNames(model.mesh_parts, rawNames);
-        if (model.source_kind !== "humanatlas") {
+        if (model.source_kind !== "humanatlas" && indexedNames.length === 0) {
           const { error: modelError } = await supabase
             .from("models")
             .update({ mesh_parts: savedNames })
@@ -477,12 +485,7 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
         const mappingRows = rawNames.map((meshKey, index) =>
           buildAutomaticMapping(meshKey, model.file_url || model.file_name, index)
         );
-        for (let offset = 0; offset < mappingRows.length; offset += 100) {
-          const { error: mappingError } = await supabase
-            .from("model_mesh_mappings")
-            .upsert(mappingRows.slice(offset, offset + 100), { onConflict: "mesh_key,model_url" });
-          if (mappingError) throw mappingError;
-        }
+        pendingMappings.push(...mappingRows);
 
         if (model.source_kind !== "humanatlas") onMeshPartsSaved?.(model.id, savedNames);
         progress.saved += 1;
@@ -494,6 +497,24 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
       progress.done += 1;
       setBulkProgress({ ...progress });
       setStatusMsg(`סורק ספרייה: ${progress.done}/${progress.total} · חוברו ${progress.connected} מבנים · דולגו ${progress.skipped}`);
+    }
+
+    try {
+      setStatusMsg(`שומר ${pendingMappings.length} מיפויים בחבילות מאוחדות…`);
+      const batches: MeshMapping[][] = [];
+      for (let offset = 0; offset < pendingMappings.length; offset += 400) batches.push(pendingMappings.slice(offset, offset + 400));
+      for (let offset = 0; offset < batches.length; offset += 4) {
+        const results = await Promise.all(batches.slice(offset, offset + 4).map(batch =>
+          supabase.from("model_mesh_mappings").upsert(batch, { onConflict: "mesh_key,model_url" })
+        ));
+        const failed = results.find(result => result.error);
+        if (failed?.error) throw failed.error;
+      }
+    } catch (error: any) {
+      console.error("Mesh bulk save error:", error);
+      setStatusMsg(`❌ שמירת המיפויים נכשלה: ${error?.message || "שגיאה לא ידועה"}`);
+      setBulkProgress(null);
+      return;
     }
 
     setStatusMsg(`✅ הסריקה הושלמה: ${progress.saved} מודלים ו־${progress.connected} מבנים חוברו בעברית; ${progress.skipped} דולגו כדי למנוע תקיעה`);
@@ -525,6 +546,15 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
           מודלים מקומיים מאומתים · CC BY 4.0 · מזהי UBERON/FMA · ללא ניחוש של איברים
         </div>
       </div>
+      <button
+        onClick={scanAllModels}
+        disabled={Boolean(bulkProgress)}
+        aria-label="סרוק וחבר את כל ספריית ה-GLB"
+        className="w-full rounded-lg px-2 py-1.5 text-[10px] font-bold disabled:opacity-50"
+        style={{ background: "hsl(43 78% 47% / 0.12)", color: "hsl(43 78% 32%)", border: "1px solid hsl(43 78% 47% / 0.35)" }}
+      >
+        {bulkProgress ? `⏳ סורק ${bulkProgress.done}/${bulkProgress.total}` : "✨ סרוק וחבר את כל הספרייה"}
+      </button>
       <input
         value={modelSearch}
         onChange={event => setModelSearch(event.target.value)}
@@ -592,14 +622,6 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
               style={{ background: multiSelectMode ? "hsl(220 50% 50% / 0.18)" : "hsl(220 20% 95%)", color: "hsl(220 50% 35%)", border: `1px solid ${multiSelectMode ? "hsl(220 50% 55%)" : "hsl(220 20% 82%)"}` }}
             >
               ☑️ בחירה מרובה
-            </button>
-            <button
-              onClick={scanAllModels}
-              disabled={Boolean(bulkProgress)}
-              className="text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer transition-colors disabled:opacity-50"
-              style={{ background: "hsl(43 78% 47% / 0.12)", color: "hsl(43 78% 32%)", border: "1px solid hsl(43 78% 47% / 0.35)" }}
-            >
-              {bulkProgress ? `⏳ סורק ${bulkProgress.done}/${bulkProgress.total}` : "✨ סרוק וחבר את כל הספרייה"}
             </button>
             <button
               onClick={() => setShowAddForm(s => !s)}

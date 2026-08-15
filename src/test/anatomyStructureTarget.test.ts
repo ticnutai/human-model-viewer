@@ -33,4 +33,17 @@ describe("verified anatomy structure targeting", () => {
   it("recognizes a named heart valve as part of the valve entry", () => {
     expect(meshMatchesAnatomyKey("VH_M_aortic_valve", "valves")).toBe(true);
   });
+
+  it("keeps a multi-mesh parent key so the complete brain is framed", () => {
+    const brainAssets = [{
+      id: "vh-m-allen-brain",
+      modelUrl: "/models/humanatlas/vh-m-allen-brain/model.glb",
+      meshNames: ["Allen_frontal_lobe_L", "Allen_temporal_lobe_L", "Allen_occipital_lobe_L"],
+    }];
+    expect(resolveAnatomyStructureTarget("brain", "/body.glb", ["Skin"], brainAssets)).toEqual({
+      modelUrl: "/models/humanatlas/vh-m-allen-brain/model.glb",
+      meshName: "brain",
+      source: "verified-atlas",
+    });
+  });
 });

@@ -59,7 +59,7 @@ test("skin and limb structures never inherit unrelated organ mappings", async ({
   await report.locator(".organ-card").first().click();
   const sidebar = page.locator(".sidebar-panel");
   await expect(sidebar).toContainText("כף היד");
-  await expect(sidebar).toContainText("אזורי הגוף");
+  await expect(sidebar).toContainText("נבחרה מעטפת");
   await expect(sidebar).not.toContainText("אבי העורקים");
   await expect(sidebar).not.toContainText("מערכת העיכול");
 
@@ -122,12 +122,38 @@ test("femur and tibia list choices resolve to real meshes before highlighting", 
   await expect(viewer).toHaveAttribute("data-model-url", /\/models\/humanatlas\/vh-m-knee-left\/model\.glb/, { timeout: 30_000 });
   await expect(viewer).toHaveAttribute("data-selected-mesh", "VH_M_femur_L");
   await expect(viewer).toHaveAttribute("data-selection-resolved", "true", { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-camera-fit", "true", { timeout: 30_000 });
 
   const regionExplorer = page.getByTestId("selected-region-navigation");
   await regionExplorer.getByRole("button", { name: /עצם השוקה/ }).click();
   await expect(viewer).toHaveAttribute("data-selected-mesh", "VH_M_tibia_L");
   await expect(viewer).toHaveAttribute("data-selection-resolved", "true", { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-camera-fit", "true", { timeout: 30_000 });
   await expect(page.getByRole("status")).toContainText("מסומן במודל: עצם השוקה");
+});
+
+test("the studio distinguishes opened knowledge from current GLB mapping coverage", async ({ page }) => {
+  await page.goto("/legacy?panel=organs");
+  await expect(page.getByText(/רשומות ידע/)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/נפתחו/)).toBeVisible();
+  const coverage = page.getByTestId("current-model-mapping-coverage");
+  await expect(coverage).toContainText("Meshes");
+  await expect(coverage).toContainText("ממופים");
+  await expect(coverage).toContainText("מזוהים/מאומתים");
+  await expect(page.getByText(/נחקרו/)).toHaveCount(0);
+});
+
+test("a head structure is fitted completely instead of keeping the whole-body camera", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/legacy?panel=organs");
+  await page.getByPlaceholder("חיפוש איבר...").fill("המוח");
+  const brain = page.getByTestId("body-region-hierarchy").locator(".organ-card").filter({ hasText: "המוח" }).first();
+  await expect(brain).toBeVisible({ timeout: 60_000 });
+  await brain.click();
+  const viewer = page.getByTestId("anatomy-viewer-canvas");
+  await expect(viewer).toHaveAttribute("data-model-url", /\/models\/humanatlas\/vh-[mf]-allen-brain\/model\.glb/, { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-selection-resolved", "true", { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-camera-fit", "true", { timeout: 30_000 });
 });
 
 test("unified studio drawer isolates, dims, hides, restores and cuts the selected organ", async ({ page }) => {
@@ -214,7 +240,11 @@ test("a body click can open a lightweight information card beside the selected a
   await expect(drawer).toBeHidden();
   await page.keyboard.press("Escape");
   await expect(card).toBeHidden();
-  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height * 0.48);
+  await page.reload();
+  await expect(page.getByText(/\d+ קבוצות · \d+ מבנים/).first()).toBeVisible({ timeout: 60_000 });
+  if (await drawer.isVisible()) await page.getByRole("button", { name: "סגור מגירת סטודיו" }).click();
+  const resetBox = await canvas.boundingBox();
+  await page.mouse.click(resetBox!.x + resetBox!.width / 2, resetBox!.y + resetBox!.height * 0.48);
   await expect(card).toBeVisible();
   await card.getByRole("button", { name: "פתח מידע מלא" }).click();
   await expect(drawer).toBeVisible();

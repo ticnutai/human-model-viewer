@@ -4,6 +4,7 @@ import { Html, OrbitControls } from "@react-three/drei";
 import { Suspense, useRef, useCallback, useState, useEffect, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo, PointerEvent as ReactPointerEvent } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { OrbitControls as OrbitControlsImpl } from "three/examples/jsm/controls/OrbitControls.js";
 import { MeshoptDecoder } from "three-stdlib";
 import * as THREE from "three";
 import { getBestOrganDetail, getFallbackDetail, getOrganHintFromUrl, detectOrganByColor, ORGAN_DETAILS, getLocalizedOrganName, getLocalizedOrganSystem, searchOrgansByDisease } from "./OrganData";
@@ -41,6 +42,8 @@ import { useAppTheme } from "@/contexts/AppThemeContext";
 import { canonicalMeshKey, canonicalModelUrl } from "@/lib/anatomyModelIdentity";
 import { meshMatchesAnatomyKey, resolveAnatomyStructureTarget, sameAnatomyModel } from "@/lib/anatomyStructureTarget";
 import type { AnatomyStructureAsset } from "@/lib/anatomyStructureTarget";
+import { anatomyFitDistance } from "@/lib/anatomyCamera";
+import type { AnatomyBounds } from "@/lib/anatomyCamera";
 import { BODY_DIVISIONS, BODY_REGIONS, STRUCTURE_CATEGORIES, classifyBodyRegion, classifyStructureCategory, getBodyRegion, isSurfaceOrRegionalStructure } from "@/data/bodyRegionHierarchy";
 import type { AnatomyStructureCategoryId, BodyRegionId } from "@/data/bodyRegionHierarchy";
 
@@ -231,7 +234,7 @@ const configureGLTFLoader = (loader: GLTFLoader) => {
 };
 
 // ── 3D Model component ──
-function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, mappedDetails, onScan, onSelectionResolved }: { url: string; onSelect: (detail: OrganDetail, point?: CanvasSelectionPoint) => void; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; focusOpacity: number; hiddenMeshes: Set<string>; mappedDetails: Map<string, OrganDetail>; onScan?: (organs: ScannedOrgan[]) => void; onSelectionResolved?: (resolved: boolean) => void }) {
+function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, mappedDetails, onScan, onSelectionResolved, onSelectionBounds }: { url: string; onSelect: (detail: OrganDetail, point?: CanvasSelectionPoint) => void; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; focusOpacity: number; hiddenMeshes: Set<string>; mappedDetails: Map<string, OrganDetail>; onScan?: (organs: ScannedOrgan[]) => void; onSelectionResolved?: (resolved: boolean) => void; onSelectionBounds?: (bounds: AnatomyBounds | null) => void }) {
   const { lang } = useLanguage();
   const gltf = useLoader(GLTFLoader, url, configureGLTFLoader);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
@@ -345,6 +348,16 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
     }
     const hasSelectionMatch = selectedMeshes.size > 0;
     onSelectionResolved?.(hasSelectionMatch);
+    if (hasSelectionMatch) {
+      sceneClone.updateMatrixWorld(true);
+      const selectionBox = new THREE.Box3();
+      selectedMeshes.forEach(mesh => selectionBox.expandByObject(mesh, true));
+      const center = selectionBox.getCenter(new THREE.Vector3()).multiplyScalar(normalizedTransform.scale).add(new THREE.Vector3(...normalizedTransform.position));
+      const size = selectionBox.getSize(new THREE.Vector3()).multiplyScalar(normalizedTransform.scale);
+      onSelectionBounds?.({ center: center.toArray() as [number, number, number], size: size.toArray() as [number, number, number] });
+    } else {
+      onSelectionBounds?.(null);
+    }
     meshes.forEach(mesh => {
         const orig = originalMaterials.current.get(mesh.uuid);
         const origPos = originalPositions.current.get(mesh.uuid);
@@ -379,7 +392,7 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
           mesh.position.copy(origPos).add(direction);
         }
     });
-  }, [selectedMesh, sceneClone, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, normalizedTransform.center, getDetectionCandidates, getMappedDetail, onSelectionResolved]);
+  }, [selectedMesh, sceneClone, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, normalizedTransform, getDetectionCandidates, getMappedDetail, onSelectionBounds, onSelectionResolved]);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -436,19 +449,49 @@ class ModelErrorBoundary extends Component<{ children: ReactNode; onError?: (msg
   render() { return this.state.hasError ? null : this.props.children; }
 }
 
-function CameraController({ targetPosition, targetLookAt }: { targetPosition: [number, number, number] | null; targetLookAt?: [number, number, number] | null }) {
-  const { camera, invalidate } = useThree();
+function CameraController({ targetPosition, targetLookAt, focusBounds, autoRotate }: { targetPosition: [number, number, number] | null; targetLookAt?: [number, number, number] | null; focusBounds: AnatomyBounds | null; autoRotate: boolean }) {
+  const { camera, invalidate, size } = useThree();
+  const controlsRef = useRef<OrbitControlsImpl>(null);
   const animRef = useRef<number | null>(null);
-  if (targetPosition) {
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls || (!focusBounds && !targetPosition)) return;
     if (animRef.current) cancelAnimationFrame(animRef.current);
-    const start = new THREE.Vector3().copy(camera.position);
-    const end = new THREE.Vector3(...targetPosition);
-    const lookTarget = targetLookAt ? new THREE.Vector3(...targetLookAt) : new THREE.Vector3(0, 0, 0);
-    let t = 0;
-    const animate = () => { t += 0.04; if (t >= 1) { camera.position.copy(end); camera.lookAt(lookTarget); invalidate(); return; } camera.position.lerpVectors(start, end, t); camera.lookAt(lookTarget); invalidate(); animRef.current = requestAnimationFrame(animate); };
-    animate();
-  }
-  return null;
+
+    const startPosition = camera.position.clone();
+    const startTarget = controls.target.clone();
+    const endTarget = focusBounds ? new THREE.Vector3(...focusBounds.center) : targetLookAt ? new THREE.Vector3(...targetLookAt) : new THREE.Vector3();
+    let endPosition: THREE.Vector3;
+    if (focusBounds && camera instanceof THREE.PerspectiveCamera) {
+      const direction = camera.position.clone().sub(startTarget);
+      if (direction.lengthSq() < 0.0001) direction.set(0, 0.12, 1);
+      direction.normalize();
+      const distance = anatomyFitDistance(focusBounds, camera.fov, size.width / Math.max(size.height, 1));
+      endPosition = endTarget.clone().add(direction.multiplyScalar(distance));
+      const radius = Math.max(...focusBounds.size) / 2;
+      camera.near = Math.max(0.005, distance / 150);
+      camera.far = Math.max(100, distance + radius * 30);
+      camera.updateProjectionMatrix();
+    } else {
+      endPosition = new THREE.Vector3(...(targetPosition || [0, 1, 4]));
+    }
+
+    const startedAt = performance.now();
+    const duration = focusBounds ? 520 : 420;
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      camera.position.lerpVectors(startPosition, endPosition, eased);
+      controls.target.lerpVectors(startTarget, endTarget, eased);
+      controls.update();
+      invalidate();
+      if (progress < 1) animRef.current = requestAnimationFrame(animate);
+    };
+    animRef.current = requestAnimationFrame(animate);
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+  }, [camera, focusBounds, invalidate, size.height, size.width, targetLookAt, targetPosition]);
+
+  return <OrbitControls ref={controlsRef as never} makeDefault enableDamping dampingFactor={0.07} minDistance={0.25} maxDistance={60} zoomSpeed={0.8} zoomToCursor screenSpacePanning autoRotate={autoRotate} autoRotateSpeed={0.5} />;
 }
 
 const IconBtn = ({ onClick, active, icon, title, size = 40, className: extraClass }: { onClick: () => void; active?: boolean; icon: string; title?: string; size?: number; t?: unknown; className?: string }) => (
@@ -629,6 +672,7 @@ const ModelViewer = () => {
   const [glbScanResult, setGlbScanResult] = useState<ScannedOrgan[] | null>(null);
   const [atlasStructureAssets, setAtlasStructureAssets] = useState<AnatomyStructureAsset[]>(VERIFIED_STRUCTURE_FALLBACKS);
   const [selectionResolved, setSelectionResolved] = useState(false);
+  const [selectionBounds, setSelectionBounds] = useState<AnatomyBounds | null>(null);
   const [selectionNotice, setSelectionNotice] = useState("");
   const [showGlbReport, setShowGlbReport] = useState(false);
   const [glbReportMode, setGlbReportMode] = useState<"organs" | "structures">("organs");
@@ -802,6 +846,12 @@ const ModelViewer = () => {
       if (typeof originalName === "string" && originalName.trim()) details.set(originalName.trim(), detail);
     });
     return details;
+  }, [cloudMeshData, modelUrl]);
+  const currentModelMappingStats = useMemo(() => {
+    const rows = cloudMeshData.filter(mapping => sameAnatomyModel(mapping.model_url, modelUrl) && !(mapping.facts?.autoMapped && !mapping.facts?.identificationStatus));
+    const mappedMeshes = new Set(rows.map(mapping => canonicalMeshKey(String(mapping.facts?.originalMeshName || mapping.mesh_key)).toLocaleLowerCase("en")));
+    const verified = rows.filter(mapping => ["identified", "verified"].includes(mapping.facts?.identificationStatus)).length;
+    return { mapped: mappedMeshes.size, verified };
   }, [cloudMeshData, modelUrl]);
   const t = useMemo(() => ({
     canvasBg: activeTheme.canvas,
@@ -1025,9 +1075,16 @@ const ModelViewer = () => {
     setSelectedRegionCategory(classifyStructureCategory(key, organ));
     setRegionQuery("");
     setRegionStructureLimit(40);
+    setExploredOrgans(previous => {
+      const next = new Set(previous);
+      next.add(key);
+      localStorage.setItem("anatomy-explored", JSON.stringify(Array.from(next)));
+      return next;
+    });
     setSidebarTab("info");
     setShowOrganSidebar(true);
     setSelectionResolved(false);
+    setSelectionBounds(null);
     setFocusSelected(Boolean(target));
     setXRayOpacity(1);
     setExplodeAmount(target ? 0.04 : 0);
@@ -1041,6 +1098,15 @@ const ModelViewer = () => {
 
   const handleSelectionResolved = useCallback((resolved: boolean) => {
     setSelectionResolved(resolved);
+  }, []);
+
+  const handleSelectionBounds = useCallback((bounds: AnatomyBounds | null) => {
+    setSelectionBounds(previous => {
+      if (!bounds) return previous === null ? previous : null;
+      const same = previous && previous.center.every((value, index) => Math.abs(value - bounds.center[index]) < 0.0001)
+        && previous.size.every((value, index) => Math.abs(value - bounds.size[index]) < 0.0001);
+      return same ? previous : bounds;
+    });
   }, []);
 
   const isolateSelected = useCallback(() => {
@@ -1134,12 +1200,17 @@ const ModelViewer = () => {
   const handleOrganSelect = useCallback((detail: OrganDetail, point?: CanvasSelectionPoint) => {
     setAutoRotate(false);
     setSelectionNotice("");
+    setSelectionBounds(null);
     const region = classifyBodyRegion(detail.meshName, detail);
     setSelectedOrgan(detail);
     setSelectedBodyRegion(region);
     setSelectedRegionCategory(isSurfaceOrRegionalStructure(detail.meshName, detail) ? preferredRegionCategory(region) : classifyStructureCategory(detail.meshName, detail));
     setRegionQuery("");
     setRegionStructureLimit(40);
+    setFocusOpacity(0.1);
+    setFocusSelected(true);
+    setShowSelectionOutline(true);
+    setXRayOpacity(1);
     setExploredOrgans(prev => {
       const next = new Set(prev); next.add(detail.meshName || "");
       localStorage.setItem("anatomy-explored", JSON.stringify(Array.from(next)));
@@ -1472,11 +1543,17 @@ const ModelViewer = () => {
               </div>
             </div>
             <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>
-              <span>📊 {exploredOrgans.size}/{Object.keys(enrichedOrganDetails).length} נחקרו</span>
+              <span title="זהו מונה שימוש: כמה רשומות פתחת, ולא כמה Meshes נסרקו">👁️ {exploredOrgans.size} נפתחו</span>
+              <span title="מספר רשומות הידע והמיפוי הזמינות בספרייה">📚 {Object.keys(enrichedOrganDetails).length} רשומות ידע</span>
               <span style={{ color: "hsl(43 78% 42%)" }}>⭐ {favorites.size}</span>
             </div>
-            <div className="h-2 rounded-full overflow-hidden" style={{ background: "hsl(220 20% 93%)" }}>
+            <div className="h-2 rounded-full overflow-hidden" aria-label="התקדמות פתיחת רשומות ידע" style={{ background: "hsl(220 20% 93%)" }}>
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(enrichedOrganDetails).length, 1) * 100)}%`, background: "linear-gradient(90deg, hsl(43 78% 47%), hsl(43 78% 55%))" }} />
+            </div>
+            <div data-testid="current-model-mapping-coverage" className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[9px]" style={{ color: "var(--app-muted)" }}>
+              <span>מודל נוכחי: {glbScanResult?.length || 0} Meshes</span>
+              <span>🔗 {currentModelMappingStats.mapped} ממופים</span>
+              <span>✓ {currentModelMappingStats.verified} מזוהים/מאומתים</span>
             </div>
             {!isMobile && <nav aria-label="כלי סטודיו GLB" className="grid grid-cols-4 gap-1 mt-3">
               {studioTabs.map(tab => <button key={tab.to} onClick={() => navigate(tab.to)} aria-current={tab.active ? "page" : undefined}
@@ -2188,7 +2265,7 @@ const ModelViewer = () => {
       </div>}
 
       {/* ═══ 3D CANVAS ═══ */}
-      <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-selection-resolved={selectionResolved ? "true" : "false"} data-focus-selected={focusSelected ? "true" : "false"} data-hidden-mesh-count={hiddenMeshes.size} data-model-url={modelUrl}>
+      <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-selection-resolved={selectionResolved ? "true" : "false"} data-camera-fit={selectionBounds ? "true" : "false"} data-focus-selected={focusSelected ? "true" : "false"} data-hidden-mesh-count={hiddenMeshes.size} data-model-url={modelUrl}>
         <Canvas key={canvasKey} camera={{ position: [0, 1, 4], fov: 50 }} onPointerMissed={() => setSelectionPopupPosition(null)}
           dpr={[1, 1.5]}
           frameloop={autoRotate || showBloodFlow || systemAnimations || cameraTourActive || showXRayShader || (showSelectionOutline && Boolean(selectedOrgan)) ? "always" : "demand"}
@@ -2203,7 +2280,7 @@ const ModelViewer = () => {
           <pointLight position={[0, 3, 0]} intensity={0.5} color={t.accent} />
           <Suspense fallback={<Html center><div className="legacy-model-loader"><span />טוען מודל אנושי תלת־ממדי…</div></Html>}>
             <ModelErrorBoundary key={modelUrl} onError={msg => { setModelLoadWarning(msg); if (modelUrl !== LOCAL_DEFAULT_MODEL) setModelUrl(LOCAL_DEFAULT_MODEL); }}>
-              <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} focusOpacity={focusOpacity} hiddenMeshes={hiddenMeshes} mappedDetails={currentMappedDetails} onScan={handleGlbScan} onSelectionResolved={handleSelectionResolved} />
+              <Model url={modelUrl} onSelect={handleOrganSelect} selectedMesh={selectedOrgan?.meshName ?? null} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} focusOpacity={focusOpacity} hiddenMeshes={hiddenMeshes} mappedDetails={currentMappedDetails} onScan={handleGlbScan} onSelectionResolved={handleSelectionResolved} onSelectionBounds={handleSelectionBounds} />
             </ModelErrorBoundary>
           </Suspense>
           <ClippingPlane enabled={showClippingPlane} axis={clipAxis} position={clipPosition} negate={clipNegate} />
@@ -2214,8 +2291,7 @@ const ModelViewer = () => {
           <SystemAnimations enabled={systemAnimations} heartbeat={animateHeartbeat} breathing={animateBreathing} digestion={animateDigestion} speed={animationSpeed} intensity={systemAnimationIntensity} />
           <CameraTour active={cameraTourActive} onStopChange={(_idx, stop) => setTourStopLabel(stop.label)} onComplete={() => { setCameraTourActive(false); setTourStopLabel(""); }} />
           <PerformanceMonitor enabled={showPerfMonitor} />
-          <CameraController key={renderKey} targetPosition={cameraTargetRef.current} targetLookAt={cameraLookAtRef.current} />
-          <OrbitControls enableDamping dampingFactor={0.05} minDistance={0.6} maxDistance={60} autoRotate={autoRotate} autoRotateSpeed={0.5} />
+          <CameraController key={renderKey} targetPosition={cameraTargetRef.current} targetLookAt={cameraLookAtRef.current} focusBounds={selectionBounds} autoRotate={autoRotate} />
         </Canvas>
         {selectedOrgan && focusSelected && <div className="absolute top-16 left-1/2 z-[7] -translate-x-1/2 rounded-full border border-primary/35 bg-background/85 px-4 py-2 text-xs font-bold text-foreground shadow-lg backdrop-blur" role="status">
           {selectionResolved ? `🎯 מסומן במודל: ${selectedOrgan.name} · שאר המבנים מעומעמים` : `⌛ מאתר את ${selectedOrgan.name} במודל המאומת…`}

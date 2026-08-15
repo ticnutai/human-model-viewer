@@ -122,6 +122,7 @@ test.describe("Mesh scan library persistence", () => {
     await page.goto("/legacy?panel=models&tool=meshmap");
     await expect(page.getByTestId("hra-data-audit")).toContainText("65");
     await expect(page.getByTestId("hra-data-audit")).toContainText("1,570");
+    await expect(page.getByRole("button", { name: "סרוק וחבר את כל ספריית ה-GLB" })).toBeVisible();
 
     const picker = page.getByRole("combobox").first();
     await picker.selectOption("hra:Female:heart");
@@ -135,7 +136,8 @@ test.describe("Mesh scan library persistence", () => {
     expect(storedMappings).toHaveLength(14);
     expect(storedMappings.every(mapping => mapping.facts.source === "Human Reference Atlas (HuBMAP)")).toBe(true);
     expect(storedMappings.every(mapping => mapping.facts.parentOrganOntologyId === "UBERON:0000948")).toBe(true);
-    expect(storedMappings.every(mapping => ["identified", "source-named"].includes(mapping.facts.identificationStatus))).toBe(true);
+    expect(storedMappings.every(mapping => mapping.facts.identificationStatus === "source-named")).toBe(true);
+    expect(storedMappings.every(mapping => typeof mapping.facts.sourceStructureName === "string" && mapping.facts.sourceStructureName.length > 0)).toBe(true);
 
     await page.getByLabel("חיפוש בקטלוג המודלים").fill("רחם");
     await expect(picker.locator("option")).toHaveCount(2);

@@ -14,6 +14,7 @@ export type AnatomyStructureTarget = {
 };
 
 const stable = (value: string) => canonicalMeshKey(value).toLocaleLowerCase("en");
+const MULTI_MESH_PARENT_KEYS = new Set(["brain", "valves", "lungs", "kidneys", "intestines"]);
 
 export function meshMatchesAnatomyKey(meshName: string, anatomyKey: string): boolean {
   const meshStable = stable(meshName);
@@ -50,7 +51,17 @@ export function resolveAnatomyStructureTarget(
   });
 
   const match = candidates[0];
-  if (match) return { modelUrl: match.asset.modelUrl, meshName: match.meshName, source: "verified-atlas" };
+  if (match) {
+    const matchingMeshesInAsset = match.asset.meshNames.filter(meshName => meshMatchesAnatomyKey(meshName, anatomyKey));
+    // A parent concept such as brain or valves is intentionally represented by
+    // several meshes. Keep the canonical key so the viewer selects the complete
+    // anatomical structure instead of zooming into an arbitrary first sub-part.
+    return {
+      modelUrl: match.asset.modelUrl,
+      meshName: matchingMeshesInAsset.length > 1 && MULTI_MESH_PARENT_KEYS.has(anatomyKey) ? anatomyKey : match.meshName,
+      source: "verified-atlas",
+    };
+  }
 
   // Some atlas layers represent one whole organ through several sub-meshes.
   // Keeping the canonical key lets Model select every sub-mesh detected as it.
