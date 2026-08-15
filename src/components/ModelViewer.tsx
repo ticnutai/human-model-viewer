@@ -2,7 +2,7 @@ import { Canvas, useLoader, useThree, ThreeEvent } from "@react-three/fiber";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Html, OrbitControls } from "@react-three/drei";
 import { Suspense, useRef, useCallback, useState, useEffect, useMemo, Component } from "react";
-import type { ReactNode, ErrorInfo } from "react";
+import type { ReactNode, ErrorInfo, PointerEvent as ReactPointerEvent } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three-stdlib";
 import * as THREE from "three";
@@ -13,6 +13,8 @@ import { useMeshMappings, useCloudLayers } from "@/hooks/useMeshMappings";
 
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
 type SidebarTab = "organs" | "models" | "gallery" | "info" | "analysis" | "sources";
+type SelectionPresentation = "popover" | "drawer";
+type CanvasSelectionPoint = { clientX: number; clientY: number };
 import ModelManager from "./ModelManager/index";
 import AnalysisPanel from "./ModelManager/AnalysisPanel";
 import ModelGallery from "./ModelGallery";
@@ -223,7 +225,7 @@ const configureGLTFLoader = (loader: GLTFLoader) => {
 };
 
 // ── 3D Model component ──
-function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, mappedDetails, onScan }: { url: string; onSelect: (detail: OrganDetail) => void; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; focusOpacity: number; hiddenMeshes: Set<string>; mappedDetails: Map<string, OrganDetail>; onScan?: (organs: ScannedOrgan[]) => void }) {
+function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, mappedDetails, onScan }: { url: string; onSelect: (detail: OrganDetail, point?: CanvasSelectionPoint) => void; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; focusOpacity: number; hiddenMeshes: Set<string>; mappedDetails: Map<string, OrganDetail>; onScan?: (organs: ScannedOrgan[]) => void }) {
   const { lang } = useLanguage();
   const gltf = useLoader(GLTFLoader, url, configureGLTFLoader);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
@@ -365,14 +367,15 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
+    const point = { clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY };
     const mesh = e.object as THREE.Mesh;
     const candidates = getDetectionCandidates(mesh);
     const detail = getMappedDetail(candidates) || (meshCount <= 1 ? getBestOrganDetail(candidates) : null);
-    if (detail) { onSelect({ ...detail, meshName: mesh.name || detail.meshName }); return; }
+    if (detail) { onSelect({ ...detail, meshName: mesh.name || detail.meshName }, point); return; }
     const urlHint = getOrganHintFromUrl(url);
     // A file-level hint is valid for a single-organ GLB, but on a complete body
     // it made every mesh click return the same generic "human body" result.
-    if (urlHint && meshCount <= 1) { onSelect({ ...urlHint, meshName: mesh.name || urlHint.meshName }); return; }
+    if (urlHint && meshCount <= 1) { onSelect({ ...urlHint, meshName: mesh.name || urlHint.meshName }, point); return; }
     const firstMat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
     // Material color is not medically specific on a complete body: brown skin
     // can look like liver and pink surfaces like lung. Keep color inference only
@@ -383,11 +386,11 @@ function Model({ url, onSelect, selectedMesh, accent, xRayOpacity, explodeAmount
         const colorMatch = detectOrganByColor(col.r, col.g, col.b);
         if (colorMatch) {
           const colorDetail = ORGAN_DETAILS[colorMatch.key];
-          if (colorDetail) { onSelect({ ...colorDetail, meshName: mesh.name || colorMatch.key, detectedBy: "color-hsl", detectionScore: colorMatch.confidence, scorePercent: colorMatch.confidence }); return; }
+          if (colorDetail) { onSelect({ ...colorDetail, meshName: mesh.name || colorMatch.key, detectedBy: "color-hsl", detectionScore: colorMatch.confidence, scorePercent: colorMatch.confidence }, point); return; }
         }
       }
     }
-    onSelect(getSafeRegionDetail(mesh.name || "unknown-mesh", lang));
+    onSelect(getSafeRegionDetail(mesh.name || "unknown-mesh", lang), point);
   };
 
   return (
@@ -560,6 +563,12 @@ const ModelViewer = () => {
   const [showHintTooltip, setShowHintTooltip] = useState(false);
   const [showOrganSidebar, setShowOrganSidebar] = useState(startupPanel === "models");
   const [sidebarPinned, setSidebarPinned] = useState(() => localStorage.getItem("niflaot-studio-sidebar-pinned") !== "false");
+  const [desktopSidebarWidth, setDesktopSidebarWidth] = useState(() => {
+    const saved = Number(localStorage.getItem("niflaot-studio-sidebar-width"));
+    return Number.isFinite(saved) && saved >= 300 && saved <= 680 ? saved : 420;
+  });
+  const [selectionPresentation, setSelectionPresentation] = useState<SelectionPresentation>(() => localStorage.getItem("niflaot-selection-presentation") === "drawer" ? "drawer" : "popover");
+  const [selectionPopupPosition, setSelectionPopupPosition] = useState<CanvasSelectionPoint | null>(null);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>(
     startupPanel && ["organs", "models", "gallery", "info", "analysis", "sources"].includes(startupPanel)
       ? startupPanel as SidebarTab
@@ -576,6 +585,14 @@ const ModelViewer = () => {
     if (new URLSearchParams(location.search).get("effects") === "1") setShowEffectsPanel(true);
   }, [location.search]);
   useEffect(() => { localStorage.setItem("niflaot-studio-sidebar-pinned", String(sidebarPinned)); }, [sidebarPinned]);
+  useEffect(() => { localStorage.setItem("niflaot-studio-sidebar-width", String(desktopSidebarWidth)); }, [desktopSidebarWidth]);
+  useEffect(() => { localStorage.setItem("niflaot-selection-presentation", selectionPresentation); }, [selectionPresentation]);
+  useEffect(() => {
+    if (!selectionPopupPosition) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setSelectionPopupPosition(null); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selectionPopupPosition]);
   const [exploredOrgans, setExploredOrgans] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem("anatomy-explored") || "[]")); } catch { return new Set(); }
   });
@@ -1074,7 +1091,7 @@ const ModelViewer = () => {
     }
   }, [userPrefs.sketchfabApiToken]);
 
-  const handleOrganSelect = useCallback((detail: OrganDetail) => {
+  const handleOrganSelect = useCallback((detail: OrganDetail, point?: CanvasSelectionPoint) => {
     setAutoRotate(false);
     const region = classifyBodyRegion(detail.meshName, detail);
     setSelectedOrgan(detail);
@@ -1087,10 +1104,15 @@ const ModelViewer = () => {
       localStorage.setItem("anatomy-explored", JSON.stringify(Array.from(next)));
       return next;
     });
-    // One unified workspace: selection always opens the same information drawer.
     setSidebarTab("info");
-    setShowOrganSidebar(true);
-  }, []);
+    if (point && selectionPresentation === "popover" && !isMobile) {
+      setSelectionPopupPosition(point);
+      setShowOrganSidebar(false);
+    } else {
+      setSelectionPopupPosition(null);
+      setShowOrganSidebar(true);
+    }
+  }, [isMobile, selectionPresentation]);
 
   const handleFavoriteToggle = useCallback((meshName: string) => {
     setFavorites(prev => {
@@ -1166,7 +1188,27 @@ const ModelViewer = () => {
     URL.revokeObjectURL(url);
   }, [glbScanResult, modelUrl]);
 
-  const sidebarWidth = isMobile ? "100vw" : "420px";
+  const sidebarWidth = isMobile ? "100vw" : `${desktopSidebarWidth}px`;
+  const changeSidebarWidth = useCallback((delta: number) => {
+    setDesktopSidebarWidth(width => Math.min(680, Math.max(300, width + delta)));
+  }, []);
+  const startSidebarResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (isMobile) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = desktopSidebarWidth;
+    const onMove = (moveEvent: PointerEvent) => {
+      const delta = isRTL ? startX - moveEvent.clientX : moveEvent.clientX - startX;
+      const viewportLimit = Math.max(300, Math.min(680, window.innerWidth - 280));
+      setDesktopSidebarWidth(Math.min(viewportLimit, Math.max(300, startWidth + delta)));
+    };
+    const onEnd = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onEnd);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onEnd, { once: true });
+  }, [desktopSidebarWidth, isMobile, isRTL]);
   const sidebarTitle = sidebarTab === "models" ? "ספרייה ומיפוי" : sidebarTab === "gallery" ? "גלריית מודלים" : sidebarTab === "analysis" ? "ניתוח מודל" : sidebarTab === "sources" ? "מרכז מקורות" : sidebarTab === "info" ? "מידע אנטומי" : "אטלס איברים";
   const currentTool = new URLSearchParams(location.search).get("tool") || "models";
   const studioTabs = [
@@ -1368,6 +1410,7 @@ const ModelViewer = () => {
       {showOrganSidebar && (
         <aside className="sidebar-panel legacy-library-panel absolute top-0 bottom-0 z-[15] flex flex-col shadow-2xl"
           data-pinned={sidebarPinned ? "true" : "false"}
+          data-width={isMobile ? "mobile" : desktopSidebarWidth}
           onMouseLeave={() => { if (!sidebarPinned && !isMobile) setShowOrganSidebar(false); }}
           style={{
             [isRTL ? "right" : "left"]: 0, width: sidebarWidth,
@@ -1375,11 +1418,14 @@ const ModelViewer = () => {
             borderLeft: isRTL ? "1.5px solid hsl(43 60% 55% / 0.4)" : "none",
             borderRight: isRTL ? "none" : "1.5px solid hsl(43 60% 55% / 0.4)",
           }}>
+          {!isMobile && <div role="separator" aria-label="שינוי רוחב מגירת הסטודיו" aria-orientation="vertical" aria-valuemin={300} aria-valuemax={680} aria-valuenow={desktopSidebarWidth} onPointerDown={startSidebarResize} className="absolute top-0 bottom-0 z-20 flex w-4 cursor-ew-resize touch-none items-center justify-center group" style={{ [isRTL ? "left" : "right"]: -8 }}><span className="flex h-20 w-2 items-center justify-center rounded-full border shadow-lg transition-transform group-hover:scale-110" style={{ color: "var(--app-accent)", background: "var(--app-elevated)", borderColor: "var(--app-border)" }}>⋮</span></div>}
           {/* Header */}
           <div className="shrink-0 px-4 pt-4 pb-3" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-extrabold legacy-library-title">🧬 סטודיו GLB · {sidebarTitle}</span>
               <div className="flex items-center gap-1">
+                {!isMobile && <div className="flex items-center rounded-lg border" style={{ borderColor: "var(--app-border)", background: "var(--app-elevated)" }}><button aria-label="הצר מגירה" onClick={() => changeSidebarWidth(-40)} disabled={desktopSidebarWidth <= 300} className="px-2 py-1 text-sm disabled:opacity-35" style={{ color: "var(--app-text)" }}>−</button><span className="min-w-8 text-center text-[9px]" style={{ color: "var(--app-muted)" }}>{desktopSidebarWidth}</span><button aria-label="הרחב מגירה" onClick={() => changeSidebarWidth(40)} disabled={desktopSidebarWidth >= 680} className="px-2 py-1 text-sm disabled:opacity-35" style={{ color: "var(--app-text)" }}>+</button></div>}
+                {!isMobile && <button onClick={() => setSelectionPresentation(value => value === "popover" ? "drawer" : "popover")} aria-label="אופן פתיחת מידע בלחיצה" aria-pressed={selectionPresentation === "popover"} className="rounded-lg border px-2 py-1 text-[10px] font-bold" style={{ color: selectionPresentation === "popover" ? "var(--app-accent)" : "var(--app-muted)", borderColor: "var(--app-border)", background: "var(--app-elevated)" }}>{selectionPresentation === "popover" ? "💬 כרטיס" : "▤ מגירה"}</button>}
                 <button onClick={() => setSidebarPinned(value => !value)} aria-label={sidebarPinned ? "עבור להסתרה אוטומטית" : "הצמד מגירה"} aria-pressed={sidebarPinned} className={`rounded-lg border px-2 py-1 text-[10px] font-bold ${sidebarPinned ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>{sidebarPinned ? "📌 מוצמד" : "👻 אוטו־הייד"}</button>
                 <button aria-label="סגור מגירת סטודיו" onClick={() => setShowOrganSidebar(false)} className="text-lg transition-colors bg-transparent border-none cursor-pointer p-1 rounded-lg hover:bg-gray-100" style={{ color: "hsl(220 15% 60%)" }}>✕</button>
               </div>
@@ -2102,7 +2148,7 @@ const ModelViewer = () => {
 
       {/* ═══ 3D CANVAS ═══ */}
       <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-focus-selected={focusSelected ? "true" : "false"} data-hidden-mesh-count={hiddenMeshes.size} data-model-url={modelUrl}>
-        <Canvas key={canvasKey} camera={{ position: [0, 1, 4], fov: 50 }}
+        <Canvas key={canvasKey} camera={{ position: [0, 1, 4], fov: 50 }} onPointerMissed={() => setSelectionPopupPosition(null)}
           dpr={[1, 1.5]}
           frameloop={autoRotate || showBloodFlow || systemAnimations || cameraTourActive || showXRayShader || (showSelectionOutline && Boolean(selectedOrgan)) ? "always" : "demand"}
           performance={{ min: 0.5 }}
@@ -2134,6 +2180,27 @@ const ModelViewer = () => {
           🎯 מציג כעת: {selectedOrgan.name} · שאר המבנים מעומעמים
         </div>}
       </div>
+
+      {selectionPopupPosition && selectedOrgan && !isMobile && (
+        <>
+          <span aria-hidden="true" className="pointer-events-none fixed z-[21] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow-lg" style={{ left: selectionPopupPosition.clientX, top: selectionPopupPosition.clientY, borderColor: "var(--app-accent)", background: "color-mix(in srgb,var(--app-accent) 28%,transparent)" }} />
+          <section role="dialog" aria-label={`מידע מהיר על ${selectedOrgan.name}`} data-testid="anatomy-selection-popover" className="fixed z-[22] w-[min(330px,calc(100vw-24px))] rounded-2xl border p-3 shadow-2xl backdrop-blur-xl" style={{ left: `clamp(12px, ${selectionPopupPosition.clientX + 18}px, calc(100vw - 342px))`, top: `clamp(64px, ${selectionPopupPosition.clientY - 34}px, calc(100vh - 265px))`, color: "var(--app-text)", background: "color-mix(in srgb,var(--app-surface) 94%,transparent)", borderColor: "color-mix(in srgb,var(--app-accent) 45%,var(--app-border))" }}>
+            <header className="flex items-start gap-2">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl" style={{ background: "color-mix(in srgb,var(--app-accent) 12%,var(--app-elevated))" }}>{selectedOrgan.icon}</span>
+              <div className="min-w-0 flex-1 text-right"><strong className="block truncate text-sm">{selectedOrgan.name}</strong><small className="block truncate text-[10px]" style={{ color: "var(--app-muted)" }}>{selectedOrgan.system}{selectedBodyRegion ? ` · ${getBodyRegion(selectedBodyRegion)?.labelHe || ""}` : ""}</small></div>
+              <button aria-label="סגור מידע מהיר" onClick={() => setSelectionPopupPosition(null)} className="rounded-lg border px-2 py-1 text-xs" style={{ color: "var(--app-muted)", borderColor: "var(--app-border)" }}>✕</button>
+            </header>
+            <p className="mt-2 line-clamp-3 text-right text-[11px] leading-relaxed" style={{ color: "var(--app-muted)" }}>{isSurfaceOrRegionalStructure(selectedOrgan.meshName, selectedOrgan) ? "זוהתה המעטפת החיצונית. אפשר לבחור קטגוריה באזור כדי להגיע לאיברים, לעצמות ולמבנים שמתחתיה." : selectedOrgan.summary}</p>
+            {selectedBodyRegion && isSurfaceOrRegionalStructure(selectedOrgan.meshName, selectedOrgan) && <div className="mt-2 grid grid-cols-2 gap-1.5" aria-label="קטגוריות מהירות באזור">
+              {STRUCTURE_CATEGORIES.filter(category => (selectedRegionCategories.get(category.id)?.length || 0) > 0).slice(0, 4).map(category => <button key={category.id} onClick={() => { setSelectedRegionCategory(category.id); setSidebarTab("info"); setSelectionPopupPosition(null); setShowOrganSidebar(true); }} className="flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-right text-[9px] font-bold" style={{ color: "var(--app-text)", borderColor: "var(--app-border)", background: "var(--app-elevated)" }}><span>{category.icon}</span><span className="flex-1">{category.labelHe}</span><small style={{ color: "var(--app-accent)" }}>{selectedRegionCategories.get(category.id)?.length}</small></button>)}
+            </div>}
+            <footer className="mt-3 grid grid-cols-2 gap-2">
+              <button onClick={() => { setSelectionPopupPosition(null); setSidebarTab("info"); setShowOrganSidebar(true); }} className="rounded-xl px-3 py-2 text-[11px] font-extrabold" style={{ color: "var(--app-accent-contrast)", background: "var(--app-accent)" }}>פתח מידע מלא</button>
+              <button onClick={() => { setSelectionPresentation("drawer"); setSelectionPopupPosition(null); setSidebarTab("info"); setShowOrganSidebar(true); }} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ color: "var(--app-text)", borderColor: "var(--app-border)", background: "var(--app-elevated)" }}>פתח תמיד במגירה</button>
+            </footer>
+          </section>
+        </>
+      )}
 
       {/* ═══ COMPARE SPLIT-SCREEN ═══ */}
       {compareMode && (

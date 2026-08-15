@@ -152,3 +152,51 @@ test("studio drawer closes once, stays on the RTL side, and persists pin or auto
   await expect(drawer).toBeHidden();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+test("studio drawer resizes from its handle and preserves the chosen width", async ({ page }) => {
+  await page.goto("/legacy?panel=models&tool=models");
+  const drawer = page.locator(".sidebar-panel");
+  const handle = page.getByRole("separator", { name: "שינוי רוחב מגירת הסטודיו" });
+  await expect(handle).toBeVisible();
+  const initial = await drawer.boundingBox();
+  const grip = await handle.boundingBox();
+  expect(initial).not.toBeNull();
+  expect(grip).not.toBeNull();
+  await page.mouse.move(grip!.x + grip!.width / 2, grip!.y + grip!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip!.x - 90, grip!.y + grip!.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(async () => Number(await drawer.getAttribute("data-width"))).toBeGreaterThan(initial!.width + 60);
+  const savedWidth = await drawer.getAttribute("data-width");
+  await page.reload();
+  await expect(drawer).toHaveAttribute("data-width", savedWidth!);
+  await page.getByRole("button", { name: "הצר מגירה" }).click();
+  await expect.poll(async () => Number(await drawer.getAttribute("data-width"))).toBe(Number(savedWidth) - 40);
+});
+
+test("a body click can open a lightweight information card beside the selected area", async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.addInitScript(() => localStorage.setItem("niflaot-selection-presentation", "popover"));
+  await page.goto("/legacy?panel=organs");
+  await expect(page.getByText(/\d+ קבוצות · \d+ מבנים/).first()).toBeVisible({ timeout: 60_000 });
+  const drawer = page.locator(".sidebar-panel");
+  if (await drawer.isVisible()) await page.getByRole("button", { name: "סגור מגירת סטודיו" }).click();
+  const canvas = page.locator("canvas").first();
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height * 0.48);
+  const card = page.getByTestId("anatomy-selection-popover");
+  await expect(card).toBeVisible({ timeout: 10_000 });
+  await expect(card).toContainText(/פתח מידע מלא/);
+  await expect(drawer).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(card).toBeHidden();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height * 0.48);
+  await expect(card).toBeVisible();
+  await card.getByRole("button", { name: "פתח מידע מלא" }).click();
+  await expect(drawer).toBeVisible();
+  await expect(card).toBeHidden();
+  expect(errors).toEqual([]);
+});
