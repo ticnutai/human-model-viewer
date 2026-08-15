@@ -37,6 +37,8 @@ import type { ModelRecord } from "@/components/ModelManager/types";
 import { loadCloudModels } from "@/lib/cloudModelRepository";
 import { useAppTheme } from "@/contexts/AppThemeContext";
 import { canonicalMeshKey, canonicalModelUrl } from "@/lib/anatomyModelIdentity";
+import { BODY_DIVISIONS, BODY_REGIONS, classifyBodyRegion, getBodyRegion, isSurfaceOrRegionalStructure } from "@/data/bodyRegionHierarchy";
+import type { BodyRegionId } from "@/data/bodyRegionHierarchy";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const cloudUrl = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
@@ -540,6 +542,8 @@ const ModelViewer = () => {
   const [useInteractive, setUseInteractive] = useState(false);
   const [atlasQuery, setAtlasQuery] = useState("");
   const [selectedSystem, setSelectedSystem] = useState("all");
+  const [atlasGrouping, setAtlasGrouping] = useState<"region" | "system">("region");
+  const [selectedBodyRegion, setSelectedBodyRegion] = useState<BodyRegionId | null>(null);
   const [lessonActive, setLessonActive] = useState(false);
   const [lessonIndex, setLessonIndex] = useState(0);
   const [apiTokenInput, setApiTokenInput] = useState("");
@@ -801,6 +805,40 @@ const ModelViewer = () => {
     return groups;
   }, [filteredAtlasEntries, lang]);
 
+  const regionalAtlasEntries = useMemo(() => {
+    const groups = new Map<BodyRegionId, [string, OrganDetail][]>();
+    const identities = new Map<BodyRegionId, Set<string>>();
+    BODY_REGIONS.forEach(region => groups.set(region.id, []));
+    BODY_REGIONS.forEach(region => identities.set(region.id, new Set()));
+    filteredAtlasEntries.forEach(([key, organ]) => {
+      const region = classifyBodyRegion(key, organ);
+      if (!region) return;
+      // The GLB can contain dozens of left/right or tessellated meshes with the
+      // same anatomical meaning. The atlas tree lists that concept once; the
+      // complete mesh inventory remains available in the scan/mapping tools.
+      const identity = `${getLocalizedOrganName(key, organ.name, lang)}|${getLocalizedOrganSystem(key, organ.system, lang)}`.toLocaleLowerCase(lang === "en" ? "en" : "he");
+      if (identities.get(region)?.has(identity)) return;
+      identities.get(region)?.add(identity);
+      groups.get(region)?.push([key, organ]);
+    });
+    return groups;
+  }, [filteredAtlasEntries, lang]);
+
+  const selectedRegionEntries = useMemo(() => {
+    if (!selectedBodyRegion) return [];
+    const seen = new Set<string>();
+    return Object.entries(enrichedOrganDetails)
+      .map(([key, organ]) => [key, { ...organ, meshName: key }] as [string, OrganDetail])
+      .filter(([key, organ]) => classifyBodyRegion(key, organ) === selectedBodyRegion)
+      .sort(([keyA, organA], [keyB, organB]) => Number(isSurfaceOrRegionalStructure(keyA, organA)) - Number(isSurfaceOrRegionalStructure(keyB, organB)))
+      .filter(([key, organ]) => {
+        const identity = `${getLocalizedOrganName(key, organ.name, lang)}|${getLocalizedOrganSystem(key, organ.system, lang)}`.toLocaleLowerCase(lang === "en" ? "en" : "he");
+        if (seen.has(identity)) return false;
+        seen.add(identity);
+        return true;
+      });
+  }, [enrichedOrganDetails, lang, selectedBodyRegion]);
+
   const toggleLayer = (layer: LayerType) => setVisibleLayers(prev => { const next = new Set(prev); if (next.has(layer)) next.delete(layer); else next.add(layer); return next; });
 
   useEffect(() => {
@@ -903,6 +941,7 @@ const ModelViewer = () => {
     const selectedKey = sourceMapping?.mesh_key || key;
 
     setSelectedOrgan({ ...organ, meshName: selectedKey });
+    setSelectedBodyRegion(classifyBodyRegion(key, organ));
     setSidebarTab("info");
     setShowOrganSidebar(true);
     setFocusSelected(true);
@@ -1007,6 +1046,7 @@ const ModelViewer = () => {
   const handleOrganSelect = useCallback((detail: OrganDetail) => {
     setAutoRotate(false);
     setSelectedOrgan(detail);
+    setSelectedBodyRegion(classifyBodyRegion(detail.meshName, detail));
     setExploredOrgans(prev => {
       const next = new Set(prev); next.add(detail.meshName || "");
       localStorage.setItem("anatomy-explored", JSON.stringify(Array.from(next)));
@@ -1333,6 +1373,10 @@ const ModelViewer = () => {
                   className="w-full rounded-xl px-3 py-2.5 text-xs outline-none transition-all"
                   style={{ background: "hsl(0 0% 98%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 60% 55% / 0.35)" }}
                 />
+                <div role="group" aria-label="אופן חלוקת האטלס" className="grid grid-cols-2 gap-1 rounded-xl p-1" style={{ background: "var(--app-elevated)", border: "1px solid var(--app-border)" }}>
+                  <button aria-pressed={atlasGrouping === "region"} onClick={() => setAtlasGrouping("region")} className="rounded-lg px-2 py-2 text-[11px] font-bold" style={{ background: atlasGrouping === "region" ? "var(--app-accent)" : "transparent", color: atlasGrouping === "region" ? "var(--app-accent-contrast)" : "var(--app-text)" }}>🧍 לפי אזור בגוף</button>
+                  <button aria-pressed={atlasGrouping === "system"} onClick={() => setAtlasGrouping("system")} className="rounded-lg px-2 py-2 text-[11px] font-bold" style={{ background: atlasGrouping === "system" ? "var(--app-accent)" : "transparent", color: atlasGrouping === "system" ? "var(--app-accent-contrast)" : "var(--app-text)" }}>🔬 לפי מערכת</button>
+                </div>
                 {atlasSystems.length > 0 && (
                   <select value={selectedSystem} onChange={e => setSelectedSystem(e.target.value)}
                     className="w-full rounded-xl px-3 py-2.5 text-xs outline-none transition-colors"
@@ -1343,8 +1387,37 @@ const ModelViewer = () => {
                   </select>
                 )}
 
-                {/* Grouped organ list */}
-                <div className="flex flex-col gap-4 mt-1">
+                {/* The same verified atlas can be navigated spatially or by physiological system. */}
+                {atlasGrouping === "region" ? (
+                  <div data-testid="body-region-hierarchy" className="flex flex-col gap-3 mt-1">
+                    {BODY_DIVISIONS.map((division, divisionIndex) => {
+                      const regions = BODY_REGIONS.filter(region => region.division === division.id);
+                      const count = regions.reduce((sum, region) => sum + (regionalAtlasEntries.get(region.id)?.length || 0), 0);
+                      return <details key={division.id} open={divisionIndex === 0 || Boolean(atlasQuery)} className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--app-border)", background: "var(--app-surface)" }}>
+                        <summary className="cursor-pointer list-none flex items-center gap-2 px-3 py-3 font-extrabold" style={{ color: "var(--app-text)" }}>
+                          <span className="text-xl">{division.icon}</span><span className="flex-1 text-sm">{lang === "en" ? division.labelEn : division.labelHe}</span><span className="text-[10px] rounded-full px-2 py-1" style={{ background: "color-mix(in srgb,var(--app-accent) 13%,transparent)", color: "var(--app-accent)" }}>{count} מבנים</span><span aria-hidden="true">⌄</span>
+                        </summary>
+                        <div className="px-2 pb-2 flex flex-col gap-2">
+                          {regions.map(region => {
+                            const entries = regionalAtlasEntries.get(region.id) || [];
+                            return <details key={region.id} open={region.id === "thorax" || selectedBodyRegion === region.id || Boolean(atlasQuery)} className="rounded-xl" style={{ background: "var(--app-elevated)", border: selectedBodyRegion === region.id ? "2px solid var(--app-accent)" : "1px solid var(--app-border)" }}>
+                              <summary className="cursor-pointer list-none flex items-center gap-2 px-3 py-2.5" onClick={() => setSelectedBodyRegion(region.id)}>
+                                <span className="text-lg">{region.icon}</span><span className="flex-1"><strong className="block text-xs" style={{ color: "var(--app-text)" }}>{lang === "en" ? region.labelEn : region.labelHe}</strong><small className="block mt-0.5" style={{ color: "var(--app-muted)" }}>{region.descriptionHe}</small></span><span className="text-[10px] font-bold" style={{ color: "var(--app-accent)" }}>{entries.length}</span>
+                              </summary>
+                              <div className="px-2 pb-2 flex flex-col gap-1.5">
+                                {entries.map(([key, organ]) => <button key={key} onClick={() => focusOrganByKey(key)} className="organ-card group w-full text-right" aria-current={selectedOrgan?.meshName === key ? "true" : undefined}>
+                                  <span className="text-lg shrink-0">{organ.icon}</span><span className="flex-1 min-w-0"><strong className="block text-xs truncate" style={{ color: "var(--app-text)" }}>{getLocalizedOrganName(key, organ.name, lang)}</strong><small className="block truncate" style={{ color: "var(--app-muted)" }}>{getLocalizedOrganSystem(key, organ.system, lang)}</small></span><span aria-hidden="true">←</span>
+                                </button>)}
+                                {entries.length === 0 && <p className="text-[10px] px-2 py-2" style={{ color: "var(--app-muted)" }}>אין מבנים תואמים במסנן הנוכחי</p>}
+                              </div>
+                            </details>;
+                          })}
+                        </div>
+                      </details>;
+                    })}
+                    {filteredAtlasEntries.length > 0 && Array.from(regionalAtlasEntries.values()).every(entries => entries.length === 0) && <div className="text-center text-xs py-5" style={{ color: "var(--app-muted)" }}>המבנים שלא סווגו עדיין זמינים בתצוגה לפי מערכת.</div>}
+                  </div>
+                ) : <div className="flex flex-col gap-4 mt-1">
                   {Object.entries(groupedAtlasEntries).map(([system, entries]) => (
                     <div key={system}>
                       <div className="flex items-center gap-2 mb-2 px-1">
@@ -1384,7 +1457,7 @@ const ModelViewer = () => {
                   {filteredAtlasEntries.length === 0 && (
                     <div className="text-center text-xs py-8" style={{ color: "hsl(220 15% 55%)" }}>לא נמצאו תוצאות</div>
                   )}
-                </div>
+                </div>}
               </div>
             )}
             {sidebarTab === "gallery" && (
@@ -1409,6 +1482,20 @@ const ModelViewer = () => {
                 </div>
                 <div className="h-px" style={{ background: "hsl(43 60% 55% / 0.25)" }} />
                 <p className="text-xs leading-relaxed" style={{ color: "var(--app-text)" }}>{selectedOrgan.summary}</p>
+                {selectedBodyRegion && (() => {
+                  const region = getBodyRegion(selectedBodyRegion);
+                  if (!region) return null;
+                  const surfaceHit = isSurfaceOrRegionalStructure(selectedOrgan.meshName, selectedOrgan);
+                  return <section data-testid="selected-region-navigation" aria-label={`מבנים באזור ${region.labelHe}`} className="rounded-2xl p-3 flex flex-col gap-2.5" style={{ background: "color-mix(in srgb,var(--app-accent) 7%,var(--app-surface))", border: "1px solid color-mix(in srgb,var(--app-accent) 38%,var(--app-border))" }}>
+                    <header className="flex items-start gap-2"><span className="text-2xl">{region.icon}</span><div className="flex-1"><strong className="block text-sm" style={{ color: "var(--app-text)" }}>{lang === "en" ? region.labelEn : region.labelHe}</strong><small className="block leading-relaxed" style={{ color: "var(--app-muted)" }}>{surfaceHit ? "לחצת על המעטפת החיצונית. היא משמשת כאן כשער לאזור — לא כזיהוי שגוי של איבר פנימי." : region.descriptionHe}</small></div></header>
+                    <div className="flex items-center justify-between"><strong className="text-[11px]" style={{ color: "var(--app-text)" }}>מבנים עמוקים ומקושרים באזור</strong><span className="text-[10px] font-bold" style={{ color: "var(--app-accent)" }}>{selectedRegionEntries.length}</span></div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {selectedRegionEntries.slice(0, 12).map(([key, organ]) => <button key={key} onClick={() => focusOrganByKey(key)} className="rounded-xl px-2 py-2 text-right flex items-center gap-1.5" style={{ background: "var(--app-elevated)", border: "1px solid var(--app-border)", color: "var(--app-text)" }}><span>{organ.icon}</span><span className="text-[10px] font-bold truncate">{getLocalizedOrganName(key, organ.name, lang)}</span></button>)}
+                    </div>
+                    {selectedRegionEntries.length === 0 && <p className="text-[10px]" style={{ color: "var(--app-muted)" }}>אין כרגע מבנה מאומת נוסף באזור הזה. לא יוצג ניחוש אנטומי.</p>}
+                    <button onClick={() => { setAtlasGrouping("region"); setSelectedSystem("all"); setAtlasQuery(""); setSidebarTab("organs"); }} className="rounded-xl px-3 py-2 text-xs font-extrabold" style={{ background: "var(--app-accent)", color: "var(--app-accent-contrast)" }}>פתח את כל {region.labelHe} בהיררכיית הגוף ←</button>
+                  </section>;
+                })()}
                 <section aria-label="כלי עבודה לאיבר הנבחר" className="legacy-unified-tools">
                   <header><span>🩻</span><div><strong>כלי עבודה</strong><small>הפעולות חלות על {selectedOrgan.name}</small></div>{hiddenMeshes.size > 0 && <em>{hiddenMeshes.size} מוסתרים</em>}</header>
                   <div className="legacy-unified-actions">

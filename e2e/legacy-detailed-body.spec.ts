@@ -69,8 +69,25 @@ test("skin and limb structures never inherit unrelated organ mappings", async ({
   await report.locator(".organ-card").first().click();
   await expect(sidebar).toContainText("עור אזור המסטואיד");
   await expect(sidebar).toContainText("מערכת המעטפת");
+  await expect(page.getByTestId("selected-region-navigation")).toContainText("ראש");
+  await expect(page.getByTestId("selected-region-navigation")).toContainText("לחצת על המעטפת החיצונית");
   await expect(sidebar).not.toContainText("המעי הדק");
   expect(errors).toEqual([]);
+});
+
+test("atlas offers a stable body-region hierarchy alongside system navigation", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/legacy?panel=organs");
+  const hierarchy = page.getByTestId("body-region-hierarchy");
+  await expect(hierarchy).toBeVisible({ timeout: 60_000 });
+  await expect(hierarchy).toContainText("פלג גוף עליון");
+  await expect(hierarchy).toContainText("פלג גוף תחתון");
+  await expect(hierarchy).toContainText("בית החזה");
+  await expect(hierarchy.locator(".organ-card").filter({ hasText: "מסתמי הלב" }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "לפי מערכת" }).click();
+  await expect(page.getByRole("button", { name: "לפי מערכת" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("מערכת הנשימה", { exact: true }).first()).toBeVisible();
 });
 
 test("clicking an atlas organ isolates its real mesh instead of only selecting the row", async ({ page }) => {
