@@ -1,4 +1,5 @@
 import { MEDIA_TYPES, type SortMode } from "./types";
+import { AppIcon, resolveAppIcon } from "@/components/ui/AppIcon";
 
 interface MediaFilterProps {
   activeMediaType: string | null;
@@ -31,7 +32,7 @@ export default function MediaFilter({
               border: `1px solid ${isActive ? "hsl(43 78% 47%)" : "hsl(43 60% 55% / 0.3)"}`,
             }}
           >
-            {mt.icon} {mt.label}
+            <AppIcon name={resolveAppIcon(`${mt.icon} ${mt.label}`, "file")} tone={isActive ? "inverse" : "auto"} /> {mt.label}
             {cnt > 0 && (
               <span className="text-[9px] px-1 py-0 h-3.5 min-w-[14px] rounded-full inline-flex items-center justify-center font-bold" style={{
                 background: isActive ? "hsl(0 0% 100% / 0.3)" : "hsl(220 20% 93%)",
@@ -54,7 +55,7 @@ export default function MediaFilter({
           border: `1px solid ${filterMash ? "hsl(43 78% 47%)" : "hsl(43 60% 55% / 0.3)"}`,
         }}
       >
-        🧬 MASH
+        <AppIcon name="dna" /> MASH
         {filterMash && (
           <span className="text-[9px] px-1 py-0 h-3.5 rounded-full font-bold" style={{ background: "hsl(43 78% 47% / 0.2)", color: "hsl(43 78% 40%)" }}>{mashCount}</span>
         )}

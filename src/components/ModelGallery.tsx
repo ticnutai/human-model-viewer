@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { getOrganInfoForMesh, type MeshOrganInfo } from "./ModelManager/utils";
 import { loadCloudLibrary } from "@/lib/cloudModelRepository";
+import { AppIcon, resolveAppIcon } from "@/components/ui/AppIcon";
 
 type GalleryModel = {
   id: string;
@@ -69,7 +70,7 @@ function OrganChip({ info }: { info: MeshOrganInfo }) {
   return (
     <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[8px] font-bold"
       style={{ background: "hsl(43 78% 47% / 0.1)", color: "hsl(43 78% 35%)", border: "1px solid hsl(43 60% 55% / 0.25)" }}>
-      <span>{info.icon}</span>
+      <AppIcon name={resolveAppIcon(`${info.icon} ${info.system} ${info.hebrewName}`, "organs")} />
       <span>{info.hebrewName}</span>
     </span>
   );
@@ -81,7 +82,7 @@ function OrganDetailCard({ info }: { info: MeshOrganInfo }) {
     <div className="rounded-lg px-2.5 py-2 flex flex-col gap-0.5"
       style={{ background: "hsl(43 78% 47% / 0.06)", border: "1px solid hsl(43 60% 55% / 0.2)" }}>
       <div className="flex items-center gap-1.5">
-        <span className="text-base">{info.icon}</span>
+        <AppIcon name={resolveAppIcon(`${info.icon} ${info.system} ${info.hebrewName}`, "organs")} />
         <span className="text-[11px] font-bold" style={{ color: "hsl(220 40% 13%)" }}>{info.hebrewName}</span>
         <span className="text-[9px]" style={{ color: "hsl(220 15% 55%)" }}>{info.englishName}</span>
       </div>
@@ -228,13 +229,13 @@ export default function ModelGallery({ onSelectModel, currentModelUrl }: ModelGa
       {/* Stats */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold" style={{ color: "hsl(220 40% 13%)" }}>
-            🎬 {filtered.length} מודלים
+          <span className="text-[11px] font-bold flex items-center gap-1" style={{ color: "hsl(220 40% 13%)" }}>
+            <AppIcon name="gallery" /> {filtered.length} מודלים
           </span>
           {totalOrgans > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold"
               style={{ background: "hsl(145 50% 45% / 0.1)", color: "hsl(145 50% 30%)" }}>
-              🫀 {totalOrgans} איברים זוהו סה״כ
+              <AppIcon name="heart" /> {totalOrgans} איברים זוהו סה״כ
             </span>
           )}
         </div>
@@ -249,7 +250,7 @@ export default function ModelGallery({ onSelectModel, currentModelUrl }: ModelGa
                 background: viewMode === vm.id ? "hsl(43 78% 47%)" : "transparent",
                 color: viewMode === vm.id ? "hsl(220 40% 13%)" : "hsl(220 15% 55%)",
               }}
-            >{vm.icon}</button>
+            ><AppIcon name={resolveAppIcon(`${vm.icon} ${vm.label}`, "gallery")} tone={viewMode === vm.id ? "inverse" : "auto"} /></button>
           ))}
         </div>
       </div>
@@ -282,7 +283,7 @@ export default function ModelGallery({ onSelectModel, currentModelUrl }: ModelGa
               background: selectedCategory === cat.id ? "hsl(43 78% 47%)" : "hsl(220 20% 94%)",
               color: selectedCategory === cat.id ? "hsl(220 40% 13%)" : "hsl(220 15% 55%)",
             }}
-          >{cat.icon} {cat.name}</button>
+          ><AppIcon name={resolveAppIcon(`${cat.icon} ${cat.name}`, "library")} tone={selectedCategory === cat.id ? "inverse" : "auto"} /> {cat.name}</button>
         ))}
       </div>
 
@@ -414,21 +415,21 @@ export default function ModelGallery({ onSelectModel, currentModelUrl }: ModelGa
                     {m.thumbnail_url ? (
                       <img src={m.thumbnail_url} alt="" className="w-full h-full object-cover" loading="lazy" />
                     ) : (
-                      <span className="text-xl">🧬</span>
+                      <AppIcon name="dna" badge />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[11px] font-bold truncate" style={{ color: "hsl(220 40% 13%)" }}>{m.hebrew_name || m.display_name}</div>
                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      {meshCount(m) > 0 && <span className="text-[8px]" style={{ color: "hsl(43 78% 40%)" }}>🧩 {meshCount(m)}</span>}
-                      {organs.length > 0 && <span className="text-[8px]" style={{ color: "hsl(145 50% 35%)" }}>🫀 {organs.length}</span>}
+                      {meshCount(m) > 0 && <span className="text-[8px] flex items-center gap-0.5" style={{ color: "hsl(43 78% 40%)" }}><AppIcon name="layers" /> {meshCount(m)}</span>}
+                      {organs.length > 0 && <span className="text-[8px] flex items-center gap-0.5" style={{ color: "hsl(145 50% 35%)" }}><AppIcon name="heart" /> {organs.length}</span>}
                       <span className="text-[8px]" style={{ color: "hsl(220 15% 60%)" }}>{formatSize(m.file_size)}</span>
                     </div>
                     {organs.length > 0 && (
                       <div className="flex gap-0.5 flex-wrap mt-1">
                         {organs.slice(0, 5).map(({ info }) => (
                           <span key={info.organKey} className="text-[7px] px-1 rounded" style={{ background: "hsl(43 78% 47% / 0.08)", color: "hsl(43 78% 35%)" }}>
-                            {info.icon} {info.hebrewName}
+                            <AppIcon name={resolveAppIcon(`${info.icon} ${info.system} ${info.hebrewName}`, "organs")} /> {info.hebrewName}
                           </span>
                         ))}
                         {organs.length > 5 && <span className="text-[7px]" style={{ color: "hsl(220 15% 55%)" }}>+{organs.length - 5}</span>}

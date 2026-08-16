@@ -79,6 +79,16 @@ export const getThemeContrastChecks = (theme: AppTheme) => {
   };
 };
 
+export const getThemeIconContrast = (theme: AppTheme) => {
+  const icon = relativeLuminance(theme.background) > 0.45 ? "#0b356d" : "#e8b83e";
+  return {
+    color: icon,
+    background: contrastRatio(icon, theme.background),
+    surface: contrastRatio(icon, theme.surface),
+    elevated: contrastRatio(icon, theme.elevated),
+  };
+};
+
 export function applyThemeToDocument(theme: AppTheme) {
   const root = document.documentElement;
   const vars: Record<string, string> = {
@@ -86,6 +96,9 @@ export function applyThemeToDocument(theme: AppTheme) {
     "--app-text": theme.text, "--app-muted": theme.muted, "--app-accent": theme.accent,
     "--app-accent-alt": theme.accentAlt, "--app-border": theme.border, "--app-canvas": theme.canvas,
     "--app-on-accent": contrast(theme.accent), "--app-on-accent-alt": contrast(theme.accentAlt),
+    "--app-icon-gold": contrastRatio("#e8b83e", theme.background) >= 3 ? "#e8b83e" : "#805d00",
+    "--app-icon-navy": contrastRatio("#0b356d", theme.background) >= 3 ? "#0b356d" : "#d8e8ff",
+    "--app-icon-auto": relativeLuminance(theme.background) > 0.45 ? "#0b356d" : "#e8b83e",
     "--background": hexToHsl(theme.background), "--foreground": hexToHsl(theme.text),
     "--card": hexToHsl(theme.surface), "--card-foreground": hexToHsl(theme.text),
     "--popover": hexToHsl(theme.surface), "--popover-foreground": hexToHsl(theme.text),

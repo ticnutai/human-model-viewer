@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Cuboid, HeartPulse, Layers3, Pin, PinOff, ScanSearch } from "lucide-react";
+import { Pin, PinOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ThemeStudio from "@/components/ThemeStudio";
+import { AppIcon, type AppIconName } from "@/components/ui/AppIcon";
 
 const PIN_KEY = "niflaot-navigation-pinned";
 const primaryItems = [
-  { to: "/", label: "אטלס מקצועי", description: "איברים, ידע ומסעות למידה", icon: HeartPulse, end: true },
-  { to: "/body-builder", label: "בונה הגוף", description: "הרכבת שכבות במיקום האנטומי", icon: Layers3, badge: "חדש" },
-  { to: "/media-lab", label: "מעבדת הגוף החי", description: "חתכים, MRI, וידאו ומסע לתא", icon: ScanSearch, badge: "חדש" },
-  { to: "/legacy?panel=models&tool=models", label: "סטודיו GLB", description: "ספרייה, ניתוח, מיפוי וחתך", icon: Cuboid, panel: "studio" },
+  { to: "/", label: "אטלס מקצועי", description: "איברים, ידע ומסעות למידה", icon: "heart" as AppIconName, end: true },
+  { to: "/body-builder", label: "בונה הגוף", description: "הרכבת שכבות במיקום האנטומי", icon: "layers" as AppIconName, badge: "חדש" },
+  { to: "/media-lab", label: "מעבדת הגוף החי", description: "חתכים, MRI, וידאו ומסע לתא", icon: "scan" as AppIconName, badge: "חדש" },
+  { to: "/legacy?panel=models&tool=models", label: "סטודיו GLB", description: "ספרייה, ניתוח, מיפוי וחתך", icon: "library" as AppIconName, panel: "studio" },
 ] as const;
 
 export function useNavigationPinned() {
@@ -37,10 +38,9 @@ export default function AppNavigationSidebar() {
     ? location.pathname === "/legacy"
     : item.end ? location.pathname === item.to : location.pathname.startsWith(item.to);
   const renderLink = (item: typeof primaryItems[number]) => {
-    const Icon = item.icon;
     const active = isActive(item);
     return <NavLink key={item.to} to={item.to} className={cn("app-nav-item", active && "is-active")} title={!expanded ? item.label : undefined} aria-current={active ? "page" : undefined}>
-      <span className="app-nav-icon"><Icon /></span>
+      <span className="app-nav-icon"><AppIcon name={item.icon} /></span>
       <span className="app-nav-copy"><strong>{item.label}</strong>{"description" in item && <small>{item.description}</small>}</span>
       {"badge" in item && <em>{item.badge}</em>}
     </NavLink>;
@@ -54,7 +54,7 @@ export default function AppNavigationSidebar() {
     <div className="app-nav-utilities" aria-label="הגדרות הסרגל">
       <div className="app-nav-theme"><ThemeStudio /></div>
       <div className="app-nav-mode"><button onClick={changePinned} aria-label={pinned ? "הפעל הסתרה אוטומטית" : "הצמד סרגל"} aria-pressed={pinned}>
-        {pinned ? <PinOff /> : <Pin />}<span><strong>{pinned ? "הסרגל מוצמד" : "הסתרה אוטומטית"}</strong><small>{pinned ? "לחץ כדי לחזור לסרגל קומפקטי" : "לחץ כדי להשאיר את הסרגל פתוח"}</small></span>
+        <span className="app-icon">{pinned ? <PinOff /> : <Pin />}</span><span><strong>{pinned ? "הסרגל מוצמד" : "הסתרה אוטומטית"}</strong><small>{pinned ? "לחץ כדי לחזור לסרגל קומפקטי" : "לחץ כדי להשאיר את הסרגל פתוח"}</small></span>
       </button></div>
     </div>
   </aside>;

@@ -46,6 +46,7 @@ import { anatomyFitDistance } from "@/lib/anatomyCamera";
 import type { AnatomyBounds } from "@/lib/anatomyCamera";
 import { BODY_DIVISIONS, BODY_REGIONS, STRUCTURE_CATEGORIES, classifyBodyRegion, classifyStructureCategory, getBodyRegion, isSurfaceOrRegionalStructure } from "@/data/bodyRegionHierarchy";
 import type { AnatomyStructureCategoryId, BodyRegionId } from "@/data/bodyRegionHierarchy";
+import { AppIcon, resolveAppIcon, type AppIconName } from "@/components/ui/AppIcon";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const cloudUrl = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
@@ -494,8 +495,8 @@ function CameraController({ targetPosition, targetLookAt, focusBounds, autoRotat
   return <OrbitControls ref={controlsRef as never} makeDefault enableDamping dampingFactor={0.07} minDistance={0.25} maxDistance={60} zoomSpeed={0.8} zoomToCursor screenSpacePanning autoRotate={autoRotate} autoRotateSpeed={0.5} />;
 }
 
-const IconBtn = ({ onClick, active, icon, title, size = 40, className: extraClass }: { onClick: () => void; active?: boolean; icon: string; title?: string; size?: number; t?: unknown; className?: string }) => (
-  <button onClick={onClick} title={title} className={`tb-btn ${active ? "active" : ""} ${extraClass || ""}`} style={{ width: size, height: size, fontSize: size * 0.42 }}>{icon}</button>
+const IconBtn = ({ onClick, active, icon, title, size = 40, className: extraClass }: { onClick: () => void; active?: boolean; icon: AppIconName | string; title?: string; size?: number; t?: unknown; className?: string }) => (
+  <button onClick={onClick} title={title} aria-label={title} className={`tb-btn ${active ? "active" : ""} ${extraClass || ""}`} style={{ width: size, height: size, fontSize: size * 0.42 }}><AppIcon name={icon} /></button>
 );
 
 // ── Layer definitions with icons ──
@@ -1323,14 +1324,14 @@ const ModelViewer = () => {
   }, [desktopSidebarWidth, isMobile, isRTL]);
   const sidebarTitle = sidebarTab === "models" ? "ספרייה ומיפוי" : sidebarTab === "gallery" ? "גלריית מודלים" : sidebarTab === "analysis" ? "ניתוח מודל" : sidebarTab === "sources" ? "מרכז מקורות" : sidebarTab === "info" ? "מידע אנטומי" : "אטלס איברים";
   const currentTool = new URLSearchParams(location.search).get("tool") || "models";
-  const studioTabs = [
-    { label: "איברים", icon: "🫀", to: "/legacy?panel=organs", active: sidebarTab === "organs" },
-    { label: "ספרייה", icon: "📦", to: "/legacy?panel=models&tool=models", active: sidebarTab === "models" && currentTool === "models" },
-    { label: "גלריה", icon: "🖼️", to: "/legacy?panel=gallery", active: sidebarTab === "gallery" },
-    { label: "ניתוח", icon: "🔬", to: "/legacy?panel=analysis", active: sidebarTab === "analysis" },
-    { label: "מיפוי", icon: "🗺️", to: "/legacy?panel=models&tool=meshmap", active: sidebarTab === "models" && currentTool === "meshmap" },
-    { label: "ידע", icon: "📋", to: "/legacy?panel=models&tool=allmappings", active: sidebarTab === "models" && currentTool === "allmappings" },
-    { label: "מקורות", icon: "🌐", to: "/legacy?panel=sources", active: sidebarTab === "sources" },
+  const studioTabs: Array<{ label: string; icon: AppIconName; to: string; active: boolean }> = [
+    { label: "איברים", icon: "heart", to: "/legacy?panel=organs", active: sidebarTab === "organs" },
+    { label: "ספרייה", icon: "library", to: "/legacy?panel=models&tool=models", active: sidebarTab === "models" && currentTool === "models" },
+    { label: "גלריה", icon: "gallery", to: "/legacy?panel=gallery", active: sidebarTab === "gallery" },
+    { label: "ניתוח", icon: "microscope", to: "/legacy?panel=analysis", active: sidebarTab === "analysis" },
+    { label: "מיפוי", icon: "map", to: "/legacy?panel=models&tool=meshmap", active: sidebarTab === "models" && currentTool === "meshmap" },
+    { label: "ידע", icon: "file", to: "/legacy?panel=models&tool=allmappings", active: sidebarTab === "models" && currentTool === "allmappings" },
+    { label: "מקורות", icon: "source", to: "/legacy?panel=sources", active: sidebarTab === "sources" },
   ];
   const btnSz = isMobile ? 36 : 42;
 
@@ -1354,8 +1355,8 @@ const ModelViewer = () => {
           ))}
         </div>
         <div className="absolute flex gap-2" style={{ [isRTL ? "left" : "right"]: isMobile ? 8 : 16, top: "50%", transform: "translateY(-50%)" }}>
-          <IconBtn icon="🧭" active={showViewPopup} onClick={() => setShowViewPopup(v => !v)} t={t} size={isMobile ? 32 : 36} title="תצוגות" />
-          <IconBtn icon="🫀" active={showOrganSidebar} onClick={() => setShowOrganSidebar(s => !s)} t={t} size={isMobile ? 32 : 36} title="אטלס" />
+          <IconBtn icon="compass" active={showViewPopup} onClick={() => setShowViewPopup(v => !v)} t={t} size={isMobile ? 32 : 36} title="תצוגות" />
+          <IconBtn icon="heart" active={showOrganSidebar} onClick={() => setShowOrganSidebar(s => !s)} t={t} size={isMobile ? 32 : 36} title="אטלס" />
         </div>
       </header>
 
@@ -1365,7 +1366,7 @@ const ModelViewer = () => {
           {views.map(view => (
             <button key={view.key} onClick={() => { handleViewChange(view.position); setShowViewPopup(false); }}
               className="w-full flex items-center gap-2 rounded-md px-3 py-2 text-xs text-foreground hover:bg-accent transition-colors"
-            ><span>{view.icon}</span><span>{view.label}</span></button>
+            ><AppIcon name={resolveAppIcon(`${view.icon} ${view.label}`, "compass")} /><span>{view.label}</span></button>
           ))}
         </div>
       )}
@@ -1405,7 +1406,7 @@ const ModelViewer = () => {
                     active ? "bg-primary/15 text-foreground border-primary/40" : "bg-transparent text-muted-foreground border-border/50 hover:border-border"
                   }`}
                 >
-                  <span>{layer.icon}</span>
+                  <AppIcon name={resolveAppIcon(`${layer.icon} ${layer.label}`, "layers")} />
                   <span className="flex-1 text-start">{lang === "en" ? layer.labelEn : layer.label}</span>
                   <span className={`text-[10px] ${active ? "text-primary" : "text-muted-foreground/50"}`}>{active ? "✓" : "✕"}</span>
                 </button>
@@ -1421,7 +1422,7 @@ const ModelViewer = () => {
               const active = visibleLayers.has(layer.key);
               return (
                 <div key={`opacity-${layer.key}`} className={`flex items-center gap-1.5 ${!active ? "opacity-30 pointer-events-none" : ""}`}>
-                  <span className="text-[10px] w-4">{layer.icon}</span>
+                  <AppIcon name={resolveAppIcon(`${layer.icon} ${layer.label}`, "layers")} />
                   <input type="range" min={5} max={100} value={Math.round(layerOpacities[layer.key] * 100)}
                     onChange={e => setLayerOpacities(prev => ({ ...prev, [layer.key]: Number(e.target.value) / 100 }))}
                     className="flex-1 h-1" style={{ accentColor: layer.color }}
@@ -1465,7 +1466,7 @@ const ModelViewer = () => {
             ] as const).map(p => (
               <button key={p.id} onClick={() => applyViewerPreset(p.id)}
                 className="flex items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-semibold border border-border bg-transparent text-muted-foreground hover:border-primary/50 hover:text-foreground cursor-pointer transition-all"
-              >{p.icon} {p.label}</button>
+              ><AppIcon name={resolveAppIcon(`${p.icon} ${p.label}`, "eye")} /> {p.label}</button>
             ))}
           </div>
 
@@ -1534,7 +1535,7 @@ const ModelViewer = () => {
           {/* Header */}
           <div className="shrink-0 px-4 pt-4 pb-3" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-extrabold legacy-library-title">🧬 סטודיו GLB · {sidebarTitle}</span>
+              <span className="text-sm font-extrabold legacy-library-title flex items-center gap-2"><AppIcon name="dna" /> סטודיו GLB · {sidebarTitle}</span>
               <div className="flex items-center gap-1">
                 {!isMobile && <div className="flex items-center rounded-lg border" style={{ borderColor: "var(--app-border)", background: "var(--app-elevated)" }}><button aria-label="הצר מגירה" onClick={() => changeSidebarWidth(-40)} disabled={desktopSidebarWidth <= 300} className="px-2 py-1 text-sm disabled:opacity-35" style={{ color: "var(--app-text)" }}>−</button><span className="min-w-8 text-center text-[9px]" style={{ color: "var(--app-muted)" }}>{desktopSidebarWidth}</span><button aria-label="הרחב מגירה" onClick={() => changeSidebarWidth(40)} disabled={desktopSidebarWidth >= 680} className="px-2 py-1 text-sm disabled:opacity-35" style={{ color: "var(--app-text)" }}>+</button></div>}
                 {!isMobile && <button onClick={() => setSelectionPresentation(value => value === "popover" ? "drawer" : "popover")} aria-label="אופן פתיחת מידע בלחיצה" aria-pressed={selectionPresentation === "popover"} className="rounded-lg border px-2 py-1 text-[10px] font-bold" style={{ color: selectionPresentation === "popover" ? "var(--app-accent)" : "var(--app-muted)", borderColor: "var(--app-border)", background: "var(--app-elevated)" }}>{selectionPresentation === "popover" ? "💬 כרטיס" : "▤ מגירה"}</button>}
@@ -1543,22 +1544,23 @@ const ModelViewer = () => {
               </div>
             </div>
             <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>
-              <span title="זהו מונה שימוש: כמה רשומות פתחת, ולא כמה Meshes נסרקו">👁️ {exploredOrgans.size} נפתחו</span>
-              <span title="מספר רשומות הידע והמיפוי הזמינות בספרייה">📚 {Object.keys(enrichedOrganDetails).length} רשומות ידע</span>
-              <span style={{ color: "hsl(43 78% 42%)" }}>⭐ {favorites.size}</span>
+              <span className="flex items-center gap-1" title="זהו מונה שימוש: כמה רשומות פתחת, ולא כמה Meshes נסרקו"><AppIcon name="eye" /> {exploredOrgans.size} נפתחו</span>
+              <span className="flex items-center gap-1" title="מספר רשומות הידע והמיפוי הזמינות בספרייה"><AppIcon name="library" /> {Object.keys(enrichedOrganDetails).length} רשומות ידע</span>
+              <span className="flex items-center gap-1" style={{ color: "hsl(43 78% 42%)" }}><AppIcon name="star" /> {favorites.size}</span>
             </div>
             <div className="h-2 rounded-full overflow-hidden" aria-label="התקדמות פתיחת רשומות ידע" style={{ background: "hsl(220 20% 93%)" }}>
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(enrichedOrganDetails).length, 1) * 100)}%`, background: "linear-gradient(90deg, hsl(43 78% 47%), hsl(43 78% 55%))" }} />
             </div>
             <div data-testid="current-model-mapping-coverage" className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[9px]" style={{ color: "var(--app-muted)" }}>
               <span>מודל נוכחי: {glbScanResult?.length || 0} Meshes</span>
-              <span>🔗 {currentModelMappingStats.mapped} ממופים</span>
+              <span className="flex items-center gap-1"><AppIcon name="map" /> {currentModelMappingStats.mapped} ממופים</span>
               <span>✓ {currentModelMappingStats.verified} מזוהים/מאומתים</span>
             </div>
             {!isMobile && <nav aria-label="כלי סטודיו GLB" className="grid grid-cols-4 gap-1 mt-3">
               {studioTabs.map(tab => <button key={tab.to} onClick={() => navigate(tab.to)} aria-current={tab.active ? "page" : undefined}
-                className={`rounded-lg border px-1.5 py-1.5 text-[9px] font-bold transition-colors ${tab.active ? "border-primary bg-primary/15 text-primary" : "border-border bg-transparent text-muted-foreground hover:border-primary/50"}`}>
-                <span className="block text-xs" aria-hidden="true">{tab.icon}</span>{tab.label}
+                className="rounded-lg border px-1.5 py-1.5 text-[9px] font-bold transition-colors"
+                style={{ borderColor: tab.active ? "var(--app-accent)" : "var(--app-border)", background: tab.active ? "color-mix(in srgb,var(--app-accent) 12%,var(--app-surface))" : "transparent", color: tab.active ? "var(--app-accent)" : "var(--app-muted)" }}>
+                <AppIcon name={tab.icon} className="mx-auto mb-0.5" />{tab.label}
               </button>)}
             </nav>}
           </div>
@@ -1573,8 +1575,8 @@ const ModelViewer = () => {
                   style={{ background: "hsl(0 0% 98%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 60% 55% / 0.35)" }}
                 />
                 <div role="group" aria-label="אופן חלוקת האטלס" className="grid grid-cols-2 gap-1 rounded-xl p-1" style={{ background: "var(--app-elevated)", border: "1px solid var(--app-border)" }}>
-                  <button aria-pressed={atlasGrouping === "region"} onClick={() => setAtlasGrouping("region")} className="rounded-lg px-2 py-2 text-[11px] font-bold" style={{ background: atlasGrouping === "region" ? "var(--app-accent)" : "transparent", color: atlasGrouping === "region" ? "var(--app-accent-contrast)" : "var(--app-text)" }}>🧍 לפי אזור בגוף</button>
-                  <button aria-pressed={atlasGrouping === "system"} onClick={() => setAtlasGrouping("system")} className="rounded-lg px-2 py-2 text-[11px] font-bold" style={{ background: atlasGrouping === "system" ? "var(--app-accent)" : "transparent", color: atlasGrouping === "system" ? "var(--app-accent-contrast)" : "var(--app-text)" }}>🔬 לפי מערכת</button>
+                  <button aria-pressed={atlasGrouping === "region"} onClick={() => setAtlasGrouping("region")} className="rounded-lg px-2 py-2 text-[11px] font-bold flex items-center justify-center gap-1.5" style={{ background: atlasGrouping === "region" ? "var(--app-accent)" : "transparent", color: atlasGrouping === "region" ? "var(--app-on-accent)" : "var(--app-text)" }}><AppIcon name="person" tone={atlasGrouping === "region" ? "inverse" : "auto"} /> לפי אזור בגוף</button>
+                  <button aria-pressed={atlasGrouping === "system"} onClick={() => setAtlasGrouping("system")} className="rounded-lg px-2 py-2 text-[11px] font-bold flex items-center justify-center gap-1.5" style={{ background: atlasGrouping === "system" ? "var(--app-accent)" : "transparent", color: atlasGrouping === "system" ? "var(--app-on-accent)" : "var(--app-text)" }}><AppIcon name="microscope" tone={atlasGrouping === "system" ? "inverse" : "auto"} /> לפי מערכת</button>
                 </div>
                 {atlasSystems.length > 0 && (
                   <select value={selectedSystem} onChange={e => setSelectedSystem(e.target.value)}
@@ -1582,7 +1584,7 @@ const ModelViewer = () => {
                     style={{ background: "hsl(0 0% 98%)", color: "hsl(220 40% 13%)", border: "1px solid hsl(43 60% 55% / 0.35)" }}
                   >
                     <option value="all">{lang === "en" ? "All Systems" : "כל המערכות"}</option>
-                    {atlasSystems.map(s => <option key={s} value={s}>{SYSTEM_ICONS[s] || "🔬"} {s}</option>)}
+                    {atlasSystems.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 )}
 
@@ -1594,18 +1596,18 @@ const ModelViewer = () => {
                       const count = regions.reduce((sum, region) => sum + (regionalAtlasEntries.get(region.id)?.length || 0), 0);
                       return <details key={division.id} open={divisionIndex === 0 || Boolean(atlasQuery)} className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--app-border)", background: "var(--app-surface)" }}>
                         <summary className="cursor-pointer list-none flex items-center gap-2 px-3 py-3 font-extrabold" style={{ color: "var(--app-text)" }}>
-                          <span className="text-xl">{division.icon}</span><span className="flex-1 text-sm">{lang === "en" ? division.labelEn : division.labelHe}</span><span className="text-[10px] rounded-full px-2 py-1" style={{ background: "color-mix(in srgb,var(--app-accent) 13%,transparent)", color: "var(--app-accent)" }}>{count} מבנים</span><span aria-hidden="true">⌄</span>
+                          <AppIcon name={resolveAppIcon(`${division.icon} ${division.labelHe}`, "person")} /><span className="flex-1 text-sm">{lang === "en" ? division.labelEn : division.labelHe}</span><span className="text-[10px] rounded-full px-2 py-1" style={{ background: "color-mix(in srgb,var(--app-accent) 13%,transparent)", color: "var(--app-accent)" }}>{count} מבנים</span><span aria-hidden="true">⌄</span>
                         </summary>
                         <div className="px-2 pb-2 flex flex-col gap-2">
                           {regions.map(region => {
                             const entries = regionalAtlasEntries.get(region.id) || [];
                             return <details key={region.id} open={region.id === "thorax" || selectedBodyRegion === region.id || Boolean(atlasQuery)} className="rounded-xl" style={{ background: "var(--app-elevated)", border: selectedBodyRegion === region.id ? "2px solid var(--app-accent)" : "1px solid var(--app-border)" }}>
                               <summary className="cursor-pointer list-none flex items-center gap-2 px-3 py-2.5" onClick={() => setSelectedBodyRegion(region.id)}>
-                                <span className="text-lg">{region.icon}</span><span className="flex-1"><strong className="block text-xs" style={{ color: "var(--app-text)" }}>{lang === "en" ? region.labelEn : region.labelHe}</strong><small className="block mt-0.5" style={{ color: "var(--app-muted)" }}>{region.descriptionHe}</small></span><span className="text-[10px] font-bold" style={{ color: "var(--app-accent)" }}>{entries.length}</span>
+                                <AppIcon name={resolveAppIcon(`${region.icon} ${region.labelHe}`, "person")} /><span className="flex-1"><strong className="block text-xs" style={{ color: "var(--app-text)" }}>{lang === "en" ? region.labelEn : region.labelHe}</strong><small className="block mt-0.5" style={{ color: "var(--app-muted)" }}>{region.descriptionHe}</small></span><span className="text-[10px] font-bold" style={{ color: "var(--app-accent)" }}>{entries.length}</span>
                               </summary>
                               <div className="px-2 pb-2 flex flex-col gap-1.5">
                                 {entries.map(([key, organ]) => <button key={key} onClick={() => focusOrganByKey(key)} className="organ-card group w-full text-right" aria-current={selectedOrgan?.meshName === key ? "true" : undefined}>
-                                  <span className="text-lg shrink-0">{organ.icon}</span><span className="flex-1 min-w-0"><strong className="block text-xs truncate" style={{ color: "var(--app-text)" }}>{getLocalizedOrganName(key, organ.name, lang)}</strong><small className="block truncate" style={{ color: "var(--app-muted)" }}>{getLocalizedOrganSystem(key, organ.system, lang)}</small></span><span aria-hidden="true">←</span>
+                                  <AppIcon name={resolveAppIcon(`${organ.icon} ${organ.system} ${organ.name}`, "organs")} /><span className="flex-1 min-w-0"><strong className="block text-xs truncate" style={{ color: "var(--app-text)" }}>{getLocalizedOrganName(key, organ.name, lang)}</strong><small className="block truncate" style={{ color: "var(--app-muted)" }}>{getLocalizedOrganSystem(key, organ.system, lang)}</small></span><span aria-hidden="true">←</span>
                                 </button>)}
                                 {entries.length === 0 && <p className="text-[10px] px-2 py-2" style={{ color: "var(--app-muted)" }}>אין מבנים תואמים במסנן הנוכחי</p>}
                               </div>
@@ -1620,7 +1622,7 @@ const ModelViewer = () => {
                   {Object.entries(groupedAtlasEntries).map(([system, entries]) => (
                     <div key={system}>
                       <div className="flex items-center gap-2 mb-2 px-1">
-                        <span className="text-base">{SYSTEM_ICONS[system] || "🔬"}</span>
+                        <AppIcon name={resolveAppIcon(`${SYSTEM_ICONS[system] || ""} ${system}`, "microscope")} />
                         <span className="text-[11px] font-extrabold" style={{ color: "hsl(220 40% 13%)" }}>{system}</span>
                         <span className="text-[9px] rounded-full px-1.5 py-0.5 font-bold" style={{ background: "hsl(43 78% 47% / 0.15)", color: "hsl(43 78% 40%)" }}>({entries.length})</span>
                         <div className="flex-1 h-px" style={{ background: "hsl(43 60% 55% / 0.25)" }} />
@@ -1636,7 +1638,7 @@ const ModelViewer = () => {
                               className={`organ-card group ${isSelected ? "selected" : ""}`}
                               onClick={() => focusOrganByKey(key)}
                             >
-                              <span className="text-xl shrink-0">{organ.icon}</span>
+                              <AppIcon name={resolveAppIcon(`${organ.icon} ${organ.system} ${organ.name}`, "organs")} />
                               <div className="flex-1 min-w-0">
                                 <div className="text-xs font-bold truncate" style={{ color: isSelected ? "hsl(43 78% 40%)" : "hsl(220 40% 13%)" }}>{localName}</div>
                                 {organ.latinName && <div className="text-[9px] italic truncate" style={{ color: "hsl(220 15% 55%)" }}>{organ.latinName}</div>}
@@ -1645,7 +1647,7 @@ const ModelViewer = () => {
                                 {isExplored && <span className="text-[10px] font-bold" style={{ color: "hsl(43 78% 42%)" }} title="נחקר">✓</span>}
                                 <button onClick={e => { e.stopPropagation(); handleFavoriteToggle(key); }}
                                   className="text-sm bg-transparent border-none cursor-pointer p-0 transition-transform hover:scale-125"
-                                >{isFav ? "⭐" : "☆"}</button>
+                                ><AppIcon name="star" tone={isFav ? "gold" : "auto"} /></button>
                               </div>
                             </div>
                           );
@@ -1674,7 +1676,7 @@ const ModelViewer = () => {
             {sidebarTab === "info" && selectedOrgan && (
               <div className="flex flex-col gap-3">
                 {!isSurfaceOrRegionalStructure(selectedOrgan.meshName, selectedOrgan) && <div className="text-center">
-                  <span className="text-5xl block mb-3">{selectedOrgan.icon}</span>
+                  <AppIcon name={resolveAppIcon(`${selectedOrgan.icon} ${selectedOrgan.system} ${selectedOrgan.name}`, "organs")} badge className="mb-3" />
                   <h3 className="text-lg font-extrabold" style={{ color: "var(--app-text)" }}>{selectedOrgan.name}</h3>
                   {selectedOrgan.latinName && <div className="text-xs italic mt-0.5" style={{ color: "var(--app-muted)" }}>{selectedOrgan.latinName}</div>}
                   <div className="text-xs mt-1 font-bold" style={{ color: "var(--app-accent)" }}>{selectedOrgan.system}</div>
@@ -1685,13 +1687,13 @@ const ModelViewer = () => {
                   if (!region) return null;
                   const surfaceHit = isSurfaceOrRegionalStructure(selectedOrgan.meshName, selectedOrgan);
                   return <section data-testid="selected-region-navigation" aria-label={`מבנים באזור ${region.labelHe}`} className="rounded-2xl p-3 flex flex-col gap-2.5" style={{ background: "color-mix(in srgb,var(--app-accent) 7%,var(--app-surface))", border: "1px solid color-mix(in srgb,var(--app-accent) 38%,var(--app-border))" }}>
-                    <header className="flex items-start gap-2"><span className="text-2xl">{region.icon}</span><div className="flex-1"><strong className="block text-base" style={{ color: "var(--app-text)" }}>{surfaceHit ? "חוקרים את " : "עוד בתוך "}{lang === "en" ? region.labelEn : region.labelHe}</strong><small className="block mt-1 leading-relaxed" style={{ color: "var(--app-muted)" }}>{surfaceHit ? "הקליק פגע במעטפת החיצונית. בחר קטגוריה ואז מבנה עמוק כדי להציג אותו במודל." : region.descriptionHe}</small></div><span className="text-[10px] font-bold rounded-full px-2 py-1" style={{ color: "var(--app-accent)", background: "var(--app-elevated)" }}>{selectedRegionEntries.length}</span></header>
+                    <header className="flex items-start gap-2"><AppIcon name={resolveAppIcon(`${region.icon} ${region.labelHe}`, "person")} badge /><div className="flex-1"><strong className="block text-base" style={{ color: "var(--app-text)" }}>{surfaceHit ? "חוקרים את " : "עוד בתוך "}{lang === "en" ? region.labelEn : region.labelHe}</strong><small className="block mt-1 leading-relaxed" style={{ color: "var(--app-muted)" }}>{surfaceHit ? "הקליק פגע במעטפת החיצונית. בחר קטגוריה ואז מבנה עמוק כדי להציג אותו במודל." : region.descriptionHe}</small></div><span className="text-[10px] font-bold rounded-full px-2 py-1" style={{ color: "var(--app-accent)", background: "var(--app-elevated)" }}>{selectedRegionEntries.length}</span></header>
                     {surfaceHit && <div className="rounded-xl px-3 py-2 text-[10px]" style={{ color: "var(--app-muted)", background: "var(--app-elevated)", border: "1px solid var(--app-border)" }}>נבחרה מעטפת: <strong style={{ color: "var(--app-text)" }}>{selectedOrgan.name}</strong> · האיברים שמתחתיה מסודרים כאן לפי סוג ומערכת.</div>}
                     <div role="tablist" aria-label={`קטגוריות מבנים ב${region.labelHe}`} className="grid grid-cols-2 gap-1.5">
                       {STRUCTURE_CATEGORIES.filter(category => (selectedRegionCategories.get(category.id)?.length || 0) > 0).map(category => {
                         const active = selectedRegionCategory === category.id;
                         const count = selectedRegionCategories.get(category.id)?.length || 0;
-                        return <button key={category.id} role="tab" aria-selected={active} onClick={() => { setSelectedRegionCategory(category.id); setRegionQuery(""); setRegionStructureLimit(40); }} className="rounded-xl px-2 py-2.5 flex items-center gap-2 text-right" style={{ color: active ? "var(--app-accent)" : "var(--app-text)", background: active ? "color-mix(in srgb,var(--app-accent) 13%,var(--app-elevated))" : "var(--app-elevated)", border: active ? "2px solid var(--app-accent)" : "1px solid var(--app-border)" }}><span className="text-lg">{category.icon}</span><span className="flex-1 text-[11px] font-extrabold">{lang === "en" ? category.labelEn : category.labelHe}</span><small className="text-[9px]">{count}</small></button>;
+                        return <button key={category.id} role="tab" aria-selected={active} onClick={() => { setSelectedRegionCategory(category.id); setRegionQuery(""); setRegionStructureLimit(40); }} className="rounded-xl px-2 py-2.5 flex items-center gap-2 text-right" style={{ color: active ? "var(--app-accent)" : "var(--app-text)", background: active ? "color-mix(in srgb,var(--app-accent) 13%,var(--app-elevated))" : "var(--app-elevated)", border: active ? "2px solid var(--app-accent)" : "1px solid var(--app-border)" }}><AppIcon name={resolveAppIcon(`${category.icon} ${category.labelHe}`, "organs")} /><span className="flex-1 text-[11px] font-extrabold">{lang === "en" ? category.labelEn : category.labelHe}</span><small className="text-[9px]">{count}</small></button>;
                       })}
                     </div>
                     <input value={regionQuery} onChange={event => { setRegionQuery(event.target.value); setRegionStructureLimit(40); }} aria-label={`חיפוש מבנה בתוך ${region.labelHe}`} placeholder="חפש איבר, עצם או מבנה באזור..." className="w-full rounded-xl px-3 py-2.5 text-xs outline-none" style={{ color: "var(--app-text)", background: "var(--app-elevated)", border: "1px solid var(--app-border)" }} />
@@ -1699,7 +1701,7 @@ const ModelViewer = () => {
                       {Object.entries(selectedRegionSystems).map(([system, entries]) => <details key={system} open className="rounded-xl overflow-hidden" style={{ background: "var(--app-elevated)", border: "1px solid var(--app-border)" }}>
                         <summary className="cursor-pointer list-none flex items-center gap-2 px-3 py-2.5"><strong className="flex-1 text-[11px]" style={{ color: "var(--app-text)" }}>{system}</strong><span className="text-[9px] font-bold" style={{ color: "var(--app-accent)" }}>{entries.length}</span><span aria-hidden="true">⌄</span></summary>
                         <div className="grid grid-cols-1 gap-1 px-2 pb-2">
-                          {entries.slice(0, regionStructureLimit).map(([key, organ]) => <button key={key} onClick={() => focusOrganByKey(key)} className="rounded-lg px-2.5 py-2 text-right flex items-center gap-2" style={{ background: "var(--app-surface)", border: "1px solid var(--app-border)", color: "var(--app-text)" }}><span>{organ.icon}</span><span className="flex-1 min-w-0"><strong className="block text-[10px] truncate">{getLocalizedOrganName(key, organ.name, lang)}</strong>{organ.latinName && <small className="block text-[8px] truncate" style={{ color: "var(--app-muted)" }}>{organ.latinName}</small>}</span><span aria-hidden="true">←</span></button>)}
+                          {entries.slice(0, regionStructureLimit).map(([key, organ]) => <button key={key} onClick={() => focusOrganByKey(key)} className="rounded-lg px-2.5 py-2 text-right flex items-center gap-2" style={{ background: "var(--app-surface)", border: "1px solid var(--app-border)", color: "var(--app-text)" }}><AppIcon name={resolveAppIcon(`${organ.icon} ${organ.system} ${organ.name}`, "organs")} /><span className="flex-1 min-w-0"><strong className="block text-[10px] truncate">{getLocalizedOrganName(key, organ.name, lang)}</strong>{organ.latinName && <small className="block text-[8px] truncate" style={{ color: "var(--app-muted)" }}>{organ.latinName}</small>}</span><span aria-hidden="true">←</span></button>)}
                         </div>
                       </details>)}
                       {visibleRegionStructureCount === 0 && <p className="text-[10px] text-center rounded-xl px-3 py-4" style={{ color: "var(--app-muted)", background: "var(--app-elevated)" }}>אין מבנים תואמים בחיפוש. בחר קטגוריה אחרת או נקה את החיפוש.</p>}
@@ -1709,14 +1711,14 @@ const ModelViewer = () => {
                   </section>;
                 })()}
                 <section aria-label="כלי עבודה לאיבר הנבחר" className="legacy-unified-tools">
-                  <header><span>🩻</span><div><strong>כלי עבודה</strong><small>הפעולות חלות על {selectedOrgan.name}</small></div>{hiddenMeshes.size > 0 && <em>{hiddenMeshes.size} מוסתרים</em>}</header>
+                  <header><AppIcon name="scan" /><div><strong>כלי עבודה</strong><small>הפעולות חלות על {selectedOrgan.name}</small></div>{hiddenMeshes.size > 0 && <em>{hiddenMeshes.size} מוסתרים</em>}</header>
                   <div className="legacy-unified-actions">
-                    <button onClick={isolateSelected} aria-pressed={focusSelected && focusOpacity < .1}><span>🎯</span>בודד</button>
-                    <button onClick={dimAroundSelected} aria-pressed={focusSelected && focusOpacity >= .1}><span>🌫️</span>עמעם</button>
-                    <button onClick={hideSelected}><span>🙈</span>הסתר</button>
-                    <button disabled={!hiddenMeshHistory.length} onClick={restoreLastHidden}><span>↩️</span>החזר</button>
-                    <button onClick={() => setShowClippingPlane(value => !value)} aria-pressed={showClippingPlane}><span>✂️</span>חיתוך</button>
-                    <button onClick={resetQuickTools}><span>⟲</span>איפוס</button>
+                    <button onClick={isolateSelected} aria-pressed={focusSelected && focusOpacity < .1}><AppIcon name="locate" />בודד</button>
+                    <button onClick={dimAroundSelected} aria-pressed={focusSelected && focusOpacity >= .1}><AppIcon name="layers" />עמעם</button>
+                    <button onClick={hideSelected}><AppIcon name="eye" />הסתר</button>
+                    <button disabled={!hiddenMeshHistory.length} onClick={restoreLastHidden}><AppIcon name="reset" />החזר</button>
+                    <button onClick={() => setShowClippingPlane(value => !value)} aria-pressed={showClippingPlane}><AppIcon name="scan" />חיתוך</button>
+                    <button onClick={resetQuickTools}><AppIcon name="reset" />איפוס</button>
                   </div>
                   <div className="legacy-unified-sliders"><label><span>שקיפות <strong>{Math.round(xRayOpacity*100)}%</strong></span><input aria-label="שקיפות כללית במגירת הסטודיו" type="range" min="10" max="100" value={Math.round(xRayOpacity*100)} onChange={(event)=>setXRayOpacity(Number(event.target.value)/100)}/></label><label><span>פירוק <strong>{Math.round(explodeAmount*100)}%</strong></span><input aria-label="פירוק שכבות במגירת הסטודיו" type="range" min="0" max="150" value={Math.round(explodeAmount*100)} onChange={(event)=>setExplodeAmount(Number(event.target.value)/100)}/></label></div>
                   {showClippingPlane && <div className="legacy-unified-clip"><div>{([['x','צד'],['y','גובה'],['z','חזית']] as [ClipAxis,string][]).map(([axis,label])=><button key={axis} aria-pressed={clipAxis===axis} onClick={()=>setClipAxis(axis)}>{label}</button>)}</div><input aria-label="עומק חיתוך במגירת הסטודיו" type="range" min="-200" max="200" value={Math.round(clipPosition*100)} onChange={(event)=>setClipPosition(Number(event.target.value)/100)}/><button aria-pressed={clipNegate} onClick={()=>setClipNegate(value=>!value)}>↔ הפוך</button></div>}
@@ -1802,7 +1804,7 @@ const ModelViewer = () => {
                   {(glbReportMode === "organs" ? uniqueOrgans : shownStructures).map((item, i) => {
                     const organ = item.detail!;
                     return <div key={`${item.meshName}-${i}`} onClick={() => { handleOrganSelect({ ...organ, meshName: item.meshName }); setShowGlbReport(false); }} className="organ-card">
-                      <span className="text-lg shrink-0">{organ.icon}</span>
+                      <AppIcon name={resolveAppIcon(`${organ.icon} ${organ.system} ${organ.name}`, "organs")} />
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold text-foreground">{organ.name}</div>
                         <div className="text-[10px] text-primary">{organ.system}</div>
@@ -1994,7 +1996,7 @@ const ModelViewer = () => {
                     const organ = enrichedOrganDetails[key]; if (!organ) return null;
                     return (
                       <button key={key} onClick={() => { focusOrganByKey(key); setShowSymptomSearch(false); }} className="organ-card text-left" style={{ textAlign: isRTL ? "right" : "left" }}>
-                        <span className="text-lg">{organ.icon}</span>
+                        <AppIcon name={resolveAppIcon(`${organ.icon} ${organ.system} ${organ.name}`, "organs")} />
                         <div>
                           <div className="text-xs font-bold text-foreground">{getLocalizedOrganName(key, organ.name, lang)}</div>
                           <div className="text-[10px] text-muted-foreground">{getLocalizedOrganSystem(key, organ.system, lang)}</div>
@@ -2304,13 +2306,13 @@ const ModelViewer = () => {
           <span aria-hidden="true" className="pointer-events-none fixed z-[21] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow-lg" style={{ left: selectionPopupPosition.clientX, top: selectionPopupPosition.clientY, borderColor: "var(--app-accent)", background: "color-mix(in srgb,var(--app-accent) 28%,transparent)" }} />
           <section role="dialog" aria-label={`מידע מהיר על ${selectedOrgan.name}`} data-testid="anatomy-selection-popover" className="fixed z-[22] w-[min(330px,calc(100vw-24px))] rounded-2xl border p-3 shadow-2xl backdrop-blur-xl" style={{ left: `clamp(12px, ${selectionPopupPosition.clientX + 18}px, calc(100vw - 342px))`, top: `clamp(64px, ${selectionPopupPosition.clientY - 34}px, calc(100vh - 265px))`, color: "var(--app-text)", background: "color-mix(in srgb,var(--app-surface) 94%,transparent)", borderColor: "color-mix(in srgb,var(--app-accent) 45%,var(--app-border))" }}>
             <header className="flex items-start gap-2">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl" style={{ background: "color-mix(in srgb,var(--app-accent) 12%,var(--app-elevated))" }}>{selectedOrgan.icon}</span>
+              <AppIcon name={resolveAppIcon(`${selectedOrgan.icon} ${selectedOrgan.system} ${selectedOrgan.name}`, "organs")} badge />
               <div className="min-w-0 flex-1 text-right"><strong className="block truncate text-sm">{selectedOrgan.name}</strong><small className="block truncate text-[10px]" style={{ color: "var(--app-muted)" }}>{selectedOrgan.system}{selectedBodyRegion ? ` · ${getBodyRegion(selectedBodyRegion)?.labelHe || ""}` : ""}</small></div>
               <button aria-label="סגור מידע מהיר" onClick={() => setSelectionPopupPosition(null)} className="rounded-lg border px-2 py-1 text-xs" style={{ color: "var(--app-muted)", borderColor: "var(--app-border)" }}>✕</button>
             </header>
             <p className="mt-2 line-clamp-3 text-right text-[11px] leading-relaxed" style={{ color: "var(--app-muted)" }}>{isSurfaceOrRegionalStructure(selectedOrgan.meshName, selectedOrgan) ? "זוהתה המעטפת החיצונית. אפשר לבחור קטגוריה באזור כדי להגיע לאיברים, לעצמות ולמבנים שמתחתיה." : selectedOrgan.summary}</p>
             {selectedBodyRegion && isSurfaceOrRegionalStructure(selectedOrgan.meshName, selectedOrgan) && <div className="mt-2 grid grid-cols-2 gap-1.5" aria-label="קטגוריות מהירות באזור">
-              {STRUCTURE_CATEGORIES.filter(category => (selectedRegionCategories.get(category.id)?.length || 0) > 0).slice(0, 4).map(category => <button key={category.id} onClick={() => { setSelectedRegionCategory(category.id); setSidebarTab("info"); setSelectionPopupPosition(null); setShowOrganSidebar(true); }} className="flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-right text-[9px] font-bold" style={{ color: "var(--app-text)", borderColor: "var(--app-border)", background: "var(--app-elevated)" }}><span>{category.icon}</span><span className="flex-1">{category.labelHe}</span><small style={{ color: "var(--app-accent)" }}>{selectedRegionCategories.get(category.id)?.length}</small></button>)}
+              {STRUCTURE_CATEGORIES.filter(category => (selectedRegionCategories.get(category.id)?.length || 0) > 0).slice(0, 4).map(category => <button key={category.id} onClick={() => { setSelectedRegionCategory(category.id); setSidebarTab("info"); setSelectionPopupPosition(null); setShowOrganSidebar(true); }} className="flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-right text-[9px] font-bold" style={{ color: "var(--app-text)", borderColor: "var(--app-border)", background: "var(--app-elevated)" }}><AppIcon name={resolveAppIcon(`${category.icon} ${category.labelHe}`, "organs")} /><span className="flex-1">{category.labelHe}</span><small style={{ color: "var(--app-accent)" }}>{selectedRegionCategories.get(category.id)?.length}</small></button>)}
             </div>}
             <footer className="mt-3 grid grid-cols-2 gap-2">
               <button onClick={() => { setSelectionPopupPosition(null); setSidebarTab("info"); setShowOrganSidebar(true); }} className="rounded-xl px-3 py-2 text-[11px] font-extrabold" style={{ color: "var(--app-accent-contrast)", background: "var(--app-accent)" }}>פתח מידע מלא</button>

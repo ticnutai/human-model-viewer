@@ -94,7 +94,7 @@ test("atlas offers a stable body-region hierarchy alongside system navigation", 
 
   await page.getByRole("button", { name: "לפי מערכת" }).click();
   await expect(page.getByRole("button", { name: "לפי מערכת" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByText("מערכת הנשימה", { exact: true }).first()).toBeVisible();
+  await expect(page.locator("span").filter({ hasText: /^מערכת הנשימה$/ }).first()).toBeVisible();
 });
 
 test("clicking an atlas organ isolates its real mesh instead of only selecting the row", async ({ page }) => {
@@ -174,7 +174,7 @@ test("unified studio drawer isolates, dims, hides, restores and cuts the selecte
   await expect(tools.getByRole("button", { name: "עמעם" })).toHaveAttribute("aria-pressed", "true");
   await tools.getByRole("button", { name: "הסתר" }).click();
   await expect(viewer).toHaveAttribute("data-hidden-mesh-count", "1");
-  await tools.getByRole("button", { name: "↩️ החזר", exact:true }).click();
+  await tools.getByRole("button", { name: "החזר", exact:true }).click();
   await expect(viewer).toHaveAttribute("data-hidden-mesh-count", "0");
   await tools.getByRole("button", { name: "חיתוך" }).click();
   await expect(tools.getByLabel("עומק חיתוך במגירת הסטודיו")).toBeVisible();

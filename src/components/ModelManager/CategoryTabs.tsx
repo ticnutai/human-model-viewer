@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import type { Category } from "./types";
+import { AppIcon, resolveAppIcon } from "@/components/ui/AppIcon";
 
 interface CategoryTabsProps {
   categories: Category[];
@@ -12,12 +13,12 @@ interface CategoryTabsProps {
   countForCategory: (id: string | null) => number;
 }
 
-const ICONS = ["📁", "🧬", "🦴", "❤️", "🧠", "🫁", "💪", "🔬", "🏥", "⚡"];
+const ICONS = ["library", "dna", "bone", "heart", "brain", "wind", "muscle", "microscope", "source", "activity"];
 
 export default function CategoryTabs({ categories, activeCategory, onSelect, onAdd, onDelete, countForCategory }: CategoryTabsProps) {
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
-  const [icon, setIcon] = useState("📁");
+  const [icon, setIcon] = useState("library");
 
   const handleAdd = () => {
     if (!name.trim()) return;
@@ -26,7 +27,7 @@ export default function CategoryTabs({ categories, activeCategory, onSelect, onA
     setShowAdd(false);
   };
 
-  const allTabs = [{ id: null as string | null, name: "הכל", icon: "🗂️" }, ...categories];
+  const allTabs = [{ id: null as string | null, name: "הכל", icon: "library" }, ...categories];
 
   return (
     <div className="flex flex-col">
@@ -41,7 +42,7 @@ export default function CategoryTabs({ categories, activeCategory, onSelect, onA
                   onClick={() => onSelect(cat.id)}
                   className={`sidebar-tab gap-1.5 px-3.5 ${isActive ? "active" : ""}`}
                 >
-                  <span className="text-sm">{cat.icon}</span>
+                  <AppIcon name={resolveAppIcon(`${cat.icon} ${cat.name}`, "library")} tone={isActive ? "inverse" : "auto"} />
                   <span>{cat.name}</span>
                   {count > 0 && (
                     <span className="text-[9px] px-1.5 py-0 h-4 min-w-[18px] rounded-full font-bold inline-flex items-center justify-center" style={{

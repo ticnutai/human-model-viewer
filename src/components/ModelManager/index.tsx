@@ -22,6 +22,7 @@ import type {
 import { SUPABASE_URL, SKETCHFAB_TOKEN_STORAGE_KEY } from "./types";
 import { loadCloudLibrary } from "@/lib/cloudModelRepository";
 import { useLocation, useNavigate } from "react-router-dom";
+import { AppIcon } from "@/components/ui/AppIcon";
 
 interface ModelManagerProps {
   onSelectModel: (url: string) => void | Promise<void>;
@@ -893,8 +894,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
           </span>
         </div>
         <div className="model-manager-toolbar flex items-center gap-1 flex-wrap">
-          <button onClick={() => setShowUpload(value => !value)} className="model-manager-action text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer">⬆️ {showUpload ? "סגור העלאה" : "הוסף מודל"}</button>
-          <button onClick={() => setShowMaintenance(value => !value)} className="model-manager-action text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer">🛠️ {showMaintenance ? "סגור כלים" : "כלי ניהול"}</button>
+          <button onClick={() => setShowUpload(value => !value)} className="model-manager-action text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer inline-flex items-center gap-1"><AppIcon name="library" /> {showUpload ? "סגור העלאה" : "הוסף מודל"}</button>
+          <button onClick={() => setShowMaintenance(value => !value)} className="model-manager-action text-[10px] rounded-lg px-2 py-1 font-semibold cursor-pointer inline-flex items-center gap-1"><AppIcon name="settings" /> {showMaintenance ? "סגור כלים" : "כלי ניהול"}</button>
           {showMaintenance && <>
           {models.filter(m => !m.hebrew_name || m.hebrew_name.trim() === "").length > 0 && (
             <button
@@ -924,12 +925,12 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               onClick={() => setViewMode("list")}
               className="text-[10px] px-2 py-1 cursor-pointer border-none transition-colors"
               style={{ background: viewMode === "list" ? "hsl(43 78% 47%)" : "transparent", color: viewMode === "list" ? "hsl(220 40% 13%)" : "hsl(220 15% 55%)" }}
-            >☰</button>
+            ><AppIcon name="file" tone={viewMode === "list" ? "inverse" : "auto"} /></button>
             <button
               onClick={() => setViewMode("grid")}
               className="text-[10px] px-2 py-1 cursor-pointer border-none transition-colors"
               style={{ background: viewMode === "grid" ? "hsl(43 78% 47%)" : "transparent", color: viewMode === "grid" ? "hsl(220 40% 13%)" : "hsl(220 15% 55%)" }}
-            >⊞</button>
+            ><AppIcon name="gallery" tone={viewMode === "grid" ? "inverse" : "auto"} /></button>
           </div>
           <button
             onClick={() => setShowSketchfab(s => !s)}
@@ -939,14 +940,14 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
               border: `1px solid ${showSketchfab ? "hsl(43 78% 47%)" : "hsl(43 60% 55% / 0.3)"}`,
               color: showSketchfab ? "hsl(43 78% 40%)" : "hsl(220 15% 55%)",
             }}
-          >🔎 Sketchfab</button>
+          ><AppIcon name="search" /> Sketchfab</button>
         </div>
       </div>
 
       <section className="mx-3 mt-3 overflow-hidden rounded-2xl border border-primary/35 bg-gradient-to-br from-primary/15 via-card to-emerald-500/10 shadow-sm" aria-label="מודל גוף HRA מתקדם">
         <div className="flex items-center gap-3 p-3">
-          <div className="relative flex h-16 w-14 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-background/70 text-4xl" aria-hidden="true">
-            🧍<span className="absolute -bottom-1 -left-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[8px] font-black text-white">HRA</span>
+          <div className="relative flex h-16 w-14 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-background/70" aria-hidden="true">
+            <AppIcon name="person" badge /><span className="absolute -bottom-1 -left-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[8px] font-black text-white">HRA</span>
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5"><h3 className="text-sm font-black text-foreground">גוף HRA מתקדם ומשוכלל</h3><span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold text-emerald-600">פעיל</span></div>

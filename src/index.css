@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Unified anatomy icon language: one-color line art, never multicolour emoji. */
+.app-icon{--app-icon-size:1.15em;width:var(--app-icon-size);height:var(--app-icon-size);display:inline-grid;place-items:center;flex:none;color:var(--app-icon-auto,var(--app-accent));vertical-align:-.18em}
+.app-icon>svg{display:block;width:100%;height:100%;stroke:currentColor;stroke-width:1.85;fill:none;vector-effect:non-scaling-stroke}
+.app-icon--gold{color:var(--app-icon-gold,#e8b83e)}.app-icon--navy{color:var(--app-icon-navy,#0b356d)}.app-icon--inverse{color:var(--app-on-accent,#fff)!important}
+.app-icon--badge{--app-icon-size:2.35rem;padding:.55rem;border:1px solid color-mix(in srgb,currentColor 42%,var(--app-border));border-radius:14px;background:color-mix(in srgb,currentColor 9%,var(--app-surface));box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 11%,transparent)}
+:where(button,[role="button"],[role="tab"],a).is-active .app-icon{color:var(--app-accent)}
+:where(button,[role="button"],[role="tab"],a)[style*="var(--app-accent)"] .app-icon{color:currentColor}
+html[data-app-color-scheme="light"] :where(button,[role="button"],[role="tab"],a):not(.primary)>.app-icon{color:var(--app-icon-navy,#0b356d)}
+:where(button,a,[role="button"],[role="tab"]) svg[data-lucide]{color:var(--app-icon-auto,var(--app-accent));stroke:currentColor;stroke-width:1.85;fill:none}
+:where(button.primary,button[style*="var(--app-accent)"],a[style*="var(--app-accent)"]) svg[data-lucide]{color:var(--app-on-accent,#fff)}
+html[data-app-color-scheme="light"] :where(button,a,[role="button"],[role="tab"]) svg[data-lucide]{color:var(--app-icon-navy,#0b356d)}
+:where(button,a,[role="button"],[role="tab"],.legacy-library-panel,.app-navigation){font-variant-emoji:text}
+
 /* Global reading direction; technical identifiers opt back into LTR locally. */
 html[dir="rtl"],html[dir="rtl"] body,html[dir="rtl"] #root{direction:rtl;text-align:right}
 html[dir="rtl"] :where(input:not([type="number"]):not([type="url"]):not([type="email"]):not([type="color"]),textarea,select,[role="dialog"]){direction:rtl;text-align:right}
