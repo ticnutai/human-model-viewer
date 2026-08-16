@@ -16,9 +16,10 @@ import { type GuideAction } from "@/lib/smartGuide";
 import { SmartGuidePanel, type LearningProgress } from "@/components/SmartGuidePanel";
 import { useAppTheme } from "@/contexts/AppThemeContext";
 import {
-  DEFAULT_ATLAS_ASSET, PROFESSIONAL_ATLAS, humanizeStructureName,
+  DEFAULT_ATLAS_ASSET, PROFESSIONAL_ATLAS,
   type AtlasAsset,
 } from "@/data/professionalAtlas";
+import { getStructureKnowledge } from "@/data/anatomyStructureKnowledge";
 
 type ModelStats = { meshes: number; triangles: number };
 
@@ -252,7 +253,11 @@ export default function ProfessionalAtlas() {
     setInfoOpen(true);
   }, []);
 
-  const selectedLabel = selectedMesh ? humanizeStructureName(selectedMesh) : asset.nameHe;
+  const selectedStructure = useMemo(
+    () => selectedMesh ? getStructureKnowledge(selectedMesh, asset.id) : null,
+    [asset.id, selectedMesh],
+  );
+  const selectedLabel = selectedStructure?.nameHe ?? asset.nameHe;
   const knowledge = ANATOMY_KNOWLEDGE[asset.id];
   const quiz = knowledge.quiz;
 
@@ -389,13 +394,29 @@ export default function ProfessionalAtlas() {
           </div>
           <div className="pro-info-hero" style={{ "--asset-color": asset.color } as CSSProperties}>
             {(() => { const Icon = ORGAN_ICONS[asset.id]; return <Icon size={30} />; })()}
-            <div><small>{asset.nameEn}</small><h2>{selectedLabel}</h2></div>
+            <div><small dir="ltr">{selectedStructure?.nameEn ?? asset.nameEn}</small><h2>{selectedLabel}</h2></div>
           </div>
-          {selectedMesh && <div className="pro-structure-id"><span>מבנה נבחר</span><code>{selectedMesh}</code></div>}
-          <p className="pro-summary">{asset.summary}</p>
-          <div className="pro-wonder"><Sparkles size={18} /><div><strong>נקודת פלא</strong><p>{asset.wonder}</p></div></div>
+          {selectedStructure && (
+            <div className="pro-structure-id">
+              <span>{selectedStructure.category}</span>
+              <details>
+                <summary>הצג שם טכני במודל</summary>
+                <code>{selectedStructure.technicalName}</code>
+              </details>
+            </div>
+          )}
+          <p className="pro-summary">{selectedStructure?.description ?? asset.summary}</p>
+          {selectedStructure && (
+            <section className="pro-structure-knowledge" aria-label={`מידע מפורט על ${selectedStructure.nameHe}`}>
+              <article><Activity size={16} /><div><h3>מה עושה החלק?</h3><p>{selectedStructure.function}</p></div></article>
+              <article><Focus size={16} /><div><h3>איפה הוא נמצא?</h3><p>{selectedStructure.location}</p></div></article>
+              <article><Layers3 size={16} /><div><h3>למה הוא מחובר?</h3><p>{selectedStructure.connections}</p></div></article>
+              <a href={selectedStructure.sourceUrl} target="_blank" rel="noreferrer"><ShieldCheck size={14} /> מקור אנטומי רפואי</a>
+            </section>
+          )}
+          <div className="pro-wonder"><Sparkles size={18} /><div><strong>נקודת פלא על {asset.nameHe}</strong><p>{asset.wonder}</p></div></div>
           <div className="pro-facts">
-            <h3>עובדות מרכזיות</h3>
+            <h3>עובדות מרכזיות על {asset.nameHe}</h3>
             {asset.facts.map((fact, index) => <div key={fact}><span>{String(index + 1).padStart(2, "0")}</span><p>{fact}</p></div>)}
           </div>
           <div className="pro-knowledge">
@@ -454,7 +475,7 @@ export default function ProfessionalAtlas() {
       <SmartGuidePanel
         open={smartOpen}
         onClose={() => setSmartOpen(false)}
-        context={{ assetId: asset.id, assetName: asset.nameHe, selectedStructure: selectedMesh ? humanizeStructureName(selectedMesh) : null, opacity, exploded, simulation, level }}
+        context={{ assetId: asset.id, assetName: asset.nameHe, selectedStructure: selectedStructure?.nameHe ?? null, opacity, exploded, simulation, level }}
         onAction={handleGuideAction}
         level={level}
         onLevel={setLevel}

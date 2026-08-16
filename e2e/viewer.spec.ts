@@ -67,6 +67,17 @@ test.describe("Professional anatomy atlas", () => {
     await expect(dialog).toBeHidden();
   });
 
+  test("shows a Hebrew name and detailed knowledge for the active 3D structure", async ({ page }) => {
+    await page.getByRole("button", { name: /התחל: מסע של טיפת דם/ }).click();
+    await expect(page.locator(".pro-info-hero h2")).toHaveText("העלייה הימנית של הלב");
+    const details = page.getByLabel("מידע מפורט על העלייה הימנית של הלב");
+    await expect(details).toContainText("מה עושה החלק?");
+    await expect(details).toContainText("איפה הוא נמצא?");
+    await expect(details).toContainText("למה הוא מחובר?");
+    await expect(details.getByRole("link", { name: "מקור אנטומי רפואי" })).toHaveAttribute("href", /ncbi\.nlm\.nih\.gov/);
+    await expect(page.locator(".pro-structure-id code")).toContainText("right_cardiac_atrium");
+  });
+
   test("plays and pauses a journey synchronized with the live 3D scene", async ({ page }) => {
     await page.getByRole("button", { name: /התחל: מסע של טיפת דם/ }).click();
     const dialog = page.getByRole("dialog", { name: "מסע של טיפת דם" });
