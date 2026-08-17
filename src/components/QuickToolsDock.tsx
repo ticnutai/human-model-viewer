@@ -80,6 +80,39 @@ export default function QuickToolsDock({
   const openLeft = pos.x > window.innerWidth / 2;
   const openUp = pos.y > window.innerHeight / 2;
 
+  const startResize = (event: React.PointerEvent, dir: HandleDir) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const start = { x: event.clientX, y: event.clientY };
+    const target = (event.currentTarget as HTMLElement).parentElement as HTMLElement;
+    const base = { w: box?.w ?? target.offsetWidth, h: box?.h ?? target.offsetHeight };
+    const move = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - start.x;
+      const dy = moveEvent.clientY - start.y;
+      let w = base.w;
+      let h = base.h;
+      if (dir.includes("e")) w = base.w + dx;
+      if (dir.includes("w")) w = base.w - dx;
+      if (dir.includes("s")) h = base.h + dy;
+      if (dir.includes("n")) h = base.h - dy;
+      setBox({
+        w: Math.min(Math.max(w, 220), window.innerWidth - 24),
+        h: Math.min(Math.max(h, 140), window.innerHeight - 24),
+      });
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      setBox(current => {
+        if (current) { try { localStorage.setItem(SIZE_KEY, JSON.stringify(current)); } catch { /* ignore */ } }
+        return current;
+      });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+
   return (
     <div
       className="fixed z-[16]"
