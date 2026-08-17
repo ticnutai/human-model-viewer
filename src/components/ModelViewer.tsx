@@ -1,4 +1,4 @@
-import { Canvas, useLoader, useThree, ThreeEvent } from "@react-three/fiber";
+import { Canvas, useFrame, useLoader, useThree, ThreeEvent } from "@react-three/fiber";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Html, OrbitControls } from "@react-three/drei";
 import { Suspense, useRef, useCallback, useState, useEffect, useMemo, Component, startTransition } from "react";
@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMeshMappings, useCloudLayers } from "@/hooks/useMeshMappings";
 
 type ScannedOrgan = { meshName: string; detail: OrganDetail | null };
-type SidebarTab = "organs" | "models" | "gallery" | "info" | "analysis" | "sources";
+type SidebarTab = "organs" | "models" | "gallery" | "visibility" | "info" | "analysis" | "sources" | "live";
 type SelectionPresentation = "popover" | "drawer";
 type CanvasSelectionPoint = { clientX: number; clientY: number };
 type ViewerInteractionMode = "select" | "rotate";
@@ -31,7 +31,6 @@ import {
   CameraTour,
   PerformanceMonitor,
   SelectionOutline,
-  SystemAnimations,
 } from "./anatomy";
 import type { ClipAxis } from "./anatomy";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -49,6 +48,10 @@ import { BODY_DIVISIONS, BODY_REGIONS, STRUCTURE_CATEGORIES, classifyBodyRegion,
 import type { AnatomyStructureCategoryId, BodyRegionId } from "@/data/bodyRegionHierarchy";
 import { AppIcon, resolveAppIcon, type AppIconName } from "@/components/ui/AppIcon";
 import { getStructureKnowledge } from "@/data/anatomyStructureKnowledge";
+import LiveFunctionsPanel from "@/components/anatomy/LiveFunctionsPanel";
+import VisibilitySelectionPanel from "@/components/anatomy/VisibilitySelectionPanel";
+import type { VisibilityStructure } from "@/components/anatomy/VisibilitySelectionPanel";
+import QuickToolsDock from "@/components/QuickToolsDock";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const cloudUrl = (slug: string) => SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/models/${slug}` : "";
@@ -236,13 +239,21 @@ const configureGLTFLoader = (loader: GLTFLoader) => {
   loader.register(() => ({ name: "KHR_materials_pbrSpecularGlossiness" } as never));
 };
 
+type ModelAnimationSystem = "heart" | "lung" | "digest";
+const classifyAnimationSystem = (value: string): ModelAnimationSystem | null =>
+  /heart|cardiac|aorta|valve|myocard|coron|לב|אבי העורקים/i.test(value) ? "heart"
+    : /lung|pulmon|bronch|alveol|trachea|respir|diaphragm|ריאה|ריאות|נשימ|סרעפת|סימפונ|דרכי האוויר/i.test(value) ? "lung"
+      : /stomach|intestin|colon|esophag|duoden|jejun|ileum|rectum|cecum|appendix|קיבה|מעי|עיכול/i.test(value) ? "digest"
+        : null;
+
 // ── 3D Model component ──
-function Model({ url, onSelect, selectionEnabled, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, mappedDetails, onScan, onReady, onSelectionResolved, onSelectionBounds }: { url: string; onSelect: (detail: OrganDetail, point?: CanvasSelectionPoint) => void; selectionEnabled: boolean; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; focusOpacity: number; hiddenMeshes: Set<string>; mappedDetails: Map<string, OrganDetail>; onScan?: (organs: ScannedOrgan[]) => void; onReady?: () => void; onSelectionResolved?: (resolved: boolean) => void; onSelectionBounds?: (bounds: AnatomyBounds | null) => void }) {
+function Model({ url, onSelect, selectionEnabled, selectedMesh, accent, xRayOpacity, explodeAmount, focusSelected, focusOpacity, hiddenMeshes, mappedDetails, liveAnimations = false, animateHeartbeat = true, animateBreathing = true, animateDigestion = true, animationSpeed = 1, animationIntensity = 1, onAnimatedMeshCountChange, onScan, onReady, onSelectionResolved, onSelectionBounds }: { url: string; onSelect: (detail: OrganDetail, point?: CanvasSelectionPoint) => void; selectionEnabled?: boolean; selectedMesh: string | null; accent: string; xRayOpacity: number; explodeAmount: number; focusSelected: boolean; focusOpacity: number; hiddenMeshes: Set<string>; mappedDetails: Map<string, OrganDetail>; liveAnimations?: boolean; animateHeartbeat?: boolean; animateBreathing?: boolean; animateDigestion?: boolean; animationSpeed?: number; animationIntensity?: number; onAnimatedMeshCountChange?: (count: number) => void; onScan?: (organs: ScannedOrgan[]) => void; onReady?: () => void; onSelectionResolved?: (resolved: boolean) => void; onSelectionBounds?: (bounds: AnatomyBounds | null) => void }) {
   const { lang } = useLanguage();
   const gltf = useLoader(GLTFLoader, url, configureGLTFLoader);
   const sceneClone = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const originalMaterials = useRef<Map<string, THREE.Material | THREE.Material[]>>(new Map());
   const originalPositions = useRef<Map<string, THREE.Vector3>>(new Map());
+  const originalScales = useRef<Map<string, THREE.Vector3>>(new Map());
   const previousSelectedMeshes = useRef<Set<THREE.Mesh>>(new Set());
   const previousRenderSettings = useRef("");
   const previousMeshEntries = useRef<Array<{ mesh: THREE.Mesh; mappedDetail: OrganDetail | null }> | null>(null);
@@ -293,10 +304,22 @@ function Model({ url, onSelect, selectionEnabled, selectedMesh, accent, xRayOpac
     sceneClone.traverse(child => {
       if (!(child as THREE.Mesh).isMesh) return;
       const mesh = child as THREE.Mesh;
-      entries.push({ mesh, mappedDetail: getMappedDetail(getDetectionCandidates(mesh)) });
+      const mappedDetail = getMappedDetail(getDetectionCandidates(mesh));
+      // Keep the verified anatomical identity on the rendered mesh itself.
+      // Animation/effect systems can then use the atlas mapping even when the
+      // GLB node and material names are opaque technical identifiers.
+      mesh.userData.anatomySearchText = mappedDetail ? `${mappedDetail.name} ${mappedDetail.system} ${mappedDetail.latinName || ""} ${mappedDetail.meshName}` : "";
+      entries.push({ mesh, mappedDetail });
     });
     return entries;
   }, [getDetectionCandidates, getMappedDetail, sceneClone]);
+
+  const animatedMeshEntries = useMemo(() => meshEntries.flatMap(({ mesh, mappedDetail }) => {
+    const descriptor = `${getDetectionCandidates(mesh).join(" ")} ${mappedDetail?.name || ""} ${mappedDetail?.system || ""} ${mappedDetail?.latinName || ""} ${mappedDetail?.meshName || ""}`;
+    const system = classifyAnimationSystem(descriptor);
+    const enabledSystem = system === "heart" ? animateHeartbeat : system === "lung" ? animateBreathing : system === "digest" ? animateDigestion : false;
+    return system && enabledSystem ? [{ mesh, system }] : [];
+  }), [animateBreathing, animateDigestion, animateHeartbeat, getDetectionCandidates, meshEntries]);
 
   const directSelectionIndex = useMemo(() => {
     const index = new Map<string, Set<THREE.Mesh>>();
@@ -348,6 +371,40 @@ function Model({ url, onSelect, selectionEnabled, selectedMesh, accent, xRayOpac
   useEffect(() => { onReady?.(); }, [meshEntries, onReady, sceneClone]);
 
   useEffect(() => {
+    meshEntries.forEach(({ mesh }) => {
+      const original = originalScales.current.get(mesh.uuid);
+      if (original) mesh.scale.copy(original);
+    });
+    onAnimatedMeshCountChange?.(liveAnimations ? animatedMeshEntries.length : 0);
+    return () => {
+      animatedMeshEntries.forEach(({ mesh }) => {
+        const original = originalScales.current.get(mesh.uuid);
+        if (original) mesh.scale.copy(original);
+      });
+    };
+  }, [animatedMeshEntries, liveAnimations, meshEntries, onAnimatedMeshCountChange]);
+
+  useFrame(({ clock }) => {
+    if (!liveAnimations) return;
+    const time = clock.getElapsedTime() * animationSpeed;
+    animatedMeshEntries.forEach(({ mesh, system }) => {
+      const original = originalScales.current.get(mesh.uuid);
+      if (!original) return;
+      if (system === "heart") {
+        const phase = (time * 4.5) % (Math.PI * 2);
+        const beat = (Math.max(0, Math.sin(phase * 2)) * .08 + Math.max(0, Math.sin(phase * 2 + 1.2)) * .04) * animationIntensity;
+        mesh.scale.set(original.x * (1 + beat), original.y * (1 + beat * .7), original.z * (1 + beat));
+      } else if (system === "lung") {
+        const breath = Math.sin(time * 1.2) * .06 * animationIntensity;
+        mesh.scale.set(original.x * (1 + breath), original.y * (1 + breath * .3), original.z * (1 + breath * .7));
+      } else {
+        const wave = Math.sin(time * 1.8 + mesh.id * .17) * .04 * animationIntensity;
+        mesh.scale.set(original.x * (1 + wave), original.y * (1 - wave * .3), original.z * (1 + Math.sin(time * 2.2 + mesh.id * .11) * .025 * animationIntensity));
+      }
+    });
+  });
+
+  useEffect(() => {
     sceneClone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
@@ -357,6 +414,7 @@ function Model({ url, onSelect, selectionEnabled, selectedMesh, accent, xRayOpac
         originalMaterials.current.set(mesh.uuid, Array.isArray(mesh.material) ? originals : originals[0]);
         mesh.material = Array.isArray(mesh.material) ? working : working[0];
         originalPositions.current.set(mesh.uuid, mesh.position.clone());
+        originalScales.current.set(mesh.uuid, mesh.scale.clone());
       }
     });
     return () => {
@@ -370,6 +428,7 @@ function Model({ url, onSelect, selectionEnabled, selectedMesh, accent, xRayOpac
       });
       originalMaterials.current.clear();
       originalPositions.current.clear();
+      originalScales.current.clear();
     };
   }, [sceneClone]);
 
@@ -732,7 +791,7 @@ const ModelViewer = () => {
   const [interactionMode, setInteractionMode] = useState<ViewerInteractionMode>(() => localStorage.getItem("niflaot-viewer-interaction-mode") === "rotate" ? "rotate" : "select");
   const [controlPressed, setControlPressed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>(
-    startupPanel && ["organs", "models", "gallery", "info", "analysis", "sources"].includes(startupPanel)
+    startupPanel && ["organs", "models", "gallery", "visibility", "info", "analysis", "sources", "live"].includes(startupPanel)
       ? startupPanel as SidebarTab
       : "organs",
   );
@@ -740,7 +799,7 @@ const ModelViewer = () => {
 
   useEffect(() => {
     const requested = new URLSearchParams(location.search).get("panel");
-    if (requested && ["organs", "models", "gallery", "info", "analysis", "sources"].includes(requested)) {
+    if (requested && ["organs", "models", "gallery", "visibility", "info", "analysis", "sources", "live"].includes(requested)) {
       setSidebarTab(requested as SidebarTab);
       setShowOrganSidebar(true);
     }
@@ -824,11 +883,13 @@ const ModelViewer = () => {
   const [focusOpacity, setFocusOpacity] = useState(typeof savedEffectsPrefs.focusOpacity === "number" ? savedEffectsPrefs.focusOpacity : 0.12);
   const [hiddenMeshes, setHiddenMeshes] = useState<Set<string>>(new Set());
   const [hiddenMeshHistory, setHiddenMeshHistory] = useState<string[]>([]);
+  const [visibilitySelection, setVisibilitySelection] = useState<Set<string>>(new Set());
   const [showQuickTools, setShowQuickTools] = useState(true);
   const [showSelectionOutline, setShowSelectionOutline] = useState(Boolean(savedEffectsPrefs.showSelectionOutline));
   const [showPerfMonitor, setShowPerfMonitor] = useState(Boolean(savedEffectsPrefs.showPerfMonitor));
   const [showEffectsPanel, setShowEffectsPanel] = useState(false);
   const [animationSpeed, setAnimationSpeed] = useState(1);
+  const [animatedMeshCount, setAnimatedMeshCount] = useState(0);
   const [pathologyMode, setPathologyMode] = useState(false);
   const [pathologyQuery, setPathologyQuery] = useState("");
   const [compareMode, setCompareMode] = useState(false);
@@ -936,7 +997,7 @@ const ModelViewer = () => {
   const currentMappedDetails = useMemo(() => {
     const details = new Map<string, OrganDetail>();
     cloudMeshData.forEach(mapping => {
-      if (canonicalModelUrl(mapping.model_url) !== canonicalModelUrl(modelUrl)) return;
+      if (!sameAnatomyModel(mapping.model_url, modelUrl)) return;
       // Legacy automatic rows were created by an unsafe substring matcher.
       // Ignore them until a repair pass replaces them with an explicit status.
       // Manual mappings remain authoritative.
@@ -976,6 +1037,23 @@ const ModelViewer = () => {
     const verified = rows.filter(mapping => ["identified", "verified"].includes(mapping.facts?.identificationStatus)).length;
     return { mapped: mappedMeshes.size, verified };
   }, [cloudMeshData, modelUrl]);
+  const visibilityStructures = useMemo<VisibilityStructure[]>(() => {
+    const structures = new Map<string, VisibilityStructure>();
+    (glbScanResult || []).forEach(item => {
+      const meshKey = canonicalMeshKey(item.meshName).toLocaleLowerCase("en");
+      if (!meshKey || structures.has(meshKey)) return;
+      const detail = item.detail;
+      structures.set(meshKey, {
+        meshKey,
+        meshName: item.meshName,
+        name: detail ? getLocalizedOrganName(detail.meshName, detail.name, lang) : `מבנה ${structures.size + 1}`,
+        system: detail ? getLocalizedOrganSystem(detail.meshName, detail.system, lang) : "מבנים לא מסווגים",
+        latinName: detail?.latinName || item.meshName,
+      });
+    });
+    return Array.from(structures.values()).sort((a, b) => a.system.localeCompare(b.system, "he") || a.name.localeCompare(b.name, "he"));
+  }, [glbScanResult, lang]);
+  const visibilityStructureKeys = useMemo(() => new Set(visibilityStructures.map(item => item.meshKey)), [visibilityStructures]);
   const t = useMemo(() => ({
     canvasBg: activeTheme.canvas,
     accent: activeTheme.accent,
@@ -1302,6 +1380,46 @@ const ModelViewer = () => {
     setHiddenMeshHistory(previous => previous.filter(item => item !== key));
   }, []);
 
+  const hideVisibilitySelection = useCallback(() => {
+    const keys = Array.from(visibilitySelection).filter(key => visibilityStructureKeys.has(key));
+    if (!keys.length) return;
+    setHiddenMeshes(previous => new Set([...previous, ...keys]));
+    setHiddenMeshHistory(previous => [...previous.filter(key => !keys.includes(key)), ...keys]);
+    setFocusSelected(false);
+  }, [visibilitySelection, visibilityStructureKeys]);
+
+  const showVisibilitySelection = useCallback(() => {
+    const keys = new Set(visibilitySelection);
+    setHiddenMeshes(previous => {
+      const next = new Set(previous);
+      keys.forEach(key => next.delete(key));
+      return next;
+    });
+    setHiddenMeshHistory(previous => previous.filter(key => !keys.has(key)));
+  }, [visibilitySelection]);
+
+  const isolateVisibilitySelection = useCallback(() => {
+    const selectedInModel = new Set(Array.from(visibilitySelection).filter(key => visibilityStructureKeys.has(key)));
+    if (!selectedInModel.size) return;
+    const nextHidden = new Set(Array.from(visibilityStructureKeys).filter(key => !selectedInModel.has(key)));
+    setHiddenMeshes(nextHidden);
+    setHiddenMeshHistory(Array.from(nextHidden));
+    setFocusSelected(false);
+    setXRayOpacity(1);
+  }, [visibilitySelection, visibilityStructureKeys]);
+
+  const showAllVisibilityStructures = useCallback(() => {
+    setHiddenMeshes(new Set());
+    setHiddenMeshHistory([]);
+    setFocusSelected(false);
+  }, []);
+
+  useEffect(() => {
+    setVisibilitySelection(new Set());
+    setHiddenMeshes(new Set());
+    setHiddenMeshHistory([]);
+  }, [modelUrl]);
+
   // Keyboard shortcuts make the quick tools usable without hunting for buttons.
   useEffect(() => {
     if (!showQuickTools) return;
@@ -1477,13 +1595,15 @@ const ModelViewer = () => {
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onEnd, { once: true });
   }, [desktopSidebarWidth, isMobile, isRTL]);
-  const sidebarTitle = sidebarTab === "models" ? "ספרייה ומיפוי" : sidebarTab === "gallery" ? "גלריית מודלים" : sidebarTab === "analysis" ? "ניתוח מודל" : sidebarTab === "sources" ? "מרכז מקורות" : sidebarTab === "info" ? "מידע אנטומי" : "אטלס איברים";
+  const sidebarTitle = sidebarTab === "models" ? "ספרייה ומיפוי" : sidebarTab === "gallery" ? "גלריית מודלים" : sidebarTab === "visibility" ? "נראות ובחירה" : sidebarTab === "analysis" ? "ניתוח מודל" : sidebarTab === "sources" ? "מרכז מקורות" : sidebarTab === "live" ? "הגוף החי" : sidebarTab === "info" ? "מידע אנטומי" : "אטלס איברים";
   const currentTool = new URLSearchParams(location.search).get("tool") || "models";
   const studioTabs: Array<{ label: string; icon: AppIconName; to: string; active: boolean }> = [
     { label: "איברים", icon: "heart", to: "/legacy?panel=organs", active: sidebarTab === "organs" },
     { label: "ספרייה", icon: "library", to: "/legacy?panel=models&tool=models", active: sidebarTab === "models" && currentTool === "models" },
     { label: "גלריה", icon: "gallery", to: "/legacy?panel=gallery", active: sidebarTab === "gallery" },
+    { label: "נראות", icon: "eye", to: "/legacy?panel=visibility", active: sidebarTab === "visibility" },
     { label: "ניתוח", icon: "microscope", to: "/legacy?panel=analysis", active: sidebarTab === "analysis" },
+    { label: "הגוף החי", icon: "activity", to: "/legacy?panel=live", active: sidebarTab === "live" },
     { label: "מיפוי", icon: "map", to: "/legacy?panel=models&tool=meshmap", active: sidebarTab === "models" && currentTool === "meshmap" },
     { label: "ידע", icon: "file", to: "/legacy?panel=models&tool=allmappings", active: sidebarTab === "models" && currentTool === "allmappings" },
     { label: "מקורות", icon: "source", to: "/legacy?panel=sources", active: sidebarTab === "sources" },
@@ -1690,20 +1810,24 @@ const ModelViewer = () => {
           }}>
           {!isMobile && <div role="separator" aria-label="שינוי רוחב מגירת הסטודיו" aria-orientation="vertical" aria-valuemin={300} aria-valuemax={680} aria-valuenow={desktopSidebarWidth} onPointerDown={startSidebarResize} className="absolute top-0 bottom-0 z-20 flex w-4 cursor-ew-resize touch-none items-center justify-center group" style={{ [isRTL ? "left" : "right"]: -8 }}><span className="flex h-20 w-2 items-center justify-center rounded-full border shadow-lg transition-transform group-hover:scale-110" style={{ color: "var(--app-accent)", background: "var(--app-elevated)", borderColor: "var(--app-border)" }}>⋮</span></div>}
           {/* Header */}
-          <div className="shrink-0 px-4 pt-4 pb-3" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-extrabold legacy-library-title flex items-center gap-2"><AppIcon name="dna" /> סטודיו GLB · {sidebarTitle}</span>
-              <div className="flex items-center gap-1">
-                {!isMobile && <div className="flex items-center rounded-lg border" style={{ borderColor: "var(--app-border)", background: "var(--app-elevated)" }}><button aria-label="הצר מגירה" onClick={() => changeSidebarWidth(-40)} disabled={desktopSidebarWidth <= 300} className="px-2 py-1 text-sm disabled:opacity-35" style={{ color: "var(--app-text)" }}>−</button><span className="min-w-8 text-center text-[9px]" style={{ color: "var(--app-muted)" }}>{desktopSidebarWidth}</span><button aria-label="הרחב מגירה" onClick={() => changeSidebarWidth(40)} disabled={desktopSidebarWidth >= 680} className="px-2 py-1 text-sm disabled:opacity-35" style={{ color: "var(--app-text)" }}>+</button></div>}
-                {!isMobile && <button onClick={() => setSelectionPresentation(value => value === "popover" ? "drawer" : "popover")} aria-label="אופן פתיחת מידע בלחיצה" aria-pressed={selectionPresentation === "popover"} className="rounded-lg border px-2 py-1 text-[10px] font-bold" style={{ color: selectionPresentation === "popover" ? "var(--app-accent)" : "var(--app-muted)", borderColor: "var(--app-border)", background: "var(--app-elevated)" }}>{selectionPresentation === "popover" ? "💬 כרטיס" : "▤ מגירה"}</button>}
-                <button onClick={() => setSidebarPinned(value => !value)} aria-label={sidebarPinned ? "עבור להסתרה אוטומטית" : "הצמד מגירה"} aria-pressed={sidebarPinned} className={`rounded-lg border px-2 py-1 text-[10px] font-bold ${sidebarPinned ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>{sidebarPinned ? "📌 מוצמד" : "👻 אוטו־הייד"}</button>
-                <button aria-label="סגור מגירת סטודיו" onClick={() => setShowOrganSidebar(false)} className="text-lg transition-colors bg-transparent border-none cursor-pointer p-1 rounded-lg hover:bg-gray-100" style={{ color: "hsl(220 15% 60%)" }}>✕</button>
+          <div className="shrink-0 px-3 pt-3 pb-3" style={{ borderBottom: "1px solid hsl(43 60% 55% / 0.25)" }}>
+            <div className="flex items-start gap-2">
+              <AppIcon name="dna" badge />
+              <div className="legacy-library-title min-w-0 flex-1">
+                <strong className="block text-sm font-black">סטודיו GLB</strong>
+                <small className="mt-0.5 block truncate text-[10px]" style={{ color: "var(--app-muted)" }}>{sidebarTitle}</small>
               </div>
+              <button aria-label="סגור מגירת סטודיו" onClick={() => setShowOrganSidebar(false)} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition-colors" style={{ color: "var(--app-muted)", borderColor: "var(--app-border)", background: "var(--app-elevated)" }}>✕</button>
             </div>
-            <div className="flex justify-between text-[10px] mb-1.5" style={{ color: "hsl(220 15% 55%)" }}>
-              <span className="flex items-center gap-1" title="זהו מונה שימוש: כמה רשומות פתחת, ולא כמה Meshes נסרקו"><AppIcon name="eye" /> {exploredOrgans.size} נפתחו</span>
-              <span className="flex items-center gap-1" title="מספר רשומות הידע והמיפוי הזמינות בספרייה"><AppIcon name="library" /> {Object.keys(enrichedOrganDetails).length} רשומות ידע</span>
-              <span className="flex items-center gap-1" style={{ color: "hsl(43 78% 42%)" }}><AppIcon name="star" /> {favorites.size}</span>
+            <div role="group" className={`mt-2 grid gap-1.5 ${isMobile ? "grid-cols-2" : "grid-cols-3"}`} aria-label="הגדרות מגירת הסטודיו">
+              {!isMobile && <div className="flex min-h-9 items-center justify-between rounded-xl border px-1" style={{ borderColor: "var(--app-border)", background: "var(--app-elevated)" }}><button aria-label="הצר מגירה" onClick={() => changeSidebarWidth(-40)} disabled={desktopSidebarWidth <= 300} className="grid h-7 w-7 place-items-center rounded-lg text-sm disabled:opacity-35" style={{ color: "var(--app-text)" }}>−</button><span className="text-[9px] font-bold" title="רוחב המגירה" style={{ color: "var(--app-muted)" }}>{desktopSidebarWidth}</span><button aria-label="הרחב מגירה" onClick={() => changeSidebarWidth(40)} disabled={desktopSidebarWidth >= 680} className="grid h-7 w-7 place-items-center rounded-lg text-sm disabled:opacity-35" style={{ color: "var(--app-text)" }}>+</button></div>}
+              {!isMobile && <button onClick={() => setSelectionPresentation(value => value === "popover" ? "drawer" : "popover")} aria-label="אופן פתיחת מידע בלחיצה" aria-pressed={selectionPresentation === "popover"} className="flex min-h-9 items-center justify-center gap-1.5 rounded-xl border px-2 text-[9px] font-bold" style={{ color: selectionPresentation === "popover" ? "var(--app-accent)" : "var(--app-muted)", borderColor: "var(--app-border)", background: "var(--app-elevated)" }}><AppIcon name={selectionPresentation === "popover" ? "file" : "sidebar"} />{selectionPresentation === "popover" ? "כרטיס מידע" : "מידע במגירה"}</button>}
+              <button onClick={() => setSidebarPinned(value => !value)} aria-label={sidebarPinned ? "עבור להסתרה אוטומטית" : "הצמד מגירה"} aria-pressed={sidebarPinned} className="flex min-h-9 items-center justify-center gap-1.5 rounded-xl border px-2 text-[9px] font-bold" style={{ color: sidebarPinned ? "var(--app-accent)" : "var(--app-muted)", borderColor: sidebarPinned ? "var(--app-accent)" : "var(--app-border)", background: sidebarPinned ? "color-mix(in srgb,var(--app-accent) 12%,var(--app-surface))" : "var(--app-elevated)" }}><AppIcon name="pin" />{sidebarPinned ? "מוצמד" : "אוטו־הייד"}</button>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1 text-[9px]" style={{ color: "var(--app-muted)" }}>
+              <span className="flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-1" title="זהו מונה שימוש: כמה רשומות פתחת, ולא כמה Meshes נסרקו" style={{ background: "var(--app-elevated)" }}><AppIcon name="eye" /> {exploredOrgans.size} נפתחו</span>
+              <span className="flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-1" title="מספר רשומות הידע והמיפוי הזמינות בספרייה" style={{ background: "var(--app-elevated)" }}><AppIcon name="library" /> {Object.keys(enrichedOrganDetails).length} רשומות ידע</span>
+              <span className="flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-1" style={{ color: "var(--app-accent)", background: "var(--app-elevated)" }}><AppIcon name="star" /> {favorites.size} מועדפים</span>
             </div>
             <div className="h-2 rounded-full overflow-hidden" aria-label="התקדמות פתיחת רשומות ידע" style={{ background: "hsl(220 20% 93%)" }}>
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.round(exploredOrgans.size / Math.max(Object.keys(enrichedOrganDetails).length, 1) * 100)}%`, background: "linear-gradient(90deg, hsl(43 78% 47%), hsl(43 78% 55%))" }} />
@@ -1716,7 +1840,7 @@ const ModelViewer = () => {
             {!isMobile && <nav aria-label="כלי סטודיו GLB" className="grid grid-cols-4 gap-1 mt-3">
               {studioTabs.map(tab => <button key={tab.to} onClick={() => {
                 const panel = new URL(tab.to, window.location.origin).searchParams.get("panel");
-                if (panel && ["organs", "models", "gallery", "info", "analysis", "sources"].includes(panel)) setSidebarTab(panel as SidebarTab);
+                if (panel && ["organs", "models", "gallery", "visibility", "info", "analysis", "sources", "live"].includes(panel)) setSidebarTab(panel as SidebarTab);
                 setShowOrganSidebar(true);
                 navigate(tab.to);
               }} aria-current={tab.active ? "page" : undefined}
@@ -1729,6 +1853,25 @@ const ModelViewer = () => {
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto sidebar-scroll p-3">
+            {sidebarTab !== "gallery" && sidebarTab !== "visibility" && (
+              <section data-testid="visibility-quick-access" className="mb-3 rounded-xl p-2.5 flex items-center gap-2" style={{ background: "color-mix(in srgb,var(--app-accent) 8%,var(--app-elevated))", border: "1px solid color-mix(in srgb,var(--app-accent) 32%,var(--app-border))" }}>
+                <AppIcon name="eye" />
+                <div className="flex-1 min-w-0"><strong className="block text-[11px]" style={{ color: "var(--app-text)" }}>נראות ובחירה מרובה</strong><small className="block truncate text-[9px]" style={{ color: "var(--app-muted)" }}>{visibilitySelection.size} נבחרו · {hiddenMeshes.size} מוסתרים</small></div>
+                <button onClick={() => { setSidebarTab("visibility"); setShowOrganSidebar(true); navigate("/legacy?panel=visibility"); }} className="rounded-lg px-2.5 py-2 text-[10px] font-extrabold" style={{ color: "var(--app-accent-contrast)", background: "var(--app-accent)" }}>פתח</button>
+              </section>
+            )}
+            {sidebarTab === "visibility" && (
+              <VisibilitySelectionPanel
+                items={visibilityStructures}
+                selected={visibilitySelection}
+                hidden={hiddenMeshes}
+                onSelectionChange={setVisibilitySelection}
+                onHideSelected={hideVisibilitySelection}
+                onShowSelected={showVisibilitySelection}
+                onIsolateSelected={isolateVisibilitySelection}
+                onShowAll={showAllVisibilityStructures}
+              />
+            )}
             {sidebarTab === "organs" && (
               <div className="flex flex-col gap-2.5">
                 <input value={atlasQuery} onChange={e => setAtlasQuery(e.target.value)}
@@ -1835,6 +1978,25 @@ const ModelViewer = () => {
             {sidebarTab === "sources" && (
               <AnatomySourcesPanel theme={t} />
             )}
+            {sidebarTab === "live" && (
+              <LiveFunctionsPanel
+                enabled={systemAnimations}
+                heartbeat={animateHeartbeat}
+                breathing={animateBreathing}
+                digestion={animateDigestion}
+                bloodFlow={showBloodFlow}
+                speed={animationSpeed}
+                intensity={systemAnimationIntensity}
+                onEnabledChange={setSystemAnimations}
+                onHeartbeatChange={setAnimateHeartbeat}
+                onBreathingChange={setAnimateBreathing}
+                onDigestionChange={setAnimateDigestion}
+                onBloodFlowChange={setShowBloodFlow}
+                onSpeedChange={setAnimationSpeed}
+                onIntensityChange={setSystemAnimationIntensity}
+                onFocusStructure={key => { focusOrganByKey(key); setSidebarTab("live"); }}
+              />
+            )}
             {sidebarTab === "info" && selectedOrgan && (
               <div className="flex flex-col gap-3">
                 {!isSurfaceOrRegionalStructure(selectedOrgan.meshName, selectedOrgan) && <div className="text-center">
@@ -1937,7 +2099,7 @@ const ModelViewer = () => {
           .filter(Boolean).some(value => String(value).toLocaleLowerCase("he").includes(query)));
         const shownStructures = filteredStructures.slice(0, glbStructureLimit);
         return (
-          <div data-testid="anatomy-scan-badge" data-mapping-count={currentMappedDetails.size} className="absolute z-[28]" style={{ top: isMobile ? 50 : 62, [isRTL ? "right" : "left"]: isMobile ? 8 : (showLayerPanel ? 224 : 56) }}>
+          <div data-testid="anatomy-scan-badge" data-mapping-count={currentMappedDetails.size} className="absolute z-[28]" style={{ top: isMobile ? 50 : 70, [isRTL ? "right" : "left"]: isMobile ? 8 : (showOrganSidebar ? desktopSidebarWidth + 18 : (showLayerPanel ? 224 : 18)) }}>
             <div className="glass-panel flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer" onClick={() => setShowGlbReport(r => !r)}>
               <span className="text-xs">{uniqueOrgans.length > 0 ? "🧬" : "📦"}</span>
               <span className="text-[10px] font-semibold text-primary">
@@ -2341,23 +2503,29 @@ const ModelViewer = () => {
       {/* ═══ DEV PANEL ═══ */}
       {showDevPanel && <DevPanel theme={t} onClose={() => setShowDevPanel(false)} />}
 
-      {/* Legacy dialog and floating palette were consolidated into the studio drawer above. */}
-      {false && <div className="absolute z-[14] flex items-end gap-2" style={{ right: isMobile ? 12 : 72, bottom: isMobile ? 70 : 88, direction: "rtl" }}>
-        <button
-          aria-label={showQuickTools ? "סגור כלים מהירים" : "פתח כלים מהירים"}
-          aria-expanded={showQuickTools}
-          onClick={() => setShowQuickTools(value => !value)}
-          className={`tb-btn shrink-0 shadow-xl ${showQuickTools || focusSelected || showClippingPlane || hiddenMeshes.size > 0 ? "active" : ""}`}
-          style={{ width: isMobile ? 44 : 50, height: isMobile ? 44 : 50, fontSize: 20 }}
-          title="כלי אנטומיה מהירים"
-        >🩻</button>
+      {/* The same draggable and resizable quick-tools dock is shared with Body Builder. */}
+      <QuickToolsDock
+        isMobile={isMobile}
+        storageId="glb-studio"
+        defaultAnchor="left"
+        handle={({ dragging, wasDragged }) => (
+          <button
+            aria-label={showQuickTools ? "מזער כלים מהירים בסטודיו GLB" : "פתח כלים מהירים בסטודיו GLB"}
+            aria-expanded={showQuickTools}
+            onClick={() => { if (!wasDragged()) setShowQuickTools(value => !value); }}
+            className={`tb-btn h-full w-full shrink-0 shadow-xl ${showQuickTools || focusSelected || showClippingPlane || hiddenMeshes.size > 0 ? "active" : ""}`}
+            style={{ cursor: dragging ? "grabbing" : "grab" }}
+            title="כלים מהירים · ניתן לגרור ולהגדיל"
+          ><AppIcon name="scan" /></button>
+        )}
+      >
         {showQuickTools && (
-          <section aria-label="כלי אנטומיה מהירים" className="glass-panel w-[min(660px,calc(100vw-110px))] overflow-hidden p-0 shadow-2xl">
+          <section aria-label="כלים אנטומיים מהירים בסטודיו GLB" className="glb-quick-tools-panel glass-panel w-[min(660px,calc(100vw-110px))] overflow-hidden p-0 shadow-2xl">
             {/* Header: live context + state chips */}
             <header className="flex items-center justify-between gap-3 border-b border-border/60 bg-background/40 px-3 py-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 text-xs font-extrabold text-foreground">
-                  <span>🩻</span><span className="truncate">כלים מהירים</span>
+                  <AppIcon name="scan" /><span className="truncate">כלים מהירים</span>
                   {selectedOrgan && <span className="truncate rounded-md bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">{selectedOrgan.name}</span>}
                 </div>
                 <div className="mt-0.5 text-[9px] text-muted-foreground">
@@ -2372,15 +2540,15 @@ const ModelViewer = () => {
               </div>
             </header>
 
-            <div className="space-y-2 p-2.5">
+            <div className="glb-quick-tools-content space-y-2 p-2.5">
               {/* Focus actions */}
               <div>
                 <div className="mb-1 px-1 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">מיקוד חלק</div>
-                <div className={`grid gap-1.5 ${isMobile ? "grid-cols-2" : "grid-cols-4"}`}>
-                  <button disabled={!selectedOrgan} title="בודד חלק (I)" onClick={isolateSelected} aria-pressed={focusSelected && focusOpacity < 0.1} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35 ${focusSelected && focusOpacity < 0.1 ? "active" : ""}`}><span className="text-base">🎯</span><span className="text-[9px] font-bold">בודד חלק</span></button>
-                  <button disabled={!selectedOrgan} title="עמעם סביב (D)" onClick={dimAroundSelected} aria-pressed={focusSelected && focusOpacity >= 0.1} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35 ${focusSelected && focusOpacity >= 0.1 ? "active" : ""}`}><span className="text-base">🌫️</span><span className="text-[9px] font-bold">עמעם סביב</span></button>
-                  <button disabled={!selectedOrgan} title="הסתר חלק (H)" onClick={hideSelected} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35"><span className="text-base">🙈</span><span className="text-[9px] font-bold">הסתר חלק</span></button>
-                  <button disabled={hiddenMeshHistory.length === 0} title="החזר אחרון (U)" onClick={restoreLastHidden} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35"><span className="text-base">↩️</span><span className="text-[9px] font-bold">החזר אחרון</span></button>
+                <div className={`glb-quick-tools-action-grid grid gap-1.5 ${isMobile ? "grid-cols-2" : "grid-cols-4"}`}>
+                  <button disabled={!selectedOrgan} title="בודד חלק (I)" onClick={isolateSelected} aria-pressed={focusSelected && focusOpacity < 0.1} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35 ${focusSelected && focusOpacity < 0.1 ? "active" : ""}`}><AppIcon name="locate" /><span className="text-[9px] font-bold">בודד חלק</span></button>
+                  <button disabled={!selectedOrgan} title="עמעם סביב (D)" onClick={dimAroundSelected} aria-pressed={focusSelected && focusOpacity >= 0.1} className={`settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35 ${focusSelected && focusOpacity >= 0.1 ? "active" : ""}`}><AppIcon name="eye" /><span className="text-[9px] font-bold">עמעם סביב</span></button>
+                  <button disabled={!selectedOrgan} title="הסתר חלק (H)" onClick={hideSelected} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35"><AppIcon name="eye" /><span className="text-[9px] font-bold">הסתר חלק</span></button>
+                  <button disabled={hiddenMeshHistory.length === 0} title="החזר אחרון (U)" onClick={restoreLastHidden} className="settings-item min-h-12 flex-col justify-center gap-0.5 px-1 text-center disabled:cursor-not-allowed disabled:opacity-35"><AppIcon name="reset" /><span className="text-[9px] font-bold">החזר אחרון</span></button>
                 </div>
               </div>
 
@@ -2417,11 +2585,11 @@ const ModelViewer = () => {
               <div>
                 <div className="mb-1 px-1 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">תצוגה</div>
                 <div className={`grid gap-1.5 ${isMobile ? "grid-cols-3" : "grid-cols-5"}`}>
-                  <button onClick={() => setShowClippingPlane(value => !value)} title="חיתוך (C)" aria-pressed={showClippingPlane} className={`settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center ${showClippingPlane ? "active" : ""}`}><span className="text-base">✂️</span><span className="text-[9px] font-bold">חיתוך</span></button>
-                  <button onClick={() => setAutoRotate(value => !value)} aria-pressed={autoRotate} className={`settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center ${autoRotate ? "active" : ""}`}><span className="text-base">🔄</span><span className="text-[9px] font-bold">סיבוב</span></button>
-                  <button onClick={() => { setShowClippingPlane(false); setXRayOpacity(0.32); setExplodeAmount(0); }} className="settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center"><span className="text-base">🫥</span><span className="text-[9px] font-bold">רנטגן</span></button>
-                  <button onClick={() => { setShowClippingPlane(false); setXRayOpacity(0.6); setExplodeAmount(0.35); }} className="settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center"><span className="text-base">🧩</span><span className="text-[9px] font-bold">שכבות</span></button>
-                  <button onClick={resetQuickTools} title="הצג הכל (R)" className="settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center"><span className="text-base">⟲</span><span className="text-[9px] font-bold">הצג הכל</span></button>
+                  <button onClick={() => setShowClippingPlane(value => !value)} title="חיתוך (C)" aria-pressed={showClippingPlane} className={`settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center ${showClippingPlane ? "active" : ""}`}><AppIcon name="scan" /><span className="text-[9px] font-bold">חיתוך</span></button>
+                  <button onClick={() => setAutoRotate(value => !value)} aria-pressed={autoRotate} className={`settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center ${autoRotate ? "active" : ""}`}><AppIcon name="reset" /><span className="text-[9px] font-bold">סיבוב</span></button>
+                  <button onClick={() => { setShowClippingPlane(false); setXRayOpacity(0.32); setExplodeAmount(0); }} className="settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center"><AppIcon name="eye" /><span className="text-[9px] font-bold">רנטגן</span></button>
+                  <button onClick={() => { setShowClippingPlane(false); setXRayOpacity(0.6); setExplodeAmount(0.35); }} className="settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center"><AppIcon name="layers" /><span className="text-[9px] font-bold">שכבות</span></button>
+                  <button onClick={resetQuickTools} title="הצג הכל (R)" className="settings-item min-h-11 flex-col justify-center gap-0.5 px-1 text-center"><AppIcon name="reset" /><span className="text-[9px] font-bold">הצג הכל</span></button>
                 </div>
               </div>
 
@@ -2437,10 +2605,10 @@ const ModelViewer = () => {
             </div>
           </section>
         )}
-      </div>}
+      </QuickToolsDock>
 
       {/* ═══ 3D CANVAS ═══ */}
-      <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-model-interaction-ready={modelInteractionReady ? "true" : "false"} data-selection-ready={selectionReadyForModel ? "true" : "false"} data-selection-resolved={selectionResolved ? "true" : "false"} data-camera-fit={selectionBounds ? "true" : "false"} data-camera-auto-focus={focusCameraOnSelection ? "true" : "false"} data-camera-motion={cameraMotion ? "moving" : "settled"} data-camera-distance={cameraSnapshot ? cameraSnapshot.distance.toFixed(3) : ""} data-camera-target={cameraSnapshot ? cameraSnapshot.target.map(value => value.toFixed(3)).join(",") : ""} data-auto-rotate={autoRotate ? "true" : "false"} data-interaction-mode={controlPressed ? "rotate-temporary" : interactionMode} data-focus-selected={focusSelected ? "true" : "false"} data-hidden-mesh-count={hiddenMeshes.size} data-model-url={modelUrl} style={{ cursor: modelInteractionReady ? (interactionMode === "rotate" || controlPressed ? "grab" : "crosshair") : "wait" }}>
+      <div className="absolute inset-0 z-0" data-testid="anatomy-viewer-canvas" data-selected-mesh={selectedOrgan?.meshName || ""} data-model-interaction-ready={modelInteractionReady ? "true" : "false"} data-selection-ready={selectionReadyForModel ? "true" : "false"} data-selection-resolved={selectionResolved ? "true" : "false"} data-camera-fit={selectionBounds ? "true" : "false"} data-camera-auto-focus={focusCameraOnSelection ? "true" : "false"} data-camera-motion={cameraMotion ? "moving" : "settled"} data-camera-distance={cameraSnapshot ? cameraSnapshot.distance.toFixed(3) : ""} data-camera-target={cameraSnapshot ? cameraSnapshot.target.map(value => value.toFixed(3)).join(",") : ""} data-auto-rotate={autoRotate ? "true" : "false"} data-interaction-mode={controlPressed ? "rotate-temporary" : interactionMode} data-focus-selected={focusSelected ? "true" : "false"} data-hidden-mesh-count={hiddenMeshes.size} data-system-animations={systemAnimations ? "true" : "false"} data-animated-mesh-count={animatedMeshCount} data-blood-flow={showBloodFlow ? "true" : "false"} data-animation-speed={animationSpeed.toFixed(2)} data-model-url={modelUrl} style={{ cursor: modelInteractionReady ? (interactionMode === "rotate" || controlPressed ? "grab" : "crosshair") : "wait" }}>
         <Canvas key={canvasKey} camera={{ position: [0, 1, 4], fov: 50 }} onPointerMissed={() => setSelectionPopupPosition(null)}
           dpr={[1, 1.5]}
           frameloop={autoRotate || showBloodFlow || systemAnimations || cameraTourActive || showXRayShader ? "always" : "demand"}
@@ -2457,15 +2625,14 @@ const ModelViewer = () => {
           <pointLight position={[0, 3, 0]} intensity={0.5 * sceneBrightness} color={t.accent} />
           <Suspense fallback={<Html center><div className="legacy-model-loader"><span />טוען מודל אנושי תלת־ממדי…</div></Html>}>
             <ModelErrorBoundary key={modelUrl} onError={msg => { setModelLoadWarning(msg); if (modelUrl !== LOCAL_DEFAULT_MODEL) setModelUrl(LOCAL_DEFAULT_MODEL); }}>
-              <Model url={modelUrl} onSelect={handleOrganSelect} selectionEnabled={modelInteractionReady && interactionMode === "select" && !controlPressed} selectedMesh={activeSelectedMesh} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} focusOpacity={focusOpacity} hiddenMeshes={hiddenMeshes} mappedDetails={currentMappedDetails} onScan={handleGlbScan} onReady={handleModelInteractionReady} onSelectionResolved={handleSelectionResolved} onSelectionBounds={handleSelectionBounds} />
+              <Model url={modelUrl} onSelect={handleOrganSelect} selectionEnabled={modelInteractionReady && interactionMode === "select" && !controlPressed} selectedMesh={activeSelectedMesh} accent={t.accent} xRayOpacity={xRayOpacity} explodeAmount={explodeAmount} focusSelected={focusSelected} focusOpacity={focusOpacity} hiddenMeshes={hiddenMeshes} mappedDetails={currentMappedDetails} liveAnimations={systemAnimations} animateHeartbeat={animateHeartbeat} animateBreathing={animateBreathing} animateDigestion={animateDigestion} animationSpeed={animationSpeed} animationIntensity={systemAnimationIntensity} onAnimatedMeshCountChange={setAnimatedMeshCount} onScan={handleGlbScan} onReady={handleModelInteractionReady} onSelectionResolved={handleSelectionResolved} onSelectionBounds={handleSelectionBounds} />
             </ModelErrorBoundary>
           </Suspense>
           <ClippingPlane enabled={showClippingPlane} axis={clipAxis} position={clipPosition} negate={clipNegate} />
-          {useInteractive && <BloodFlowParticles enabled={showBloodFlow} />}
+          <BloodFlowParticles enabled={showBloodFlow} globalSpeed={animationSpeed} />
           {useInteractive && <AnatomyLabels3D enabled={showLabels3D} lang={lang} accent={t.accent} selectedKey={activeSelectedMesh || undefined} explodeAmount={explodeAmount} onSelect={handleOrganSelect} />}
           <SelectionOutline enabled={showSelectionOutline} selectedName={activeSelectedMesh || undefined} color={t.accent} />
           <XRayShader enabled={showXRayShader} color={xRayColor} intensity={xRayIntensity} />
-          <SystemAnimations enabled={systemAnimations} heartbeat={animateHeartbeat} breathing={animateBreathing} digestion={animateDigestion} speed={animationSpeed} intensity={systemAnimationIntensity} />
           <CameraTour active={cameraTourActive} onStopChange={(_idx, stop) => setTourStopLabel(stop.label)} onComplete={() => { setCameraTourActive(false); setTourStopLabel(""); }} />
           <PerformanceMonitor enabled={showPerfMonitor} />
           <CameraController key={renderKey} targetPosition={cameraTargetRef.current} targetLookAt={cameraLookAtRef.current} focusBounds={focusCameraOnSelection ? selectionBounds : null} autoRotate={autoRotate} onMotionChange={setCameraMotion} onSettled={setCameraSnapshot} />

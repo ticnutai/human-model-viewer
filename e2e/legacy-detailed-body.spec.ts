@@ -300,6 +300,33 @@ test("studio drawer resizes from its handle and preserves the chosen width", asy
   await expect.poll(async () => Number(await drawer.getAttribute("data-width"))).toBe(Number(savedWidth) - 40);
 });
 
+test("studio header stays compact and floating model status never covers it", async ({ page }) => {
+  await page.goto("/legacy?panel=models&tool=models");
+  const drawer = page.locator(".sidebar-panel");
+  const badge = page.getByTestId("anatomy-scan-badge");
+  const headerSettings = page.getByRole("group", { name: "הגדרות מגירת הסטודיו" });
+  await expect(drawer).toBeVisible({ timeout: 60_000 });
+  await expect(headerSettings).toBeVisible();
+  await expect(page.getByRole("button", { name: "אופן פתיחת מידע בלחיצה" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "עבור להסתרה אוטומטית" })).toBeVisible();
+  await expect(badge).toBeVisible({ timeout: 60_000 });
+
+  const drawerBox = await drawer.boundingBox();
+  const badgeBox = await badge.boundingBox();
+  expect(drawerBox).not.toBeNull();
+  expect(badgeBox).not.toBeNull();
+  expect(badgeBox!.x + badgeBox!.width).toBeLessThanOrEqual(drawerBox!.x - 8);
+
+  const hra = page.getByTestId("hra-model-promotion");
+  await expect(hra).toBeVisible();
+  await expect(hra.getByRole("button", { name: "גוף זכרי" })).toBeVisible();
+  await expect(hra.getByRole("button", { name: "גוף נקבי" })).toBeVisible();
+  await expect(hra.getByRole("button", { name: "מיפוי מבנים" })).toBeVisible();
+  const hraBox = await hra.boundingBox();
+  expect(hraBox).not.toBeNull();
+  expect(hraBox!.height).toBeLessThan(150);
+});
+
 test("a body click can open a lightweight information card beside the selected area", async ({ page }) => {
   test.setTimeout(90_000);
   const errors: string[] = [];
@@ -455,4 +482,119 @@ test("repeated body clicks select many regions without moving or washing out the
   expect(medianLatency, `click latencies: ${clickLatencies.join(", ")}ms`).toBeLessThan(1_200);
   expect(Math.max(...clickLatencies), `click latencies: ${clickLatencies.join(", ")}ms`).toBeLessThan(2_500);
   expect(errors).toEqual([]);
+});
+
+test("live body tab runs physiological presets with clear Hebrew controls", async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/legacy?panel=live");
+
+  const panel = page.getByTestId("live-functions-panel");
+  await expect(panel).toBeVisible({ timeout: 60_000 });
+  await expect(panel).toContainText("הגוף החי");
+  await expect(panel).toContainText("הדמיות חינוכיות ומפושטות");
+  await expect(panel.getByRole("button", { name: "הפעל פעימת הלב" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "הפעל מערכת הנשימה" })).toBeVisible();
+
+  const viewer = page.getByTestId("anatomy-viewer-canvas");
+  await panel.getByRole("button", { name: "הדגמה מלאה" }).click();
+  await expect(viewer).toHaveAttribute("data-system-animations", "true");
+  await expect(viewer).toHaveAttribute("data-blood-flow", "true");
+  await expect(viewer).not.toHaveAttribute("data-animated-mesh-count", "0", { timeout: 10_000 });
+  await expect(panel).toContainText("פעיל");
+
+  await panel.getByLabel("מהירות אנימציות חיות").fill("125");
+  await expect(viewer).toHaveAttribute("data-animation-speed", "1.25");
+
+  await panel.getByRole("button", { name: "מסע נשימה" }).click();
+  await expect(viewer).toHaveAttribute("data-model-url", /lung/i, { timeout: 15_000 });
+  await expect(viewer).not.toHaveAttribute("data-animated-mesh-count", "0", { timeout: 15_000 });
+
+  await panel.getByRole("button", { name: "מסע עיכול" }).click();
+  await expect(viewer).toHaveAttribute("data-model-url", /intestine/i, { timeout: 15_000 });
+  await expect(viewer).not.toHaveAttribute("data-animated-mesh-count", "0", { timeout: 15_000 });
+
+  await panel.getByRole("button", { name: "זרימת דם" }).click();
+  await expect(viewer).toHaveAttribute("data-system-animations", "false");
+  await expect(viewer).toHaveAttribute("data-blood-flow", "true");
+  await panel.getByRole("button", { name: "השהה הכול" }).click();
+  await expect(viewer).toHaveAttribute("data-system-animations", "false");
+  await expect(viewer).toHaveAttribute("data-blood-flow", "false");
+  await expect(panel).toContainText("מושהה");
+  expect(errors).toEqual([]);
+});
+
+test("visibility center controls single, multiple and whole-system meshes from every relevant studio tab", async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/legacy?panel=visibility");
+
+  const panel = page.getByTestId("visibility-selection-panel");
+  const viewer = page.getByTestId("anatomy-viewer-canvas");
+  await expect(panel).toBeVisible({ timeout: 60_000 });
+  await expect(panel.getByText(/\d+/, { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+
+  const structureButtons = panel.locator('button[aria-pressed]');
+  await expect.poll(async () => structureButtons.count(), { timeout: 60_000 }).toBeGreaterThan(2);
+
+  const selectAll = panel.getByRole("button", { name: "בחר הכול", exact: true });
+  await selectAll.click();
+  await expect(panel.getByRole("button", { name: "בטל בחירת הכול", exact: true })).toBeVisible();
+  await expect(page.getByTestId("visibility-selected-count")).not.toContainText(/^0/);
+  await panel.getByRole("button", { name: "בטל בחירת הכול", exact: true }).click();
+  await expect(page.getByTestId("visibility-selected-count")).toContainText(/^0/);
+
+  const firstSystemButton = panel.getByRole("button", { name: /^בחר את כל מערכת/ }).first();
+  await firstSystemButton.click();
+  await expect(page.getByTestId("visibility-selected-count")).not.toContainText(/^0/);
+  await panel.getByRole("button", { name: "הסתר נבחרים", exact: true }).click();
+  await expect.poll(async () => Number(await viewer.getAttribute("data-hidden-mesh-count"))).toBeGreaterThan(0);
+  await panel.getByRole("button", { name: "הצג נבחרים", exact: true }).click();
+  await expect(viewer).toHaveAttribute("data-hidden-mesh-count", "0");
+
+  await panel.getByRole("button", { name: /^בטל בחירת מערכת/ }).first().click();
+  await structureButtons.nth(0).click();
+  await structureButtons.nth(1).click();
+  await expect(page.getByTestId("visibility-selected-count")).toContainText(/^2/);
+  await panel.getByRole("button", { name: "בודד את הנבחרים", exact: true }).click();
+  await expect.poll(async () => Number(await viewer.getAttribute("data-hidden-mesh-count"))).toBeGreaterThan(0);
+  await panel.getByRole("button", { name: "הצג הכול", exact: true }).click();
+  await expect(viewer).toHaveAttribute("data-hidden-mesh-count", "0");
+
+  const studioNav = page.getByRole("navigation", { name: "כלי סטודיו GLB" });
+  for (const tabName of ["איברים", "ספרייה", "ניתוח", "הגוף החי", "מיפוי", "ידע", "מקורות"]) {
+    await studioNav.getByRole("button", { name: tabName, exact: true }).click();
+    await expect(page.getByTestId("visibility-quick-access")).toBeVisible();
+  }
+  await studioNav.getByRole("button", { name: "גלריה", exact: true }).click();
+  await expect(page.getByTestId("visibility-quick-access")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("GLB studio exposes the shared draggable quick-tools icon and anatomy actions", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.addInitScript(() => {
+    localStorage.removeItem("quick-tools-dock-position-glb-studio");
+    localStorage.removeItem("quick-tools-dock-size-glb-studio");
+  });
+  await page.goto("/legacy?panel=models&tool=models");
+  await expect(page.getByText(/\d+ קבוצות · \d+ מבנים/).first()).toBeVisible({ timeout: 60_000 });
+
+  const trigger = page.getByRole("button", { name: "מזער כלים מהירים בסטודיו GLB" });
+  const tools = page.getByRole("region", { name: "כלים אנטומיים מהירים בסטודיו GLB" });
+  await expect(trigger).toBeVisible();
+  await expect(trigger.locator('[data-app-icon="scan"]')).toBeVisible();
+  await expect(tools).toBeVisible();
+  await expect(page.getByTestId("quick-tools-dock")).toBeVisible();
+
+  await trigger.click();
+  await expect(tools).toBeHidden();
+  await page.getByRole("button", { name: "פתח כלים מהירים בסטודיו GLB" }).click();
+  await expect(tools).toBeVisible();
+  const clipping = tools.getByRole("button", { name: "חיתוך", exact: true });
+  await clipping.click();
+  await expect(clipping).toHaveAttribute("aria-pressed", "true");
+  await expect(tools.getByLabel("עומק חיתוך מהיר")).toHaveCount(1);
 });

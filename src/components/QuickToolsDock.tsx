@@ -39,20 +39,27 @@ function handleStyle(dir: HandleDir): React.CSSProperties {
 /** Floating, draggable dock: the handle can be moved anywhere on screen and the spot is remembered. */
 export default function QuickToolsDock({
   isMobile,
+  storageId,
+  defaultAnchor = "right",
   handle,
   children,
 }: {
   isMobile: boolean;
+  /** Separate saved layouts between workspaces while reusing the same dock engine. */
+  storageId?: string;
+  defaultAnchor?: "left" | "right";
   /** Receives whether a drag just happened, so a click after dragging can be ignored. */
   handle: (args: { dragging: boolean; wasDragged: () => boolean }) => ReactNode;
   children?: ReactNode;
 }) {
+  const positionStorageKey = storageId ? `${STORAGE_KEY}-${storageId}` : STORAGE_KEY;
+  const sizeStorageKey = storageId ? `${SIZE_KEY}-${storageId}` : SIZE_KEY;
   const size = isMobile ? 44 : 50;
   const [pos, setPos] = useState<Position | null>(null);
   const [dragging, setDragging] = useState(false);
   const [box, setBox] = useState<Box | null>(() => {
     try {
-      const raw = localStorage.getItem(SIZE_KEY);
+      const raw = localStorage.getItem(sizeStorageKey);
       if (raw) {
         const parsed = JSON.parse(raw) as Box;
         if (Number.isFinite(parsed?.w) && Number.isFinite(parsed?.h)) return parsed;
@@ -72,7 +79,7 @@ export default function QuickToolsDock({
   useEffect(() => {
     let start: Position | null = null;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(positionStorageKey);
       if (raw) {
         const parsed = JSON.parse(raw) as Position;
         if (Number.isFinite(parsed?.x) && Number.isFinite(parsed?.y)) start = parsed;
@@ -80,12 +87,12 @@ export default function QuickToolsDock({
     } catch { /* ignore corrupted value */ }
     if (!start) {
       start = {
-        x: window.innerWidth - (isMobile ? 12 : 72) - size,
+        x: defaultAnchor === "left" ? (isMobile ? 12 : 72) : window.innerWidth - (isMobile ? 12 : 72) - size,
         y: window.innerHeight - (isMobile ? 70 : 88) - size,
       };
     }
     setPos(clamp(start));
-  }, [clamp, isMobile, size]);
+  }, [clamp, defaultAnchor, isMobile, positionStorageKey, size]);
 
   // Keep the dock on screen after resizes / orientation changes.
   useEffect(() => {
@@ -103,7 +110,7 @@ export default function QuickToolsDock({
     const up = () => {
       setDragging(false);
       setPos(p => {
-        if (p) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch { /* ignore */ } }
+        if (p) { try { localStorage.setItem(positionStorageKey, JSON.stringify(p)); } catch { /* ignore */ } }
         return p;
       });
     };
@@ -115,7 +122,7 @@ export default function QuickToolsDock({
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
     };
-  }, [clamp, dragging]);
+  }, [clamp, dragging, positionStorageKey]);
 
   if (!pos) return null;
 
@@ -146,7 +153,7 @@ export default function QuickToolsDock({
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       setBox(current => {
-        if (current) { try { localStorage.setItem(SIZE_KEY, JSON.stringify(current)); } catch { /* ignore */ } }
+        if (current) { try { localStorage.setItem(sizeStorageKey, JSON.stringify(current)); } catch { /* ignore */ } }
         return current;
       });
     };
@@ -158,6 +165,7 @@ export default function QuickToolsDock({
   return (
     <div
       className="fixed z-[16]"
+      data-testid="quick-tools-dock"
       style={{ left: pos.x, top: pos.y, touchAction: "none" }}
     >
       <div
@@ -174,7 +182,9 @@ export default function QuickToolsDock({
 
       {children && (
         <div
-          className="absolute"
+          className="absolute quick-tools-dock-panel"
+          data-testid="quick-tools-dock-panel"
+          data-resized={box ? "true" : "false"}
           style={{
             [openLeft ? "right" : "left"]: 0,
             [openUp ? "bottom" : "top"]: size + 10,
@@ -183,7 +193,10 @@ export default function QuickToolsDock({
             height: box?.h,
           } as React.CSSProperties}
         >
-          <div className="relative h-full w-full overflow-auto [&>*]:h-full [&>*]:w-full [&>*]:max-w-none">{children}</div>
+          <div className={box
+            ? "quick-tools-dock-content relative h-full w-full overflow-auto [&>*]:h-full [&>*]:w-full [&>*]:max-w-none"
+            : "quick-tools-dock-content relative overflow-visible [&>*]:max-w-none"
+          }>{children}</div>
           {HANDLES.map(dir => (
             <div
               key={dir}

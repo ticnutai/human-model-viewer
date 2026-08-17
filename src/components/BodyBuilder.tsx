@@ -385,6 +385,7 @@ export default function BodyBuilder() {
         </div>
         <QuickToolsDock
           isMobile={isMobile}
+          defaultAnchor="left"
           handle={({ dragging, wasDragged }) => (
             <button
               className={cn("body-anatomy-trigger", (quickToolsOpen || selectionView !== "normal" || clipEnabled) && "is-active")}
@@ -398,14 +399,24 @@ export default function BodyBuilder() {
         >
           {quickToolsOpen && <section className="body-anatomy-tools" aria-label="כלים אנטומיים מהירים">
             <header><div><strong>כלים מהירים {selected ? `· ${layers.find((layer) => layer.id === selected)?.name || ""}` : ""}</strong><small>בחר שכבה בגוף והפעל פעולה</small></div><div className="flex items-center gap-1.5">{hiddenHistory.length > 0 && <span>{hiddenHistory.length} מוסתרים</span>}<button onClick={() => setQuickToolsOpen(false)} aria-label="מזער כלים מהירים" title="מזער" className="rounded-lg border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground"><Minus size={14}/></button></div></header>
-            <div className="body-anatomy-actions">
-              <button disabled={!selected} className={cn(selectionView === "isolate" && "is-active")} onClick={() => setSelectionView("isolate")}><Focus/><span>בודד חלק</span></button>
-              <button disabled={!selected} className={cn(selectionView === "dim" && "is-active")} onClick={() => setSelectionView("dim")}><Eye/><span>עמעם סביב</span></button>
-              <button disabled={!selected} onClick={hideSelectedLayer}><EyeOff/><span>הסתר חלק</span></button>
-              <button disabled={!hiddenHistory.length} onClick={restoreLastHiddenLayer}><Undo2/><span>החזר אחרון</span></button>
-              <button className={cn(clipEnabled && "is-active")} onClick={() => setClipEnabled((value) => !value)}><Scissors/><span>חיתוך</span></button>
-              <button className={cn(measurementMode && "is-active")} onClick={() => {setMeasurementMode((value)=>!value);setMeasurementPoints([]);}}><Ruler/><span>מדידה</span></button>
-              <button onClick={resetAnatomyTools}><RotateCcw/><span>הצג רגיל</span></button>
+            <div className="body-anatomy-action-groups">
+              <section className="body-anatomy-action-group" aria-label="מיקוד חלק בבונה הגוף">
+                <strong>מיקוד חלק</strong>
+                <div className="body-anatomy-actions">
+                  <button disabled={!selected} className={cn(selectionView === "isolate" && "is-active")} onClick={() => setSelectionView("isolate")}><Focus/><span>בודד חלק</span></button>
+                  <button disabled={!selected} className={cn(selectionView === "dim" && "is-active")} onClick={() => setSelectionView("dim")}><Eye/><span>עמעם סביב</span></button>
+                  <button disabled={!selected} onClick={hideSelectedLayer}><EyeOff/><span>הסתר חלק</span></button>
+                  <button disabled={!hiddenHistory.length} onClick={restoreLastHiddenLayer}><Undo2/><span>החזר אחרון</span></button>
+                </div>
+              </section>
+              <section className="body-anatomy-action-group" aria-label="תצוגה וכלים בבונה הגוף">
+                <strong>תצוגה וכלים</strong>
+                <div className="body-anatomy-actions">
+                  <button className={cn(clipEnabled && "is-active")} onClick={() => setClipEnabled((value) => !value)}><Scissors/><span>חיתוך</span></button>
+                  <button className={cn(measurementMode && "is-active")} onClick={() => {setMeasurementMode((value)=>!value);setMeasurementPoints([]);}}><Ruler/><span>מדידה</span></button>
+                  <button onClick={resetAnatomyTools}><RotateCcw/><span>הצג רגיל</span></button>
+                </div>
+              </section>
             </div>
             {clipEnabled && <div className="body-clip-controls">
               <div role="group" aria-label="כיוון חיתוך">{([['x','צד'],['y','גובה'],['z','חזית']] as [ClipAxis,string][]).map(([axis,label]) => <button key={axis} className={cn(clipAxis === axis && "is-active")} onClick={() => setClipAxis(axis)}>{label}</button>)}</div>

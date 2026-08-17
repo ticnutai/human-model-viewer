@@ -58,6 +58,60 @@ test.describe("Body builder and GLB library", () => {
     await expect(stage).toHaveAttribute("data-clipping", "false");
   });
 
+  test("resizing quick tools distributes action icons through the added space", async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem("quick-tools-dock-size"));
+    await page.reload();
+    const tools = page.getByRole("region", { name: "כלים אנטומיים מהירים" });
+    const panel = page.getByTestId("quick-tools-dock-panel");
+    await expect(tools).toBeVisible();
+    const lastAction = tools.getByRole("button", { name: "הצג רגיל" });
+    const beforePanel = await panel.boundingBox();
+    const beforeAction = await lastAction.boundingBox();
+    expect(beforePanel).not.toBeNull();
+    expect(beforeAction).not.toBeNull();
+
+    const northHandle = panel.getByRole("separator", { name: "שינוי גודל n", exact: true });
+    const handleBox = await northHandle.boundingBox();
+    expect(handleBox).not.toBeNull();
+    await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + handleBox!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y - 210, { steps: 8 });
+    await page.mouse.up();
+
+    const eastHandle = panel.getByRole("separator", { name: "שינוי גודל e", exact: true });
+    const eastHandleBox = await eastHandle.boundingBox();
+    expect(eastHandleBox).not.toBeNull();
+    await page.mouse.move(eastHandleBox!.x + eastHandleBox!.width / 2, eastHandleBox!.y + eastHandleBox!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(eastHandleBox!.x + eastHandleBox!.width / 2 + 170, eastHandleBox!.y + eastHandleBox!.height / 2, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(panel).toHaveAttribute("data-resized", "true");
+    const afterPanel = await panel.boundingBox();
+    const afterAction = await lastAction.boundingBox();
+    expect(afterPanel!.height).toBeGreaterThan(beforePanel!.height + 150);
+    expect(afterPanel!.width).toBeGreaterThan(beforePanel!.width + 120);
+    const actionBoxes = await tools.locator(".body-anatomy-actions button").evaluateAll((buttons) => buttons.map((button) => {
+      const box = button.getBoundingClientRect();
+      return { width: box.width, height: box.height, top: box.top };
+    }));
+    actionBoxes.forEach((box) => {
+      const ratio = box.width / box.height;
+      expect(box.width).toBeLessThanOrEqual(88);
+      expect(box.height).toBeLessThanOrEqual(80);
+      expect(ratio).toBeGreaterThan(.82);
+      expect(ratio).toBeLessThan(1.2);
+    });
+    const groupBoxes = await tools.locator(".body-anatomy-action-group").evaluateAll((groups) => groups.map((group) => {
+      const box = group.getBoundingClientRect();
+      return { left: box.left, width: box.width, height: box.height };
+    }));
+    expect(groupBoxes).toHaveLength(2);
+    expect(Math.abs(groupBoxes[0].left - groupBoxes[1].left)).toBeGreaterThan(180);
+    expect(groupBoxes[0].height).toBeGreaterThan(afterAction!.height + 100);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("quick-tools-dock-size"))).not.toBeNull();
+  });
+
   test("moves the whole body with the mouse and restores the view after reload", async ({ page }) => {
     await page.evaluate(() => localStorage.removeItem("niflaot-body-builder-camera-v1"));
     await page.reload();
