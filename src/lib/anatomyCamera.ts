@@ -22,3 +22,17 @@ export function anatomyFitDistance(
   const distanceForHeight = height / (2 * Math.tan(verticalFov / 2));
   return Math.max(0.35, Math.max(distanceForWidth, distanceForHeight) * Math.max(padding, 1) + depth / 2);
 }
+
+/**
+ * Keeps automatic anatomical focus useful without diving inside tiny meshes or
+ * flying far away on malformed bounds. The selected structure remains clear,
+ * while a little surrounding context is always retained.
+ */
+export function anatomyFocusDistance(
+  bounds: AnatomyBounds,
+  verticalFovDegrees: number,
+  aspect: number,
+): number {
+  const fitted = anatomyFitDistance(bounds, verticalFovDegrees, aspect, 1.48);
+  return Math.min(7.5, Math.max(1.05, fitted));
+}

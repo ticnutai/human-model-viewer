@@ -123,12 +123,25 @@ test("femur and tibia list choices resolve to real meshes before highlighting", 
   await expect(viewer).toHaveAttribute("data-selected-mesh", "VH_M_femur_L");
   await expect(viewer).toHaveAttribute("data-selection-resolved", "true", { timeout: 30_000 });
   await expect(viewer).toHaveAttribute("data-camera-fit", "true", { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-camera-motion", "settled", { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-auto-rotate", "false");
+  await expect(viewer).toHaveAttribute("data-camera-target", /.+/, { timeout: 30_000 });
+  const femurTarget = await viewer.getAttribute("data-camera-target");
+  const femurDistance = Number(await viewer.getAttribute("data-camera-distance"));
+  expect(femurTarget).toBeTruthy();
+  expect(femurDistance).toBeGreaterThanOrEqual(1.049);
+  expect(femurDistance).toBeLessThanOrEqual(7.501);
 
   const regionExplorer = page.getByTestId("selected-region-navigation");
-  await regionExplorer.getByRole("button", { name: /עצם השוקה/ }).click();
-  await expect(viewer).toHaveAttribute("data-selected-mesh", "VH_M_tibia_L");
+  await regionExplorer.getByRole("button", { name: "עצם השוקה", exact: true }).click();
+  await expect(viewer).toHaveAttribute("data-selected-mesh", /VH_[MF]_tibia_L/);
   await expect(viewer).toHaveAttribute("data-selection-resolved", "true", { timeout: 30_000 });
   await expect(viewer).toHaveAttribute("data-camera-fit", "true", { timeout: 30_000 });
+  await expect.poll(() => viewer.getAttribute("data-camera-target"), { timeout: 30_000 }).not.toBe(femurTarget);
+  await expect(viewer).toHaveAttribute("data-camera-motion", "settled", { timeout: 30_000 });
+  const tibiaDistance = Number(await viewer.getAttribute("data-camera-distance"));
+  expect(tibiaDistance).toBeGreaterThanOrEqual(1.049);
+  expect(tibiaDistance).toBeLessThanOrEqual(7.501);
   await expect(page.getByRole("status")).toContainText("מסומן במודל: עצם השוקה");
 });
 
@@ -154,6 +167,38 @@ test("a head structure is fitted completely instead of keeping the whole-body ca
   await expect(viewer).toHaveAttribute("data-model-url", /\/models\/humanatlas\/vh-[mf]-allen-brain\/model\.glb/, { timeout: 30_000 });
   await expect(viewer).toHaveAttribute("data-selection-resolved", "true", { timeout: 30_000 });
   await expect(viewer).toHaveAttribute("data-camera-fit", "true", { timeout: 30_000 });
+});
+
+test("sequential organ choices from the open GLB studio end in one stable bounded focus", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto("/legacy?panel=models&tool=models");
+  const viewer = page.getByTestId("anatomy-viewer-canvas");
+  let previousTarget = "";
+
+  for (const label of ["מסתמי הלב", "המוח", "עצם הירך"]) {
+    const studioNav = page.getByRole("navigation", { name: "כלי סטודיו GLB" });
+    await studioNav.getByRole("button", { name: "איברים", exact: true }).click();
+    await page.getByPlaceholder("חיפוש איבר...").fill(label);
+    const card = page.getByTestId("body-region-hierarchy").locator(".organ-card").filter({ hasText: label }).first();
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await card.click();
+
+    await expect(viewer).toHaveAttribute("data-selection-ready", "true", { timeout: 30_000 });
+    await expect(viewer).toHaveAttribute("data-selection-resolved", "true", { timeout: 30_000 });
+    await expect(viewer).toHaveAttribute("data-camera-fit", "true", { timeout: 30_000 });
+    await expect(viewer).toHaveAttribute("data-camera-target", /.+/, { timeout: 30_000 });
+    if (previousTarget) await expect.poll(() => viewer.getAttribute("data-camera-target"), { timeout: 30_000 }).not.toBe(previousTarget);
+    await expect(viewer).toHaveAttribute("data-camera-motion", "settled", { timeout: 30_000 });
+
+    const target = await viewer.getAttribute("data-camera-target") || "";
+    const distance = Number(await viewer.getAttribute("data-camera-distance"));
+    expect(distance).toBeGreaterThanOrEqual(1.049);
+    expect(distance).toBeLessThanOrEqual(7.501);
+    await page.waitForTimeout(350);
+    await expect(viewer).toHaveAttribute("data-camera-motion", "settled");
+    await expect(viewer).toHaveAttribute("data-camera-target", target);
+    previousTarget = target;
+  }
 });
 
 test("unified studio drawer isolates, dims, hides, restores and cuts the selected organ", async ({ page }) => {

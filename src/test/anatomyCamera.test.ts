@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anatomyFitDistance } from "@/lib/anatomyCamera";
+import { anatomyFitDistance, anatomyFocusDistance } from "@/lib/anatomyCamera";
 
 describe("anatomy camera framing", () => {
   it("moves farther away for a tall selected structure", () => {
@@ -16,5 +16,10 @@ describe("anatomy camera framing", () => {
 
   it("never returns an unusably close camera distance", () => {
     expect(anatomyFitDistance({ center: [0, 0, 0], size: [0, 0, 0] }, 50, 1)).toBeGreaterThanOrEqual(0.35);
+  });
+
+  it("retains context around tiny structures and rejects runaway distances", () => {
+    expect(anatomyFocusDistance({ center: [0, 0, 0], size: [0.01, 0.02, 0.01] }, 50, 1)).toBe(1.05);
+    expect(anatomyFocusDistance({ center: [0, 0, 0], size: [100, 100, 100] }, 50, 1)).toBe(7.5);
   });
 });
