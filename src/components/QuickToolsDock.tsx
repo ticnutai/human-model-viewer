@@ -183,7 +183,7 @@ export default function QuickToolsDock({
             height: box?.h,
           } as React.CSSProperties}
         >
-          <div className="relative h-full w-full overflow-auto">{children}</div>
+          <div className="relative h-full w-full overflow-auto [&>*]:h-full [&>*]:w-full [&>*]:max-w-none">{children}</div>
           {HANDLES.map(dir => (
             <div
               key={dir}
