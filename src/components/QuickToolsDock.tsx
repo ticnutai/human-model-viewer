@@ -1,8 +1,40 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 type Position = { x: number; y: number };
+type Box = { w: number; h: number };
+type HandleDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 const STORAGE_KEY = "quick-tools-dock-position";
+const SIZE_KEY = "quick-tools-dock-size";
+const HANDLES: HandleDir[] = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+const THICK = 10;
+
+/** Resize handle geometry + cursor for each edge/corner. */
+function handleStyle(dir: HandleDir): React.CSSProperties {
+  const corner = dir.length === 2;
+  const cursor = corner ? (dir === "ne" || dir === "sw" ? "nesw-resize" : "nwse-resize") : dir === "n" || dir === "s" ? "ns-resize" : "ew-resize";
+  const style: React.CSSProperties = { cursor, touchAction: "none" };
+  if (corner) {
+    style.width = THICK + 6;
+    style.height = THICK + 6;
+    style[dir.includes("n") ? "top" : "bottom"] = -3;
+    style[dir.includes("e") ? "right" : "left"] = -3;
+    return style;
+  }
+  if (dir === "n" || dir === "s") {
+    style.left = THICK;
+    style.right = THICK;
+    style.height = THICK;
+    style[dir === "n" ? "top" : "bottom"] = -4;
+  } else {
+    style.top = THICK;
+    style.bottom = THICK;
+    style.width = THICK;
+    style[dir === "e" ? "right" : "left"] = -4;
+  }
+  return style;
+}
+
 
 /** Floating, draggable dock: the handle can be moved anywhere on screen and the spot is remembered. */
 export default function QuickToolsDock({
