@@ -191,6 +191,7 @@ function BodyGuide() {
 
 export default function BodyBuilder() {
   const { activeTheme } = useAppTheme();
+  const isMobile = useIsMobile();
   const [sex, setSex] = useState<"Male" | "Female">(readInitialSex);
   const [localOrgans, setLocalOrgans] = useState<LocalOrgan[]>([]);
   const [hidden, setHidden] = useState<string[]>(() => readHiddenLayers(sex));
