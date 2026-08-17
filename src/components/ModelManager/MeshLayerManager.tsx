@@ -197,7 +197,7 @@ export default function MeshLayerManager({ models, onMeshPartsSaved }: Props) {
       const THREE = await import("three");
       const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
       const loader = new GLTFLoader();
-      loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
+      loader.setMeshoptDecoder((typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder) as never);
       const gltf = await new Promise<any>((resolve, reject) => {
         loader.load(selectedModel.file_url!, resolve, undefined, reject);
       });

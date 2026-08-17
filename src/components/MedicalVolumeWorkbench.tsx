@@ -23,10 +23,10 @@ function syntheticVolume(): VtkImage {
 }
 
 function niftiToVtk(buffer:ArrayBuffer): VtkImage {
-  const data=nifti.isCompressed(buffer)?nifti.decompress(buffer):buffer;
+  const data=(nifti.isCompressed(buffer)?nifti.decompress(buffer):buffer) as ArrayBuffer;
   if(!nifti.isNIFTI(data)) throw new Error("קובץ NIfTI אינו תקין");
   const header=nifti.readHeader(data); const raw=nifti.readImage(header,data);
-  const dims=[header.dims[1],header.dims[2],header.dims[3]]; const count=dims[0]*dims[1]*dims[2];
+  const dims=[header.dims[1],header.dims[2],header.dims[3]] as [number,number,number]; const count=dims[0]*dims[1]*dims[2];
   let source: ArrayLike<number>;
   if(header.numBitsPerVoxel===8) source=new Uint8Array(raw); else if(header.numBitsPerVoxel===16) source=new Int16Array(raw); else source=new Float32Array(raw);
   const values=new Float32Array(count); for(let i=0;i<count;i++) values[i]=Number(source[i]||0);

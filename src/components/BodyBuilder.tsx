@@ -5,7 +5,9 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three-stdlib";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three/examples/jsm/controls/OrbitControls.js";
-import { Activity, ArrowRight, Bookmark, Box, Dna, Eye, EyeOff, FolderOpen, Focus, Layers3, Menu, Move, Network, Plus, Ruler, Rotate3D, RotateCcw, Save, Scissors, ShieldCheck, Sparkles, Trash2, Undo2, Upload, X } from "lucide-react";
+import { Activity, ArrowRight, Bookmark, Box, Dna, Eye, EyeOff, FolderOpen, Focus, Layers3, Menu, Minus, Move, Network, Plus, Ruler, Rotate3D, RotateCcw, Save, Scissors, ShieldCheck, Sparkles, Trash2, Undo2, Upload, X } from "lucide-react";
+import QuickToolsDock from "@/components/QuickToolsDock";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Link } from "react-router-dom";
 import { BODY_REFERENCE_LAYERS, FEMALE_BODY_REFERENCE_LAYERS } from "@/data/bodyReferenceLayers";
 import { listLocalOrgans, removeLocalOrgan, saveLocalOrgan, type LocalOrgan } from "@/lib/localOrganStore";
@@ -55,7 +57,7 @@ const BODY_LAYER_INFO_HE: Record<string, { summary: string; facts: string[] }> =
 };
 
 const configureLocalGLTFLoader = (loader: GLTFLoader) => {
-  loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
+  loader.setMeshoptDecoder((typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder) as never);
 };
 
 class LayerErrorBoundary extends Component<LayerErrorBoundaryProps, { failed: boolean }> {
@@ -189,6 +191,7 @@ function BodyGuide() {
 
 export default function BodyBuilder() {
   const { activeTheme } = useAppTheme();
+  const isMobile = useIsMobile();
   const [sex, setSex] = useState<"Male" | "Female">(readInitialSex);
   const [localOrgans, setLocalOrgans] = useState<LocalOrgan[]>([]);
   const [hidden, setHidden] = useState<string[]>(() => readHiddenLayers(sex));
@@ -380,10 +383,21 @@ export default function BodyBuilder() {
           <label><Eye/><input type="range" min="20" max="100" value={opacity*100} onChange={(event)=>setOpacity(Number(event.target.value)/100)} aria-label="שקיפות שכבות הגוף"/></label>
           <button onClick={resetCameraView} title="אפס מיקום ותצוגה" aria-label="אפס מיקום ותצוגה"><RotateCcw/></button>
         </div>
-        <div className="absolute bottom-24 right-5 z-20 flex items-end gap-2" dir="rtl">
-          <button className={cn("body-anatomy-trigger", (quickToolsOpen || selectionView !== "normal" || clipEnabled) && "is-active")} onClick={() => setQuickToolsOpen((value) => !value)} aria-label={quickToolsOpen ? "סגור כלים אנטומיים" : "פתח כלים אנטומיים"} aria-expanded={quickToolsOpen}><Scissors/></button>
+        <QuickToolsDock
+          isMobile={isMobile}
+          handle={({ dragging, wasDragged }) => (
+            <button
+              className={cn("body-anatomy-trigger", (quickToolsOpen || selectionView !== "normal" || clipEnabled) && "is-active")}
+              style={{ width: "100%", height: "100%", cursor: dragging ? "grabbing" : "grab" }}
+              onClick={() => { if (!wasDragged()) setQuickToolsOpen((value) => !value); }}
+              aria-label={quickToolsOpen ? "מזער כלים אנטומיים" : "פתח כלים אנטומיים"}
+              aria-expanded={quickToolsOpen}
+              title="כלים מהירים · ניתן לגרור לכל מקום"
+            ><Scissors/></button>
+          )}
+        >
           {quickToolsOpen && <section className="body-anatomy-tools" aria-label="כלים אנטומיים מהירים">
-            <header><div><strong>כלים מהירים {selected ? `· ${layers.find((layer) => layer.id === selected)?.name || ""}` : ""}</strong><small>בחר שכבה בגוף והפעל פעולה</small></div>{hiddenHistory.length > 0 && <span>{hiddenHistory.length} מוסתרים</span>}</header>
+            <header><div><strong>כלים מהירים {selected ? `· ${layers.find((layer) => layer.id === selected)?.name || ""}` : ""}</strong><small>בחר שכבה בגוף והפעל פעולה</small></div><div className="flex items-center gap-1.5">{hiddenHistory.length > 0 && <span>{hiddenHistory.length} מוסתרים</span>}<button onClick={() => setQuickToolsOpen(false)} aria-label="מזער כלים מהירים" title="מזער" className="rounded-lg border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground"><Minus size={14}/></button></div></header>
             <div className="body-anatomy-actions">
               <button disabled={!selected} className={cn(selectionView === "isolate" && "is-active")} onClick={() => setSelectionView("isolate")}><Focus/><span>בודד חלק</span></button>
               <button disabled={!selected} className={cn(selectionView === "dim" && "is-active")} onClick={() => setSelectionView("dim")}><Eye/><span>עמעם סביב</span></button>
@@ -400,7 +414,8 @@ export default function BodyBuilder() {
               <button className={cn(multiClip && "is-active")} onClick={()=>setMultiClip((value)=>!value)}>3 צירים</button>
             </div>}
           </section>}
-        </div>
+        </QuickToolsDock>
+
       </section>
     </main>
     {importOpen && <ImportOrganDialog onClose={() => setImportOpen(false)} onSaved={(organ) => { setLocalOrgans((items)=>[...items,organ]); setImportOpen(false); }} />}

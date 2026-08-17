@@ -37,7 +37,7 @@ import type { ModelRecord } from "@/components/ModelManager/types";
 import { HUMAN_ATLAS_BY_ID } from "@/data/humanAtlasCatalog";
 
 const configureGLTFLoader = (loader: GLTFLoader) => {
-  loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
+  loader.setMeshoptDecoder((typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder) as never);
 };
 
 // ─── Model definitions ───────────────────────────────────────────────────────
