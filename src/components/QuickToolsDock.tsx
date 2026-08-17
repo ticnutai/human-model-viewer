@@ -104,11 +104,24 @@ export default function QuickToolsDock({
             [openLeft ? "right" : "left"]: 0,
             [openUp ? "bottom" : "top"]: size + 10,
             direction: "rtl",
+            width: box?.w,
+            height: box?.h,
           } as React.CSSProperties}
         >
-          {children}
+          <div className="relative h-full w-full overflow-auto">{children}</div>
+          {HANDLES.map(dir => (
+            <div
+              key={dir}
+              role="separator"
+              aria-label={`שינוי גודל ${dir}`}
+              onPointerDown={event => startResize(event, dir)}
+              className="absolute z-[2] rounded-full bg-transparent hover:bg-primary/25"
+              style={handleStyle(dir)}
+            />
+          ))}
         </div>
       )}
+
     </div>
   );
 }
