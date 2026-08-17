@@ -57,7 +57,7 @@ const BODY_LAYER_INFO_HE: Record<string, { summary: string; facts: string[] }> =
 };
 
 const configureLocalGLTFLoader = (loader: GLTFLoader) => {
-  loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
+  loader.setMeshoptDecoder((typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder) as never);
 };
 
 class LayerErrorBoundary extends Component<LayerErrorBoundaryProps, { failed: boolean }> {

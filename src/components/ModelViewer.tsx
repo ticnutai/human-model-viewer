@@ -230,7 +230,7 @@ function SearchableModelPicker({ lang, cloudModels, modelUrl, bodyModelUrl, onSe
   );
 }
 const configureGLTFLoader = (loader: GLTFLoader) => {
-  loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
+  loader.setMeshoptDecoder((typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder) as never);
   loader.register(() => ({ name: "KHR_materials_pbrSpecularGlossiness" } as never));
 };
 
