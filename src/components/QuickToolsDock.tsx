@@ -50,6 +50,16 @@ export default function QuickToolsDock({
   const size = isMobile ? 44 : 50;
   const [pos, setPos] = useState<Position | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [box, setBox] = useState<Box | null>(() => {
+    try {
+      const raw = localStorage.getItem(SIZE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Box;
+        if (Number.isFinite(parsed?.w) && Number.isFinite(parsed?.h)) return parsed;
+      }
+    } catch { /* ignore */ }
+    return null;
+  });
   const draggedRef = useRef(false);
   const offsetRef = useRef<Position>({ x: 0, y: 0 });
 
