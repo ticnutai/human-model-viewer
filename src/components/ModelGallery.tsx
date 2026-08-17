@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { memo, useState, useMemo, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { getOrganInfoForMesh, type MeshOrganInfo } from "./ModelManager/utils";
 import { loadCloudLibrary } from "@/lib/cloudModelRepository";
@@ -99,7 +99,7 @@ function OrganDetailCard({ info }: { info: MeshOrganInfo }) {
   );
 }
 
-export default function ModelGallery({ onSelectModel, currentModelUrl }: ModelGalleryProps) {
+function ModelGallery({ onSelectModel, currentModelUrl }: ModelGalleryProps) {
   const [models, setModels] = useState<GalleryModel[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -494,3 +494,5 @@ export default function ModelGallery({ onSelectModel, currentModelUrl }: ModelGa
     </div>
   );
 }
+
+export default memo(ModelGallery);

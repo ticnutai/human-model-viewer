@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { readMeshMappingCache, writeMeshMappingCache } from "@/lib/localMeshMappingStore";
 
 export type CloudMeshInfo = {
   mesh_key: string;
@@ -26,8 +27,32 @@ export function useMeshMappings(modelId?: string) {
   useEffect(() => {
     let cancelled = false;
 
+    const applyRows = (rows: unknown[]) => {
+      const parsed = rows.map((row: any) => ({
+        ...row,
+        facts: typeof row.facts === "string" ? JSON.parse(row.facts) : (row.facts || {}),
+      })) as CloudMeshInfo[];
+      setAllMappings(parsed);
+      const map = new Map<string, CloudMeshInfo>();
+      parsed.forEach((mapping) => map.set(mapping.mesh_key, mapping));
+      setMappings(map);
+    };
+
     const fetchData = async () => {
       setLoading(true);
+      const cacheKey = modelId || "__all__";
+      let hasCachedRows = false;
+      try {
+        const cachedRows = await readMeshMappingCache(cacheKey);
+        if (cancelled) return;
+        if (cachedRows?.length) {
+          applyRows(cachedRows);
+          hasCachedRows = true;
+          setLoading(false);
+        }
+      } catch (error) {
+        console.warn("[MeshMappings] local cache unavailable", error);
+      }
       // Supabase/PostgREST returns at most 1,000 rows by default. Once the
       // library grew beyond that, mappings appeared and disappeared according
       // to result order. Fetch every page so all models use one complete map.
@@ -45,16 +70,10 @@ export function useMeshMappings(modelId?: string) {
       if (cancelled) return;
 
       if (!error) {
-        const parsed = data.map((row) => ({
-          ...row,
-          facts: typeof row.facts === "string" ? JSON.parse(row.facts) : (row.facts || {}),
-        })) as CloudMeshInfo[];
-
-        setAllMappings(parsed);
-
-        const map = new Map<string, CloudMeshInfo>();
-        parsed.forEach((m) => map.set(m.mesh_key, m));
-        setMappings(map);
+        applyRows(data);
+        void writeMeshMappingCache(cacheKey, data).catch(cacheError => console.warn("[MeshMappings] cache write failed", cacheError));
+      } else if (!hasCachedRows) {
+        console.warn("[MeshMappings] cloud fetch failed and no local cache is available", error);
       }
       setLoading(false);
     };

@@ -31,11 +31,15 @@ test("anatomy cutting studio exposes section planes and persists its state", asy
   await expect(page.getByText(/\d+ קבוצות · \d+ מבנים/).first()).toBeVisible({ timeout: 60_000 });
   await page.getByRole("button", { name: "סטודיו תצוגה וחתך" }).click();
   await expect(page.getByText("סטודיו תצוגה וחתך", { exact: false }).last()).toBeVisible();
+  await page.getByLabel("בהירות תצוגה").fill("65");
+  await expect(page.getByTestId("model-viewer-root")).toHaveCSS("filter", "none");
   await page.getByRole("button", { name: /חתך רוחבי/ }).click();
   await page.getByRole("button", { name: "X", exact: true }).click();
   await page.getByLabel("מיקום חתך").fill("35");
   await page.reload();
   await expect(page.getByText(/\d+ קבוצות · \d+ מבנים/).first()).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId("model-viewer-root")).toHaveAttribute("data-scene-brightness", "0.65");
+  await expect(page.getByTestId("model-viewer-root")).toHaveCSS("filter", "none");
   await page.getByRole("button", { name: "סטודיו תצוגה וחתך" }).click();
   await expect(page.getByRole("button", { name: "X", exact: true })).toHaveClass(/bg-primary/);
   await expect(page.getByLabel("מיקום חתך")).toHaveValue("35");
@@ -109,6 +113,23 @@ test("clicking an atlas organ isolates its real mesh instead of only selecting t
   await expect(page.getByRole("status")).toContainText("מסומן במודל: מסתמי הלב");
 });
 
+test("uterus knowledge opens the verified uterus layer rather than a fallopian-tube mesh", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/legacy?panel=organs");
+  await page.getByRole("button", { name: "לפי מערכת" }).click();
+  await page.getByPlaceholder("חיפוש איבר...").fill("הרחם");
+  const uterus = page.locator(".organ-card").filter({ hasText: "הרחם" }).first();
+  await expect(uterus).toBeVisible({ timeout: 60_000 });
+  await uterus.click();
+
+  const viewer = page.getByTestId("anatomy-viewer-canvas");
+  await expect(viewer).toHaveAttribute("data-model-url", /\/models\/humanatlas\/vh-f-uterus\/model\.glb/, { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-selected-mesh", "uterus");
+  await expect(viewer).toHaveAttribute("data-selection-resolved", "true", { timeout: 30_000 });
+  await expect(viewer).not.toHaveAttribute("data-model-url", /fallopian-tube/);
+  await expect(page.getByRole("status")).toContainText("מסומן במודל: הרחם");
+});
+
 test("femur and tibia list choices resolve to real meshes before highlighting", async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto("/legacy?panel=organs");
@@ -154,6 +175,19 @@ test("the studio distinguishes opened knowledge from current GLB mapping coverag
   await expect(coverage).toContainText("ממופים");
   await expect(coverage).toContainText("מזוהים/מאומתים");
   await expect(page.getByText(/נחקרו/)).toHaveCount(0);
+});
+
+test("mesh knowledge remains available from the local cache when Supabase is offline", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/legacy?panel=organs");
+  const badge = page.getByTestId("anatomy-scan-badge");
+  await expect(badge).toHaveAttribute("data-mapping-count", /[1-9]\d{2,}/, { timeout: 60_000 });
+  const onlineCount = await badge.getAttribute("data-mapping-count");
+  await page.waitForTimeout(500);
+
+  await page.route("**/rest/v1/model_mesh_mappings*", route => route.abort("internetdisconnected"));
+  await page.reload();
+  await expect(page.getByTestId("anatomy-scan-badge")).toHaveAttribute("data-mapping-count", onlineCount || "", { timeout: 30_000 });
 });
 
 test("a head structure is fitted completely instead of keeping the whole-body camera", async ({ page }) => {
@@ -294,5 +328,131 @@ test("a body click can open a lightweight information card beside the selected a
   await card.getByRole("button", { name: "פתח מידע מלא" }).click();
   await expect(drawer).toBeVisible();
   await expect(card).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test("GLB studio keeps its tab open while the floating card offers quick actions and rotation modes", async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.addInitScript(() => {
+    localStorage.setItem("niflaot-selection-presentation", "popover");
+    localStorage.setItem("niflaot-viewer-interaction-mode", "select");
+  });
+  await page.goto("/legacy?panel=models&tool=models");
+
+  const drawer = page.locator(".sidebar-panel");
+  const studioNav = page.getByRole("navigation", { name: "כלי סטודיו GLB" });
+  const libraryTab = studioNav.getByRole("button", { name: "ספרייה", exact: true });
+  const viewer = page.getByTestId("anatomy-viewer-canvas");
+  await expect(drawer).toBeVisible({ timeout: 60_000 });
+  await expect(libraryTab).toHaveAttribute("aria-current", "page");
+  await expect(page.getByText(/\d+ קבוצות · \d+ מבנים/).first()).toBeVisible({ timeout: 60_000 });
+
+  const canvas = page.locator("canvas").first();
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  const cameraTargetBeforeClick = await viewer.getAttribute("data-camera-target");
+  await page.mouse.click(box!.x + box!.width * 0.48, box!.y + box!.height * 0.48);
+
+  const card = page.getByTestId("anatomy-selection-popover");
+  await expect(card).toBeVisible({ timeout: 10_000 });
+  await expect(drawer).toBeVisible();
+  await expect(libraryTab).toHaveAttribute("aria-current", "page");
+  await expect(card.getByRole("group", { name: "פעולות מהירות בכרטיס הצף" })).toBeVisible();
+  await expect(viewer).toHaveAttribute("data-focus-selected", "false");
+  await expect(viewer).toHaveAttribute("data-camera-auto-focus", "false");
+  await expect(viewer).toHaveAttribute("data-camera-motion", "settled");
+  await expect(viewer).toHaveAttribute("data-camera-target", cameraTargetBeforeClick || "");
+  await card.getByRole("button", { name: "מקד מצלמה באיבר" }).click();
+  await expect(viewer).toHaveAttribute("data-camera-auto-focus", "true");
+  await expect(viewer).toHaveAttribute("data-camera-motion", "settled", { timeout: 10_000 });
+  await expect.poll(async () => await viewer.getAttribute("data-camera-target")).not.toBe(cameraTargetBeforeClick || "");
+  await card.getByRole("button", { name: "עמעם סביב האיבר" }).click();
+  await expect(viewer).toHaveAttribute("data-focus-selected", "true");
+
+  const selectedMesh = await viewer.getAttribute("data-selected-mesh");
+  await card.getByRole("button", { name: "סובב את הגוף" }).click();
+  await expect(card).toBeHidden();
+  await expect(viewer).toHaveAttribute("data-interaction-mode", "rotate");
+  await page.mouse.click(box!.x + box!.width * 0.48, box!.y + box!.height * 0.48);
+  await expect(viewer).toHaveAttribute("data-selected-mesh", selectedMesh || "");
+  await expect(card).toBeHidden();
+
+  await page.getByRole("button", { name: "עבור למצב בחירת איברים" }).click();
+  await expect(viewer).toHaveAttribute("data-interaction-mode", "select");
+  await page.keyboard.down("Control");
+  await expect(viewer).toHaveAttribute("data-interaction-mode", "rotate-temporary");
+  await page.mouse.click(box!.x + box!.width * 0.48, box!.y + box!.height * 0.48);
+  await expect(card).toBeHidden();
+  await page.keyboard.up("Control");
+  await expect(viewer).toHaveAttribute("data-interaction-mode", "select");
+  expect(errors).toEqual([]);
+});
+
+test("repeated body clicks select many regions without moving or washing out the model", async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.addInitScript(() => {
+    localStorage.setItem("niflaot-selection-presentation", "popover");
+    localStorage.setItem("niflaot-viewer-interaction-mode", "select");
+  });
+  await page.goto("/legacy?panel=models&tool=models");
+  await expect(page.getByText(/\d+ קבוצות · \d+ מבנים/).first()).toBeVisible({ timeout: 60_000 });
+
+  const viewer = page.getByTestId("anatomy-viewer-canvas");
+  const canvas = page.locator("canvas").first();
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  const originalTarget = await viewer.getAttribute("data-camera-target");
+  const selectedMeshes = new Set<string>();
+  const clickLatencies: number[] = [];
+  const points = [
+    [0.48, 0.14], [0.48, 0.29], [0.48, 0.42], [0.48, 0.56],
+    [0.44, 0.45], [0.52, 0.63], [0.52, 0.78],
+  ];
+
+  for (const [x, y] of points) {
+    const clickStartedAt = Date.now();
+    await page.mouse.click(box!.x + box!.width * x, box!.y + box!.height * y);
+    const card = page.getByTestId("anatomy-selection-popover");
+    if (await card.isVisible()) {
+      clickLatencies.push(Date.now() - clickStartedAt);
+      const selected = await viewer.getAttribute("data-selected-mesh");
+      if (selected) {
+        selectedMeshes.add(selected);
+        const cardText = await card.innerText();
+        const relevantLabels: Array<[RegExp, RegExp]> = [
+          [/frontal|forehead/i, /מצח/],
+          [/presternal|sternal/i, /קדמת החזה/],
+          [/hypogastric/i, /בטן התחתונה/],
+          [/urogenital/i, /אגן.*שתן.*רבייה/],
+          [/forearm|antebrachial/i, /אמה/],
+          [/femoral|thigh/i, /ירך/],
+          [/lower limb|leg/i, /שוק|רגל/],
+        ];
+        const expectedLabel = relevantLabels.find(([meshPattern]) => meshPattern.test(selected))?.[1];
+        if (expectedLabel) expect(cardText).toMatch(expectedLabel);
+        expect(cardText).not.toMatch(/אבי העורקים|המעי הדק/);
+      }
+      await expect(viewer).toHaveAttribute("data-camera-auto-focus", "false");
+      await expect(viewer).toHaveAttribute("data-camera-motion", "settled");
+      await expect(viewer).toHaveAttribute("data-camera-target", originalTarget || "");
+      await expect(viewer).toHaveAttribute("data-focus-selected", "false");
+      await card.getByRole("button", { name: "סגור מידע מהיר" }).click();
+    }
+  }
+
+  expect(selectedMeshes.size).toBeGreaterThanOrEqual(4);
+  // Some coordinates intentionally land in gaps between limbs. Every click
+  // that actually hits a mesh must surface its card promptly.
+  expect(clickLatencies.length).toBeGreaterThanOrEqual(4);
+  const orderedLatencies = [...clickLatencies].sort((a, b) => a - b);
+  const medianLatency = orderedLatencies[Math.floor(orderedLatencies.length / 2)];
+  // Shader warm-up can make one first selection slower under SwiftShader, but
+  // ordinary consecutive selections must remain responsive.
+  expect(medianLatency, `click latencies: ${clickLatencies.join(", ")}ms`).toBeLessThan(1_200);
+  expect(Math.max(...clickLatencies), `click latencies: ${clickLatencies.join(", ")}ms`).toBeLessThan(2_500);
   expect(errors).toEqual([]);
 });

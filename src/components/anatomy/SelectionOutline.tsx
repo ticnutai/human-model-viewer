@@ -37,7 +37,7 @@ export default function SelectionOutline({
         visibleEdgeColor={visibleEdgeColor}
         hiddenEdgeColor={0xffffff}
         edgeStrength={6}
-        pulseSpeed={0.25}
+        pulseSpeed={0}
         blur
         xRay
       />

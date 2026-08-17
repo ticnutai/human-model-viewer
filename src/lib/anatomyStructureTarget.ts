@@ -38,6 +38,12 @@ export function resolveAnatomyStructureTarget(
   const currentMesh = currentMeshNames.find(meshName => meshMatchesAnatomyKey(meshName, anatomyKey));
   if (currentMesh) return { modelUrl: currentModelUrl, meshName: currentMesh, source: "current-model" };
 
+  // Prefer the atlas layer whose identity is the requested organ. Generic
+  // synonyms such as "uterine" must not make a uterus request jump to the
+  // first fallopian-tube sub-mesh before the verified uterus layer is checked.
+  const organLayer = assets.find(asset => stable(asset.id).endsWith(stable(anatomyKey)) && asset.meshNames.length > 0);
+  if (organLayer) return { modelUrl: organLayer.modelUrl, meshName: anatomyKey, source: "verified-atlas" };
+
   const candidates = assets.flatMap(asset => asset.meshNames
     .filter(meshName => meshMatchesAnatomyKey(meshName, anatomyKey))
     .map(meshName => ({ asset, meshName })));
@@ -65,8 +71,7 @@ export function resolveAnatomyStructureTarget(
 
   // Some atlas layers represent one whole organ through several sub-meshes.
   // Keeping the canonical key lets Model select every sub-mesh detected as it.
-  const organLayer = assets.find(asset => stable(asset.id).endsWith(stable(anatomyKey)) && asset.meshNames.length > 0);
-  return organLayer ? { modelUrl: organLayer.modelUrl, meshName: anatomyKey, source: "verified-atlas" } : null;
+  return null;
 }
 
 export function sameAnatomyModel(a: string, b: string): boolean {

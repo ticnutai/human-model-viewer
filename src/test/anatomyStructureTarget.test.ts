@@ -46,4 +46,24 @@ describe("verified anatomy structure targeting", () => {
       source: "verified-atlas",
     });
   });
+
+  it("prefers the verified uterus layer over a fallopian-tube sub-mesh", () => {
+    const femaleAssets = [
+      {
+        id: "vh-f-fallopian-tube-right",
+        modelUrl: "/models/humanatlas/vh-f-fallopian-tube-right/model.glb",
+        meshNames: ["VH_F_uterine_tube_infundibulum_R"],
+      },
+      {
+        id: "vh-f-uterus",
+        modelUrl: "/models/humanatlas/vh-f-uterus/model.glb",
+        meshNames: ["VH_F_body_of_uterus", "VH_F_fundus_of_uterus", "VH_F_cervix"],
+      },
+    ];
+    expect(resolveAnatomyStructureTarget("uterus", "/body.glb", ["Skin"], femaleAssets)).toEqual({
+      modelUrl: "/models/humanatlas/vh-f-uterus/model.glb",
+      meshName: "uterus",
+      source: "verified-atlas",
+    });
+  });
 });

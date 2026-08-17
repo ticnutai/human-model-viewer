@@ -22,6 +22,12 @@ describe("Hebrew anatomical structure knowledge", () => {
     expect(liver.function).toContain("וריד השער");
   });
 
+  it("identifies bronchial cartilage as respiratory cartilage rather than bone", () => {
+    const item = getStructureKnowledge("VH_M_cartilage_of_the_main_bronchus_L", "lungs");
+    expect(item.nameHe).toBe("סחוס סימפוני — שמאל");
+    expect(item.description).toContain("עץ דרכי האוויר");
+  });
+
   it("turns Allen brain mesh labels into readable Hebrew", () => {
     const item = getStructureKnowledge("Allen_precentral_gyrus_L", "brain");
     expect(item.nameHe).toBe("הפיתול הקדם־מרכזי — שמאל");

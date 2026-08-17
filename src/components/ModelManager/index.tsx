@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from "react";
+import { memo, useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,7 @@ interface ModelManagerProps {
   theme?: any;
 }
 
-export default function ModelManager({ onSelectModel, currentModelUrl }: ModelManagerProps) {
+function ModelManager({ onSelectModel, currentModelUrl }: ModelManagerProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [models, setModels] = useState<ModelRecord[]>([]);
@@ -1206,3 +1206,8 @@ export default function ModelManager({ onSelectModel, currentModelUrl }: ModelMa
     </div>
   );
 }
+
+// The GLB library is large and independent from a mesh highlight. Without
+// memoization, every click on the 3D body rebuilt dozens of model cards before
+// the floating selection card could paint.
+export default memo(ModelManager);

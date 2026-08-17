@@ -100,7 +100,9 @@ const cleanKey = (name: string) => stripName(name).replace(/_[LR](?:_[a-z])?$/, 
 const englishName = (name: string) => stripName(name).replace(/_[LR]$/, side => side === "_L" ? " — left" : " — right").replace(/_/g, " ").replace(/\s+/g, " ").trim();
 
 function lungName(key: string, side: string) {
-  const kind = key.includes("bronchopulmonary_segment") ? "מקטע ברונכופולמונרי" : key.includes("bronchus") ? "סימפון" : key.includes("cartilage") ? "סחוס סימפוני" : key.includes("hilum") ? "שער הריאה" : "מבנה בריאה";
+  // A bronchial cartilage contains both "cartilage" and "bronchus". Keep
+  // the more specific tissue name ahead of the generic airway match.
+  const kind = key.includes("bronchopulmonary_segment") ? "מקטע ברונכופולמונרי" : key.includes("cartilage") ? "סחוס סימפוני" : key.includes("bronchus") ? "סימפון" : key.includes("hilum") ? "שער הריאה" : "מבנה בריאה";
   const positions = Object.entries(POSITION_HE).filter(([token]) => key.includes(token)).map(([, value]) => value);
   return `${kind}${positions.length ? ` ${[...new Set(positions)].join("־")}` : ""}${side ? ` — ${side}` : ""}`;
 }
